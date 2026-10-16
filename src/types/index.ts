@@ -176,7 +176,7 @@ export interface GamingZone {
   id: string;
   name: string;
   subtitle: string;
-  type: 'ps5' | 'pool' | 'foosball' | 'boardgames';
+  type: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
   image: string;
   specs: string[];
   description: string;

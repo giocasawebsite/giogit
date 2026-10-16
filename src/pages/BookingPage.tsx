@@ -3,6 +3,7 @@ import { PageRoute } from '../types';
 import { bookingApi, GamingResource, TimeSlot } from '../services/bookingApi';
 import { useOrderCart } from '../context/OrderCartContext';
 import { businessConfig } from '../data/businessConfig';
+import { calculateBookingPrice, getPricingDescription } from '../utils/pricing';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
@@ -144,7 +145,12 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
   // Calculate dynamic price
   const calculateTotal = (): number => {
     if (!selectedResource) return 0;
-    return Math.round((selectedResource.ratePerHour * durationMinutes) / 60);
+    return calculateBookingPrice(
+      selectedResource.category,
+      durationMinutes,
+      numberOfPeople,
+      selectedResource.ratePerHour
+    );
   };
 
   // Format 24h to 12h
@@ -460,7 +466,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                               />
                               <div className="absolute top-2.5 left-2.5 flex items-center gap-2">
                                 <span className="px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[11px] font-mono font-bold text-brand-gold shadow-md">
-                                  ₹{res.ratePerHour} / hour
+                                  {getPricingDescription(res.category)}
                                 </span>
                               </div>
 
@@ -612,7 +618,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                         <span>2. Select Duration</span>
                       </label>
                       <span className="text-xs font-mono text-brand-gold font-bold">
-                        Hourly Rate: ₹{selectedResource?.ratePerHour}/hr
+                        {selectedResource ? getPricingDescription(selectedResource.category) : 'Select Station'}
                       </span>
                     </div>
 
@@ -624,7 +630,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                         { mins: 120, label: '2 Hours', badge: 'Championship' },
                       ].map((opt) => {
                         const isSelected = durationMinutes === opt.mins;
-                        const cost = selectedResource ? Math.round((selectedResource.ratePerHour * opt.mins) / 60) : 0;
+                        const cost = selectedResource
+                          ? calculateBookingPrice(selectedResource.category, opt.mins, numberOfPeople, selectedResource.ratePerHour)
+                          : 0;
 
                         return (
                           <button

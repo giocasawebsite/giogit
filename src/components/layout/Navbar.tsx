@@ -92,11 +92,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             aria-label="GioCasa Home"
             title="GioCasa Home"
           >
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-brand-surfaceElevated border border-brand-border group-hover:border-brand-terracotta transition-colors">
-              <span className="font-serif text-lg font-bold text-brand-cream group-hover:text-brand-terracotta transition-colors">
-                G
-              </span>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-brand-terracotta animate-pulse" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-brand-surfaceElevated border border-brand-border/80 group-hover:border-brand-terracotta overflow-hidden shadow-sm transition-all duration-300">
+              <img
+                src="/assets/giocasa_logo_circle.png"
+                alt="GioCasa Logo"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-terracotta border-2 border-brand-dark animate-pulse" />
             </div>
             <div>
               <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-brand-cream block leading-none">
@@ -189,8 +191,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
         <div className="fixed inset-0 z-50 bg-brand-dark/98 backdrop-blur-xl flex flex-col justify-between p-6 overflow-y-auto animate-fade-in sm:hidden">
           <div className="flex items-center justify-between pb-6 border-b border-brand-border">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-brand-surfaceElevated border border-brand-border flex items-center justify-center">
-                <span className="font-serif font-bold text-brand-cream">G</span>
+              <div className="w-9 h-9 rounded-full bg-brand-surfaceElevated border border-brand-border/80 overflow-hidden flex items-center justify-center shadow-sm">
+                <img
+                  src="/assets/giocasa_logo_circle.png"
+                  alt="GioCasa Logo"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="font-serif text-xl font-bold tracking-tight text-brand-cream">
                 GIOCASA

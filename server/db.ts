@@ -16,6 +16,7 @@ import {
   TournamentRegistrationStatus,
 } from './types';
 import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/timezone';
+import { calculateBookingPrice } from './utils/pricing';
 import { INITIAL_TOURNAMENTS, INITIAL_TOURNAMENT_RESULTS, INITIAL_HALL_OF_FAME } from './initialTournaments';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,7 +30,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 1 (4K 120Hz)',
     category: 'ps5',
     zoneId: 'ps5-arena',
-    ratePerHour: 149,
+    ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
@@ -44,7 +45,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 2 (4K 120Hz)',
     category: 'ps5',
     zoneId: 'ps5-arena',
-    ratePerHour: 149,
+    ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
@@ -59,7 +60,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 3 (Squad Lounge)',
     category: 'ps5',
     zoneId: 'ps5-arena',
-    ratePerHour: 149,
+    ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
@@ -74,7 +75,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'Hot-Shot 8-Ball Slate Championship Pool',
     category: 'pool',
     zoneId: 'hotshot-pool',
-    ratePerHour: 199,
+    ratePerHour: 200,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 2, max: 6 },
@@ -83,6 +84,21 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     specs: ['Italian Slate Bed', 'Aramith Pro Ball Set', 'Precision Ash Cues', 'Spectator Lounge Seating'],
     image: '/assets/real/pool_table.png',
     order: 4,
+  },
+  {
+    id: 'racing-station-1',
+    name: 'Pro Racing Simulator Rig (Force Feedback)',
+    category: 'racing',
+    zoneId: 'racing-arena',
+    ratePerHour: 200,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 180,
+    playersCapacity: { min: 1, max: 4 },
+    active: true,
+    isMaintenance: false,
+    specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
+    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    order: 5,
   },
 ];
 
@@ -578,16 +594,22 @@ class DatabaseService {
         };
       }
 
-      // Calculate additional amount
+      // Calculate updated total amount
       const resource = await this.getResourceById(booking.resourceId);
-      const ratePerHour = resource?.ratePerHour || 149;
-      const additionalCost = Math.round((ratePerHour * additionalMinutes) / 60);
+      const category = resource?.category || booking.category || 'ps5';
+      const newDuration = booking.durationMinutes + additionalMinutes;
+      const newTotal = calculateBookingPrice(
+        category,
+        newDuration,
+        booking.numberOfPeople,
+        resource?.ratePerHour || 150
+      );
 
       const updatedBooking: Booking = {
         ...booking,
         endTime: newEndTime,
-        durationMinutes: booking.durationMinutes + additionalMinutes,
-        totalAmount: booking.totalAmount + additionalCost,
+        durationMinutes: newDuration,
+        totalAmount: newTotal,
         updatedAt: new Date().toISOString(),
       };
 

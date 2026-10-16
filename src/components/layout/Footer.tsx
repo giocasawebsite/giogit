@@ -40,19 +40,30 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           
           {/* Brand & Editorial Mission (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-brand-terracotta" />
                 <span className="text-[10px] uppercase tracking-[0.25em] text-brand-gold font-semibold">
                   Ayodhya • India
                 </span>
               </div>
-              <h2 className="font-serif text-4xl sm:text-5xl font-bold tracking-tight text-brand-cream">
-                GIOCASA
-              </h2>
-              <p className="font-italic-accent text-xl text-brand-terracotta italic">
-                {businessConfig.tagline}
-              </p>
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-full bg-brand-surfaceElevated border border-brand-border/80 overflow-hidden shrink-0 shadow-md">
+                  <img
+                    src="/assets/giocasa_logo_circle.png"
+                    alt="GioCasa Logo"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-brand-cream leading-tight">
+                    GIOCASA
+                  </h2>
+                  <p className="font-italic-accent text-base sm:text-lg text-brand-terracotta italic leading-tight">
+                    {businessConfig.tagline}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <p className="text-brand-subtle text-sm leading-relaxed max-w-md font-light">

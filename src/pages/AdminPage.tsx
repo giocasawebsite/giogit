@@ -3,6 +3,7 @@ import { PageRoute, RouteParams } from '../types';
 import { bookingApi, AdminOverviewData, Booking, GamingResource } from '../services/bookingApi';
 import { AdminTournamentsManager } from '../components/admin/AdminTournamentsManager';
 import { AdminHallOfFameManager } from '../components/admin/AdminHallOfFameManager';
+import { getPricingDescription } from '../utils/pricing';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -663,8 +664,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, adminTab, admi
 
                   {/* Maintenance Toggle Button */}
                   <div className="pt-4 mt-3 border-t border-brand-border/40 flex items-center justify-between text-xs">
-                    <span className="font-mono text-brand-subtle">
-                      Rate: ₹{matchedResource?.ratePerHour}/hr
+                    <span className="font-mono text-brand-subtle text-[11px]">
+                      {matchedResource ? getPricingDescription(matchedResource.category) : 'Standard Rate'}
                     </span>
 
                     {matchedResource && (

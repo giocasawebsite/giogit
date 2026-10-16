@@ -7,7 +7,7 @@ export const gamingZones: GamingZone[] = [
     subtitle: 'Ultra-low Latency • 4K 120Hz Displays • DualSense Haptics',
     type: 'ps5',
     image: '/assets/real/ps5_setup.png',
-    ratePerHour: '₹149 / hour per controller',
+    ratePerHour: '₹150 / hr (Single) • ₹250 / hr (Double)',
     playersCapacity: '1 - 4 Players per Station',
     description: 'Immerse yourself in next-gen console gaming on dedicated large-screen 4K HDR displays with high-speed response, surround sound, and ergonomic lounge seating.',
     specs: [
@@ -40,7 +40,7 @@ export const gamingZones: GamingZone[] = [
     subtitle: 'Precision Slate Bed • Premium Green Baize • Custom Cue Sets',
     type: 'pool',
     image: '/assets/real/pool_table.png',
-    ratePerHour: '₹199 / hour per table',
+    ratePerHour: '₹200 / hr • ₹120 / 30 mins',
     playersCapacity: '2 - 6 Players',
     description: 'Step up to our tournament-grade Hot-Shot slate pool table set under dedicated warm directional canopy lighting. Ideal for casual rounds with friends or high-stakes trick-shot showdowns.',
     specs: [
@@ -53,6 +53,35 @@ export const gamingZones: GamingZone[] = [
       'Official WPA 8-ball & 9-ball rules or casual house rules',
       'Regular Friday Night Pool Knockout brackets',
       'Coaching tips for bank shots, spin control, and snooker defense'
+    ]
+  },
+  {
+    id: 'racing-arena',
+    name: 'Pro Racing Simulator Cockpit',
+    subtitle: 'Force Feedback Steering • Curved Cockpit Display • High-Speed Sim Physics',
+    type: 'racing',
+    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    ratePerHour: '₹200 / hr (+₹100 per extra player)',
+    playersCapacity: '1 - 4 Drivers',
+    description: 'Feel every turn, curb and rumble with authentic Logitech force-feedback steering wheels, load-cell pedals and custom GT bucket racing seats.',
+    specs: [
+      'Logitech G-Series Force Feedback Steering & Shifter',
+      'Precision Dual-Pedal Racing Kit with Anti-Slip Base',
+      'Ergonomic GT Cockpit Bucket Racing Seat',
+      'Curved High Refresh-Rate Cockpit Display with Spatial Sound'
+    ],
+    popularGames: [
+      'Gran Turismo 7',
+      'F1 24 Championship Edition',
+      'Forza Horizon 5 & Motorsport',
+      'Assetto Corsa Competizione',
+      'Need for Speed Unbound',
+      'Dirt Rally 2.0'
+    ],
+    highlights: [
+      'Live lap time leaderboards with weekly venue prizes',
+      'Head-to-head split-screen time trial showdowns',
+      'Coaching on racing lines, apex clipping, and brake bias'
     ]
   },
   {
@@ -112,25 +141,32 @@ export const gamingZones: GamingZone[] = [
 
 export const gamingPricingPackages = [
   {
-    name: 'Quick Match Pass',
-    price: '₹149',
+    name: 'PS5 Single Player Session',
+    price: '₹150',
     duration: '1 Hour',
-    zone: 'PS5 Single Controller or Foosball',
-    features: ['Access to full PS5 game library', 'Free high-speed WiFi', 'Order food to station']
+    zone: 'PlayStation 5 Pro Station (1 Controller)',
+    features: ['Access to full PS5 game library', 'Free high-speed WiFi', 'Food & cold coffee served to station']
   },
   {
-    name: 'The Duo Lounge Pass',
-    price: '₹349',
-    duration: '2 Hours',
-    zone: 'PS5 2-Player or 1 Hour Pool Table',
+    name: 'PlayStation Duo Rivalry',
+    price: '₹250',
+    duration: '1 Hour',
+    zone: 'PS5 2-Player Head-to-Head (2 Controllers)',
     popular: true,
-    features: ['2 Wireless controllers included', '1 Hour 8-Ball Pool or 2 Hours PS5', '10% discount on Pizza & Drinks']
+    features: ['2 DualSense wireless controllers included', 'Split-screen EA FC 25, Tekken 8 & MK1', '10% discount on Wood-Fired Pizza']
   },
   {
-    name: 'Squad Game Night Buyout',
-    price: '₹999',
-    duration: '3 Hours',
-    zone: 'All-Access (PS5 + Pool + Foosball + Board Games)',
-    features: ['Up to 6 players simultaneous access', 'Unlimited board game swaps', 'Priority table reservations', 'Complimentary snack platter']
+    name: 'Hot-Shot Slate Pool Table',
+    price: '₹200',
+    duration: '1 Hour (or ₹120 for 30m)',
+    zone: 'Tournament Slate Pool Table (Up to 6 Players)',
+    features: ['Full table access with Aramith pro balls', 'Precision ash cues & triangle rack', 'Dedicated canopy illumination & spectator seating']
+  },
+  {
+    name: 'Pro Racing Cockpit Pass',
+    price: '₹200',
+    duration: '1 Hour',
+    zone: 'Force-Feedback Sim Rig (+₹100/extra driver)',
+    features: ['High-torque force feedback steering & pedals', 'GT ergonomic cockpit bucket seat', 'Live lap time leaderboard challenge']
   }
 ];

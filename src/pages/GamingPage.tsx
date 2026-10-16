@@ -55,7 +55,7 @@ export const GamingPage: React.FC<GamingPageProps> = ({ onNavigate }) => {
         <div className="space-y-12">
           <SectionHeader
             tag="Arena Breakdown"
-            title="Four Zones of Play"
+            title="Gaming Arenas & Lounges"
             titleItalic="Choose your battlefield."
             subtitle="Equipped with top-tier hardware, tournament-standard tables, and cozy spectator banquettes."
           />

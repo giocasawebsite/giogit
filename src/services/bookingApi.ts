@@ -1,7 +1,7 @@
 export interface GamingResource {
   id: string;
   name: string;
-  category: 'ps5' | 'pool' | 'foosball' | 'boardgames';
+  category: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
   zoneId: string;
   ratePerHour: number;
   minDurationMinutes: number;
@@ -40,7 +40,7 @@ export interface Booking {
   email?: string;
   resourceId: string;
   resourceName: string;
-  category: 'ps5' | 'pool' | 'foosball' | 'boardgames';
+  category: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
   date: string;
   startTime: string;
   endTime: string;

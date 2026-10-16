@@ -3,6 +3,7 @@ import { dbService } from '../db';
 import { config } from '../config';
 import { getNowInKolkata, timeToMinutes, generateBookingId, minutesToTime, getOperatingHours } from '../utils/timezone';
 import { Booking, BookingStatus, PaymentStatus } from '../types';
+import { calculateBookingPrice } from '../utils/pricing';
 
 const router = Router();
 
@@ -195,8 +196,11 @@ router.post('/bookings', async (req: Request, res: Response) => {
     const durationMinutes = body.durationMinutes || 60;
     const startMins = timeToMinutes(body.startTime);
     const endMins = startMins + durationMinutes;
-    const endTime = minutesToTime(endMins);
-    const totalAmount = body.totalAmount !== undefined ? body.totalAmount : Math.round((resource.ratePerHour * durationMinutes) / 60);
+    const numberOfPeople = body.numberOfPeople || 1;
+    const totalAmount =
+      body.totalAmount !== undefined
+        ? body.totalAmount
+        : calculateBookingPrice(resource.category, durationMinutes, numberOfPeople, resource.ratePerHour);
 
     const booking: Booking = {
       id: generateBookingId(),

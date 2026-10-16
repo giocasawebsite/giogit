@@ -9,6 +9,7 @@ import {
   generateBookingId,
 } from '../utils/timezone';
 import { TimeSlot, Booking, CreateBookingRequest, ExtendBookingRequest } from '../types';
+import { calculateBookingPrice } from '../utils/pricing';
 
 const router = Router();
 
@@ -205,7 +206,12 @@ router.post('/', async (req: Request, res: Response) => {
     const endTime = minutesToTime(endMins);
 
     // Calculate server-verified total amount
-    const totalAmount = Math.round((resource.ratePerHour * durationMinutes) / 60);
+    const totalAmount = calculateBookingPrice(
+      resource.category,
+      durationMinutes,
+      numberOfPeople,
+      resource.ratePerHour
+    );
 
     const bookingId = generateBookingId();
     const newBooking: Booking = {

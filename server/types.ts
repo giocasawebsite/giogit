@@ -1,4 +1,4 @@
-export type ResourceCategory = 'ps5' | 'pool' | 'foosball' | 'boardgames';
+export type ResourceCategory = 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
 
 export interface GamingResource {
   id: string; // e.g. 'ps5-station-1'
