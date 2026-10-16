@@ -2,7 +2,7 @@ import React from 'react';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'terracotta' | 'gold' | 'olive' | 'dark' | 'outline';
+  variant?: 'pink' | 'orange' | 'blue' | 'charcoal' | 'terracotta' | 'gold' | 'olive' | 'dark' | 'outline';
   size?: 'sm' | 'md';
   className?: string;
 }
@@ -19,10 +19,14 @@ export const Badge: React.FC<BadgeProps> = ({
   };
 
   const variantStyles = {
-    terracotta: 'bg-brand-terracotta/15 text-brand-terracotta border border-brand-terracotta/30',
-    gold: 'bg-brand-gold/15 text-brand-gold border border-brand-gold/30',
-    olive: 'bg-brand-olive/20 text-brand-oliveLight border border-brand-olive/40',
-    dark: 'bg-brand-surfaceElevated text-brand-cream/80 border border-brand-border',
+    pink: 'bg-brand-pink/15 text-brand-pink border border-brand-pink/30',
+    orange: 'bg-brand-orange/15 text-brand-orange border border-brand-orange/30',
+    blue: 'bg-brand-blue/15 text-brand-blue border border-brand-blue/30',
+    charcoal: 'bg-brand-surfaceElevated text-brand-cream/90 border border-brand-border',
+    terracotta: 'bg-brand-orange/15 text-brand-orange border border-brand-orange/30',
+    gold: 'bg-brand-pink/15 text-brand-pink border border-brand-pink/30',
+    olive: 'bg-brand-blue/15 text-brand-blue border border-brand-blue/30',
+    dark: 'bg-brand-surfaceElevated text-brand-cream/90 border border-brand-border',
     outline: 'border border-brand-border text-brand-subtle bg-brand-surface/40',
   };
 

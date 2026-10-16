@@ -9,29 +9,45 @@ export default {
     extend: {
       colors: {
         brand: {
-          dark: '#12100E',        // Espresso Black / Deep Velvet
-          darker: '#0A0908',      // Pitch Charcoal
-          surface: '#1A1715',     // Charred Hearth Wood
-          surfaceElevated: '#24201D', // Elevated Dark Tile
-          border: 'rgba(214, 206, 190, 0.12)',
-          borderStrong: 'rgba(214, 206, 190, 0.25)',
+          charcoal: '#4B494A',        // Primary brand background, dark sections, footer, premium surfaces
+          charcoalDeep: '#343233',    // Deeper dark sections, foundation
+          pink: '#ED249B',            // Primary brand accent, key highlights, selected states, important CTAs
+          pinkHover: '#D41888',
+          palePink: '#FCE7F3',        // Subtle promotional backgrounds
+          orange: '#F9A20B',          // Food, café, warmth, dining highlights, secondary CTAs
+          orangeHover: '#E09005',
+          paleOrange: '#FFF0D5',      // Food and restaurant feature backgrounds
+          blue: '#5AA9E6',            // Gaming, tournament information, interactive details
+          blueHover: '#4695D2',
+          paleBlue: '#E7F3FC',        // Gaming and tournament feature backgrounds
+          offwhite: '#F7F4F1',        // Primary light page background
+          muted: '#777275',           // Secondary text on light surfaces
+          lightGrey: '#E8E4E2',       // Borders and separators
+
+          // Foundation mappings
+          dark: '#343233',            // Soft Charcoal
+          darker: '#252324',          // Deepest Charcoal
+          surface: '#413F40',         // Surface Charcoal
+          surfaceElevated: '#4B494A', // Primary Charcoal
+          border: 'rgba(232, 228, 226, 0.16)',
+          borderStrong: 'rgba(232, 228, 226, 0.32)',
           
-          cream: '#FBF8F3',       // Silk Cream (Primary Light)
-          creamMuted: '#F4EFEA',  // Warm Stone Light
-          creamDark: '#E8DFD3',   // Oatmeal Sand
+          cream: '#FFFFFF',           // Pure White
+          creamMuted: '#F7F4F1',      // Warm Off-White
+          creamDark: '#E8E4E2',       // Light Grey
           
-          terracotta: '#C85A32',  // Ember Terracotta Accent
-          terracottaHover: '#D46238',
-          terracottaDark: '#9F401E',
+          // Mappings for existing components
+          terracotta: '#F9A20B',      // GioCasa Orange for dining & secondary CTAs
+          terracottaHover: '#E09005',
+          terracottaDark: '#C77D00',
           
-          gold: '#C5A059',        // Burnished Brass / Trophies
-          goldMuted: '#9B7B3B',
+          gold: '#ED249B',            // GioCasa Pink for signature brand accents
+          goldMuted: '#D41888',
           
-          olive: '#53624D',       // Basil / Botanical Sage
-          oliveLight: '#7A8C74',
+          olive: '#5AA9E6',           // GioCasa Blue for gaming details
+          oliveLight: '#7ABCEB',
           
-          muted: '#8C827A',
-          subtle: '#B5ABA2',
+          subtle: '#B8B3B5',
         }
       },
       fontFamily: {
@@ -45,9 +61,14 @@ export default {
       },
       boxShadow: {
         'luxury': '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
-        'luxury-gold': '0 10px 30px -10px rgba(197, 160, 89, 0.25)',
-        'luxury-ember': '0 10px 30px -10px rgba(200, 90, 50, 0.35)',
-        'glow-subtle': '0 0 25px rgba(200, 90, 50, 0.15)',
+        'luxury-pink': '0 10px 30px -10px rgba(237, 36, 155, 0.35)',
+        'luxury-orange': '0 10px 30px -10px rgba(249, 162, 11, 0.35)',
+        'luxury-blue': '0 10px 30px -10px rgba(90, 169, 230, 0.35)',
+        'luxury-gold': '0 10px 30px -10px rgba(237, 36, 155, 0.35)',
+        'luxury-ember': '0 10px 30px -10px rgba(249, 162, 11, 0.35)',
+        'glow-subtle': '0 0 25px rgba(237, 36, 155, 0.25)',
+        'glow-orange': '0 0 25px rgba(249, 162, 11, 0.25)',
+        'glow-blue': '0 0 25px rgba(90, 169, 230, 0.25)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

@@ -148,13 +148,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
   const isWaitlist = tournament.computedStatus === 'waitlist_open';
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-pink selection:text-white">
       <div className="max-w-3xl mx-auto space-y-8">
         
         {/* Back navigation */}
         <button
           onClick={() => onNavigate('tournament-detail', { slug: tournament.slug })}
-          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-subtle hover:text-brand-cream transition-colors group"
+          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-muted hover:text-brand-pink transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Tournament Overview</span>
@@ -163,7 +163,7 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
         {/* Tournament Summary Card */}
         <div className="bg-brand-surface border border-brand-border/80 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="px-3 py-1 rounded-full bg-brand-gold/15 border border-brand-gold/30 text-[10px] font-mono text-brand-gold font-bold uppercase tracking-wider">
+            <span className="px-3 py-1 rounded-full bg-brand-blue/15 border border-brand-blue/30 text-[10px] font-mono text-brand-blue font-bold uppercase tracking-wider">
               {tournament.gameCategory.toUpperCase()} • {tournament.format}
             </span>
 
@@ -178,24 +178,24 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
             </span>
           </div>
 
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-brand-cream">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white">
             {tournament.title}
           </h1>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono pt-2 border-t border-brand-border/50">
             <div>
-              <span className="text-brand-subtle text-[10px] uppercase block">Event Date</span>
-              <strong className="text-brand-cream">{tournament.startDate} • {tournament.startTime} IST</strong>
+              <span className="text-brand-muted text-[10px] uppercase block">Event Date</span>
+              <strong className="text-white">{tournament.startDate} • {tournament.startTime} IST</strong>
             </div>
 
             <div>
-              <span className="text-brand-subtle text-[10px] uppercase block">Venue</span>
-              <strong className="text-brand-cream line-clamp-1">{tournament.venue}</strong>
+              <span className="text-brand-muted text-[10px] uppercase block">Venue</span>
+              <strong className="text-white line-clamp-1">{tournament.venue}</strong>
             </div>
 
             <div>
-              <span className="text-brand-subtle text-[10px] uppercase block">Entry Fee</span>
-              <strong className="text-brand-gold">
+              <span className="text-brand-muted text-[10px] uppercase block">Entry Fee</span>
+              <strong className="text-brand-orange">
                 {tournament.entryFeePaise === 0 ? 'Free Entry' : `₹${tournament.entryFeePaise / 100}`}
               </strong>
             </div>
@@ -214,10 +214,10 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
         {/* Registration Form */}
         <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6">
           <div className="border-b border-brand-border/60 pb-4 space-y-1">
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-white">
               Contender Registration
             </h2>
-            <p className="text-xs text-brand-subtle font-light">
+            <p className="text-xs text-brand-muted font-light">
               Enter your accurate details for tournament brackets and venue check-in.
             </p>
           </div>
@@ -234,8 +234,8 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
             {/* Primary Registrant Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
-                  Full Name <span className="text-brand-terracotta">*</span>
+                <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
+                  Full Name <span className="text-brand-pink">*</span>
                 </label>
                 <input
                   type="text"
@@ -243,13 +243,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                   placeholder="e.g. Aman Verma"
                   value={participantName}
                   onChange={(e) => setParticipantName(e.target.value)}
-                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream focus:outline-none focus:border-brand-terracotta"
+                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-pink"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
-                  Mobile Number (WhatsApp) <span className="text-brand-terracotta">*</span>
+                <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
+                  Mobile Number (WhatsApp) <span className="text-brand-pink">*</span>
                 </label>
                 <input
                   type="tel"
@@ -257,15 +257,15 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                   placeholder="e.g. 9876543210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream font-mono focus:outline-none focus:border-brand-terracotta"
+                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-brand-pink"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
-                  Email Address {tournament.requiredFields.includes('email') && <span className="text-brand-terracotta">*</span>}
+                <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
+                  Email Address {tournament.requiredFields.includes('email') && <span className="text-brand-pink">*</span>}
                 </label>
                 <input
                   type="email"
@@ -273,13 +273,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                   placeholder="contender@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream focus:outline-none focus:border-brand-terracotta"
+                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-pink"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
-                  In-Game Username / PSN ID {tournament.requiredFields.includes('inGameId') && <span className="text-brand-terracotta">*</span>}
+                <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
+                  In-Game Username / PSN ID {tournament.requiredFields.includes('inGameId') && <span className="text-brand-pink">*</span>}
                 </label>
                 <input
                   type="text"
@@ -287,7 +287,7 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                   placeholder="e.g. Striker_Ayodhya"
                   value={inGameId}
                   onChange={(e) => setInGameId(e.target.value)}
-                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream font-mono focus:outline-none focus:border-brand-terracotta"
+                  className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-brand-pink"
                 />
               </div>
             </div>
@@ -295,13 +295,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
             {/* Team Tournament Fields */}
             {tournament.teamType === 'team' && (
               <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-4">
-                <span className="text-xs font-mono uppercase text-brand-gold font-bold block">
+                <span className="text-xs font-mono uppercase text-brand-blue font-bold block">
                   Team Contender Information
                 </span>
 
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
-                    Team Name <span className="text-brand-terracotta">*</span>
+                  <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
+                    Team Name <span className="text-brand-pink">*</span>
                   </label>
                   <input
                     type="text"
@@ -309,13 +309,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                     placeholder="e.g. Ayodhya Dynamos"
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
-                    className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream focus:outline-none focus:border-brand-gold"
+                    className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-blue"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
+                    <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
                       Teammate 2 Full Name
                     </label>
                     <input
@@ -323,12 +323,12 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                       placeholder="Teammate name"
                       value={teammate1Name}
                       onChange={(e) => setTeammate1Name(e.target.value)}
-                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream focus:outline-none focus:border-brand-gold"
+                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-blue"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
+                    <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
                       Teammate 2 Phone
                     </label>
                     <input
@@ -336,7 +336,7 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                       placeholder="Teammate phone"
                       value={teammate1Phone}
                       onChange={(e) => setTeammate1Phone(e.target.value)}
-                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-brand-blue"
                     />
                   </div>
                 </div>
@@ -345,7 +345,7 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
 
             {/* Additional Notes */}
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle block mb-1.5">
+              <label className="text-xs font-mono uppercase tracking-wider text-brand-muted block mb-1.5">
                 Special Requests or Notes (Optional)
               </label>
               <textarea
@@ -353,7 +353,7 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                 placeholder="Controller preference, preferred seat or special requirements..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-brand-cream focus:outline-none focus:border-brand-terracotta"
+                className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-pink"
               />
             </div>
 
@@ -365,9 +365,9 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
                   required
                   checked={rulesAccepted}
                   onChange={(e) => setRulesAccepted(e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded border-brand-border text-brand-terracotta focus:ring-brand-terracotta bg-brand-surfaceElevated cursor-pointer"
+                  className="mt-1 w-4 h-4 rounded border-brand-border text-brand-pink focus:ring-brand-pink bg-brand-surfaceElevated cursor-pointer"
                 />
-                <span className="text-xs text-brand-subtle leading-relaxed group-hover:text-brand-cream transition-colors">
+                <span className="text-xs text-brand-muted leading-relaxed group-hover:text-white transition-colors">
                   I agree to abide by the GioCasa Arena competitive rules, respect fellow contenders and staff, and arrive on time. I understand entry fees are settled at venue check-in.
                 </span>
               </label>
@@ -375,15 +375,15 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
 
             {/* Submit Button */}
             <div className="pt-4 border-t border-brand-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs font-mono text-brand-subtle flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-brand-gold" />
+              <div className="text-xs font-mono text-brand-muted flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-brand-blue" />
                 <span>Private & secure registration reference generated on submit.</span>
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-bold text-xs uppercase tracking-wider transition-all shadow-luxury-ember hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-bold text-xs uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting
                   ? 'Reserving Slot...'

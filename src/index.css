@@ -3,14 +3,31 @@
 @tailwind components;
 @tailwind utilities;
 
+@config "../tailwind.config.js";
+
 @layer base {
   :root {
-    --bg-dark: #12100E;
-    --bg-darker: #0A0908;
-    --bg-surface: #1A1715;
-    --color-cream: #FBF8F3;
-    --color-terracotta: #C85A32;
-    --color-gold: #C5A059;
+    /* GioCasa Official Design Tokens */
+    --brand-charcoal: #4B494A;
+    --brand-charcoal-deep: #343233;
+    --brand-pink: #ED249B;
+    --brand-orange: #F9A20B;
+    --brand-blue: #5AA9E6;
+    --brand-white: #FFFFFF;
+    --brand-offwhite: #F7F4F1;
+    --brand-muted: #777275;
+    --brand-border: #E8E4E2;
+    --brand-pale-pink: #FCE7F3;
+    --brand-pale-orange: #FFF0D5;
+    --brand-pale-blue: #E7F3FC;
+
+    /* Semantic surface mapping */
+    --bg-dark: #343233;
+    --bg-darker: #252324;
+    --bg-surface: #413F40;
+    --color-cream: #FFFFFF;
+    --color-terracotta: #F9A20B;
+    --color-gold: #ED249B;
   }
 
   body {
@@ -27,14 +44,14 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0A0908;
+    background: #252324;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2C2622;
+    background: #4B494A;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #C85A32;
+    background: #ED249B;
   }
 }
 
@@ -53,31 +70,49 @@
   }
 
   /* Editorial gradient text */
+  .text-gradient-pink {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FCE7F3 40%, #ED249B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-orange {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF0D5 40%, #F9A20B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #FFFFFF 0%, #E7F3FC 40%, #5AA9E6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
   .text-gradient-gold {
-    background: linear-gradient(135deg, #FBF8F3 0%, #E8DFD3 50%, #C5A059 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #FCE7F3 50%, #ED249B 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
   .text-gradient-terracotta {
-    background: linear-gradient(135deg, #FBF8F3 0%, #E8DFD3 40%, #C85A32 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF0D5 40%, #F9A20B 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
   /* Luxury glass blur for sticky header & overlays without neon */
   .glass-dark {
-    background: rgba(18, 16, 14, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(214, 206, 190, 0.08);
+    background: rgba(52, 50, 51, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(232, 228, 226, 0.12);
   }
 
   .glass-card {
-    background: rgba(26, 23, 21, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(214, 206, 190, 0.1);
+    background: rgba(65, 63, 64, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(232, 228, 226, 0.16);
   }
 }
 

@@ -42,18 +42,18 @@ export const GamingHoverShowcase: React.FC = () => {
               onMouseEnter={() => setActiveZoneIndex(idx)}
               className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all duration-300 flex items-center gap-2 sm:gap-3 ${
                 isSelected
-                  ? 'bg-brand-surfaceElevated border border-brand-gold/50 shadow-glow-subtle'
+                  ? 'bg-brand-surfaceElevated border border-brand-blue/60 shadow-luxury-blue'
                   : 'hover:bg-brand-surface/60 border border-transparent text-brand-subtle'
               }`}
             >
-              <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 ${isSelected ? 'bg-brand-gold text-brand-dark' : 'bg-brand-dark text-brand-subtle'}`}>
+              <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 ${isSelected ? 'bg-brand-blue text-brand-charcoalDeep font-bold' : 'bg-brand-dark text-brand-subtle'}`}>
                 <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div className="min-w-0">
-                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-gold block">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-blue font-semibold block">
                   0{idx + 1}
                 </span>
-                <span className={`font-serif text-xs sm:text-base font-bold block truncate ${isSelected ? 'text-brand-cream' : 'text-brand-subtle'}`}>
+                <span className={`font-serif text-xs sm:text-base font-bold block truncate ${isSelected ? 'text-white' : 'text-brand-subtle'}`}>
                   {zone.name.split(' ')[0]} {zone.name.split(' ')[1] || ''}
                 </span>
               </div>
@@ -83,7 +83,7 @@ export const GamingHoverShowcase: React.FC = () => {
 
               {/* Top Rate Pill */}
               <div className="absolute top-4 left-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-xs font-mono font-bold text-brand-gold">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-xs font-mono font-bold text-brand-blue">
                   {currentZone.ratePerHour}
                 </span>
               </div>
@@ -91,20 +91,20 @@ export const GamingHoverShowcase: React.FC = () => {
               {/* Bottom Capacity Pill */}
               <div className="absolute bottom-4 left-4 right-4 p-3 rounded-xl bg-brand-dark/85 backdrop-blur-md border border-brand-border/60 flex items-center justify-between text-xs">
                 <span className="text-brand-subtle flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-brand-terracotta" />
+                  <Users className="w-3.5 h-3.5 text-brand-pink" />
                   {currentZone.playersCapacity}
                 </span>
-                <span className="text-brand-cream font-medium">Ayodhya 1st Floor Lounge</span>
+                <span className="text-white font-medium">Ayodhya 1st Floor Lounge</span>
               </div>
             </div>
 
             {/* Zone Specs & Titles (6 cols) */}
             <div className="lg:col-span-6 space-y-6">
               <div>
-                <span className="text-xs uppercase tracking-[0.2em] text-brand-terracotta font-semibold block mb-1">
+                <span className="text-xs uppercase tracking-[0.2em] text-brand-pink font-semibold block mb-1">
                   {currentZone.subtitle}
                 </span>
-                <h3 className="font-serif text-3xl sm:text-4xl font-bold text-brand-cream tracking-tight">
+                <h3 className="font-serif text-3xl sm:text-4xl font-bold text-white tracking-tight">
                   {currentZone.name}
                 </h3>
               </div>
@@ -115,16 +115,16 @@ export const GamingHoverShowcase: React.FC = () => {
 
               {/* Hardware / Facility Specs */}
               <div className="space-y-2.5">
-                <span className="text-xs uppercase tracking-widest text-brand-gold font-semibold block">
+                <span className="text-xs uppercase tracking-widest text-brand-blue font-semibold block">
                   Hardware & Setup:
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {currentZone.specs.map((spec, sIdx) => (
                     <div
                       key={sIdx}
-                      className="p-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border/60 text-xs text-brand-cream flex items-start gap-2"
+                      className="p-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border/60 text-xs text-white flex items-start gap-2"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-brand-gold shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-brand-blue shrink-0 mt-0.5" />
                       <span className="leading-snug">{spec}</span>
                     </div>
                   ))}
@@ -141,7 +141,7 @@ export const GamingHoverShowcase: React.FC = () => {
                     {currentZone.popularGames.slice(0, 6).map((g, gIdx) => (
                       <span
                         key={gIdx}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-cream"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-brand-surfaceElevated border border-brand-border text-white"
                       >
                         {g}
                       </span>
@@ -154,7 +154,7 @@ export const GamingHoverShowcase: React.FC = () => {
               <div className="pt-4 border-t border-brand-border/40 flex items-center gap-4">
                 <button
                   onClick={() => openBookingModal('gaming')}
-                  className="py-3.5 px-6 rounded-full bg-brand-gold text-brand-dark font-bold text-xs uppercase tracking-widest hover:bg-[#D4AF37] transition-all shadow-luxury-gold flex items-center gap-2 group"
+                  className="py-3.5 px-6 rounded-full bg-brand-pink text-white font-semibold text-xs uppercase tracking-widest hover:bg-brand-pinkHover transition-all shadow-luxury-pink flex items-center gap-2 group"
                 >
                   <span>Book This Zone</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

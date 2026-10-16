@@ -9,6 +9,7 @@ interface SectionHeaderProps {
   align?: 'left' | 'center' | 'right';
   className?: string;
   light?: boolean;
+  accentColor?: 'pink' | 'orange' | 'blue';
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -19,12 +20,31 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   align = 'center',
   className = '',
   light = false,
+  accentColor = 'pink',
 }) => {
   const alignmentClasses = {
     left: 'text-left items-start',
     center: 'text-center items-center mx-auto',
     right: 'text-right items-end ml-auto',
   };
+
+  const accentStyles = {
+    pink: {
+      dot: 'bg-brand-pink',
+      tagText: 'text-brand-pink',
+      italicText: 'text-brand-pink',
+    },
+    orange: {
+      dot: 'bg-brand-orange',
+      tagText: 'text-brand-orange',
+      italicText: 'text-brand-orange',
+    },
+    blue: {
+      dot: 'bg-brand-blue',
+      tagText: 'text-brand-blue',
+      italicText: 'text-brand-blue',
+    },
+  }[accentColor];
 
   return (
     <div className={`flex flex-col max-w-3xl ${alignmentClasses[align]} ${className}`}>
@@ -36,11 +56,11 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
           transition={{ duration: 0.5 }}
           className="inline-flex items-center gap-2 mb-3"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta" />
-          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-terracotta">
+          <span className={`w-1.5 h-1.5 rounded-full ${accentStyles.dot}`} />
+          <span className={`text-xs font-semibold uppercase tracking-[0.25em] ${accentStyles.tagText}`}>
             {tag}
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta" />
+          <span className={`w-1.5 h-1.5 rounded-full ${accentStyles.dot}`} />
         </motion.div>
       )}
 
@@ -50,12 +70,12 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         viewport={{ once: true }}
         transition={{ duration: 0.6, delay: 0.1 }}
         className={`font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight leading-[1.12] mb-4 ${
-          light ? 'text-brand-dark' : 'text-brand-cream'
+          light ? 'text-brand-charcoalDeep' : 'text-brand-cream'
         }`}
       >
         {title}{' '}
         {titleItalic && (
-          <span className="font-italic-accent font-normal text-brand-terracotta italic ml-1">
+          <span className={`font-italic-accent font-normal ${accentStyles.italicText} italic ml-1`}>
             {titleItalic}
           </span>
         )}

@@ -81,14 +81,14 @@ export const QuickOrderDrawer: React.FC = () => {
         {/* Sticky Header */}
         <div className="p-4 sm:p-5 bg-brand-surfaceElevated border-b border-brand-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-brand-terracotta/20 border border-brand-terracotta/40 flex items-center justify-center text-brand-terracotta shrink-0">
+            <div className="w-9 h-9 rounded-full bg-brand-orange/20 border border-brand-orange/40 flex items-center justify-center text-brand-orange shrink-0">
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream leading-tight">
+              <h3 className="font-serif text-xl sm:text-2xl font-bold text-white leading-tight">
                 Your Order
               </h3>
-              <span className="text-[11px] text-brand-subtle font-mono block">
+              <span className="text-[11px] text-brand-muted font-mono block">
                 {totalItems} {totalItems === 1 ? 'item' : 'items'} in basket
               </span>
             </div>
@@ -96,7 +96,7 @@ export const QuickOrderDrawer: React.FC = () => {
 
           <button
             onClick={closeDrawer}
-            className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-cream active:scale-95 transition-all min-w-[36px] min-h-[36px] flex items-center justify-center"
+            className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-muted hover:text-white hover:border-brand-orange active:scale-95 transition-all min-w-[36px] min-h-[36px] flex items-center justify-center"
             aria-label="Close Cart"
           >
             <X className="w-4 h-4" />
@@ -109,7 +109,7 @@ export const QuickOrderDrawer: React.FC = () => {
             <>
               {/* Order Mode Selector */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] uppercase tracking-widest text-brand-subtle font-semibold">
+                <label className="block text-[10px] uppercase tracking-widest text-brand-muted font-semibold">
                   Order Mode
                 </label>
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -127,11 +127,11 @@ export const QuickOrderDrawer: React.FC = () => {
                         onClick={() => setOrderType(type.id)}
                         className={`p-2 sm:p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all text-center ${
                           isSelected
-                            ? 'bg-brand-terracotta/20 border-brand-terracotta text-brand-cream shadow-glow-subtle'
-                            : 'bg-brand-dark/40 border-brand-border text-brand-subtle hover:border-brand-borderStrong'
+                            ? 'bg-brand-orange/20 border-brand-orange text-white shadow-luxury-orange'
+                            : 'bg-brand-dark/40 border-brand-border text-brand-muted hover:border-brand-borderStrong'
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${isSelected ? 'text-brand-terracotta' : 'text-brand-muted'}`} />
+                        <Icon className={`w-4 h-4 ${isSelected ? 'text-brand-orange' : 'text-brand-muted'}`} />
                         <span className="text-xs font-semibold leading-none">{type.label}</span>
                         <span className="text-[9px] text-brand-muted leading-none hidden xs:inline">{type.sub}</span>
                       </button>
@@ -142,7 +142,7 @@ export const QuickOrderDrawer: React.FC = () => {
 
               {/* Items List */}
               <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs text-brand-subtle">
+                <div className="flex items-center justify-between text-xs text-brand-muted">
                   <span className="uppercase tracking-wider font-semibold text-[10px]">Selected Items</span>
                   <button
                     onClick={clearCart}
@@ -163,13 +163,13 @@ export const QuickOrderDrawer: React.FC = () => {
                       <div className="flex-1 min-w-0 pr-1">
                         <div className="flex items-center gap-1 mb-0.5">
                           {item.isWoodFired && (
-                            <Flame className="w-3 h-3 text-brand-terracotta shrink-0" />
+                            <Flame className="w-3 h-3 text-brand-orange shrink-0" />
                           )}
-                          <h4 className="font-serif text-sm sm:text-base font-semibold text-brand-cream truncate leading-tight">
+                          <h4 className="font-serif text-sm sm:text-base font-semibold text-white truncate leading-tight">
                             {item.name}
                           </h4>
                         </div>
-                        <div className="text-[11px] text-brand-gold font-mono">
+                        <div className="text-[11px] text-brand-orange font-mono font-bold">
                           ₹{typeof item.price === 'number' ? item.price : 0} each
                         </div>
                       </div>
@@ -178,17 +178,17 @@ export const QuickOrderDrawer: React.FC = () => {
                       <div className="flex items-center gap-1.5 bg-brand-dark px-2 py-1 rounded-full border border-brand-border shrink-0">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="w-6 h-6 rounded-full hover:bg-brand-surfaceElevated flex items-center justify-center text-brand-subtle hover:text-brand-cream active:scale-90 transition-transform"
+                          className="w-6 h-6 rounded-full hover:bg-brand-surfaceElevated flex items-center justify-center text-brand-muted hover:text-white active:scale-90 transition-transform"
                           aria-label="Decrease quantity"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="text-xs font-mono font-bold text-brand-cream w-4 text-center">
+                        <span className="text-xs font-mono font-bold text-white w-4 text-center">
                           {quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="w-6 h-6 rounded-full hover:bg-brand-surfaceElevated flex items-center justify-center text-brand-subtle hover:text-brand-cream active:scale-90 transition-transform"
+                          className="w-6 h-6 rounded-full hover:bg-brand-surfaceElevated flex items-center justify-center text-brand-muted hover:text-white active:scale-90 transition-transform"
                           aria-label="Increase quantity"
                         >
                           <Plus className="w-3 h-3" />
@@ -196,7 +196,7 @@ export const QuickOrderDrawer: React.FC = () => {
                       </div>
 
                       {/* Right: Subtotal */}
-                      <div className="text-right font-mono text-xs font-semibold text-brand-cream min-w-[44px] shrink-0">
+                      <div className="text-right font-mono text-xs font-semibold text-white min-w-[44px] shrink-0">
                         ₹{typeof item.price === 'number' ? item.price * quantity : 'MRP'}
                       </div>
                     </div>

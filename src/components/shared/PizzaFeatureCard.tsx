@@ -27,12 +27,12 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           {pizza.isSignature && (
-            <Badge variant="terracotta" size="sm">
+            <Badge variant="orange" size="sm">
               Signature
             </Badge>
           )}
           {pizza.isBestseller && (
-            <Badge variant="gold" size="sm">
+            <Badge variant="pink" size="sm">
               Bestseller
             </Badge>
           )}
@@ -40,8 +40,8 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
 
         {/* Wood-Fired Hearth Badge */}
         <div className="absolute bottom-3 right-3">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[10px] font-mono uppercase tracking-wider text-brand-gold">
-            <Flame className="w-3 h-3 text-brand-terracotta" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[10px] font-mono uppercase tracking-wider text-brand-orange font-semibold">
+            <Flame className="w-3 h-3 text-brand-orange" />
             450°C Hearth
           </span>
         </div>
@@ -51,10 +51,10 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
       <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream tracking-tight group-hover:text-brand-gold transition-colors">
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-white tracking-tight group-hover:text-brand-orange transition-colors">
               {pizza.name}
             </h3>
-            <span className="font-mono text-lg font-bold text-brand-terracotta">
+            <span className="font-mono text-lg font-bold text-brand-orange">
               ₹{pizza.price}
             </span>
           </div>
@@ -70,7 +70,7 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
                 {pizza.ingredients.map((ing, idx) => (
                   <span
                     key={idx}
-                    className="text-[10px] px-2 py-0.5 rounded-md bg-brand-surfaceElevated border border-brand-border/40 text-brand-cream/80"
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-brand-surfaceElevated border border-brand-border/40 text-white/80"
                   >
                     {ing}
                   </span>
@@ -83,7 +83,7 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
         {/* Bottom Actions */}
         <div className="pt-4 border-t border-brand-border/40 flex items-center justify-between">
           <span className="text-[11px] text-brand-muted flex items-center gap-1 font-mono">
-            <Clock className="w-3 h-3 text-brand-gold" />
+            <Clock className="w-3 h-3 text-brand-orange" />
             {pizza.prepTime || '12-15 mins'}
           </span>
 
@@ -92,7 +92,7 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
             className={`py-2 px-4 rounded-full text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               inCart
                 ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                : 'bg-brand-surfaceElevated hover:bg-brand-terracotta text-brand-cream border border-brand-border hover:border-brand-terracotta'
+                : 'bg-brand-surfaceElevated hover:bg-brand-orange hover:text-brand-charcoalDeep text-white border border-brand-border hover:border-brand-orange'
             }`}
           >
             {inCart ? (
@@ -102,7 +102,7 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza, layou
               </>
             ) : (
               <>
-                <Plus className="w-3.5 h-3.5 text-brand-terracotta group-hover:text-white" />
+                <Plus className="w-3.5 h-3.5 text-brand-orange group-hover:text-brand-charcoalDeep" />
                 <span>Add to Order</span>
               </>
             )}

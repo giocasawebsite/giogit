@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { businessConfig } from '../../data/businessConfig';
+import { WinnersButton } from '../ui/WinnersButton';
 
 interface NavbarProps {
   currentPage: PageRoute;
@@ -92,19 +93,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             aria-label="GioCasa Home"
             title="GioCasa Home"
           >
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-brand-surfaceElevated border border-brand-border/80 group-hover:border-brand-terracotta overflow-hidden shadow-sm transition-all duration-300">
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-brand-surfaceElevated border border-brand-border/80 group-hover:border-brand-pink overflow-hidden shadow-sm transition-all duration-300">
               <img
                 src="/assets/giocasa_logo_circle.png"
                 alt="GioCasa Logo"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-terracotta border-2 border-brand-dark animate-pulse" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-pink border-2 border-brand-dark animate-pulse" />
             </div>
             <div>
-              <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-brand-cream block leading-none">
+              <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-white block leading-none">
                 GIOCASA
               </span>
-              <span className="text-[9px] uppercase tracking-[0.25em] text-brand-gold block mt-0.5 font-medium">
+              <span className="text-[9px] uppercase tracking-[0.25em] text-brand-pink block mt-0.5 font-semibold">
                 AYODHYA • SOCIAL HOUSE
               </span>
             </div>
@@ -120,13 +121,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                   onClick={() => handleNavClick(link.id)}
                   className={`text-xs uppercase tracking-[0.2em] transition-all duration-200 relative py-1 ${
                     isActive
-                      ? 'text-brand-cream font-semibold'
-                      : 'text-brand-subtle hover:text-brand-cream font-medium'
+                      ? 'text-white font-semibold'
+                      : 'text-brand-subtle hover:text-white font-medium'
                   }`}
                 >
                   {link.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3.5 h-0.5 bg-brand-terracotta rounded-full" />
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-brand-pink rounded-full shadow-sm" />
                   )}
                 </button>
               );
@@ -135,16 +136,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
           {/* Desktop Actions - Minimalist & refined */}
           <div className="hidden sm:flex items-center gap-3">
+            {/* Winners Button */}
+            <WinnersButton
+              onNavigate={handleNavClick}
+              isActive={currentPage === 'hall-of-fame'}
+              variant="header"
+            />
+
             {/* Pizza Cart Button */}
             <button
               onClick={openDrawer}
-              className="relative p-2.5 rounded-full bg-brand-surface/80 hover:bg-brand-surfaceElevated border border-brand-border hover:border-brand-borderStrong text-brand-cream transition-all group"
+              className="relative p-2.5 rounded-full bg-brand-surface/80 hover:bg-brand-surfaceElevated border border-brand-border hover:border-brand-orange/60 text-white transition-all group"
               aria-label="Open Order Cart"
               title="Cart / Pizza Order"
             >
-              <ShoppingBag className="w-4 h-4 text-brand-cream group-hover:text-brand-terracotta transition-colors" />
+              <ShoppingBag className="w-4 h-4 text-white group-hover:text-brand-orange transition-colors" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-terracotta text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-pink text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-luxury-pink animate-pulse">
                   {totalItems}
                 </span>
               )}
@@ -153,23 +161,29 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             {/* Primary Action Button */}
             <button
               onClick={() => handleNavClick('book')}
-              className="inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold px-5 py-2.5 rounded-full bg-brand-terracotta text-brand-cream hover:bg-brand-terracottaHover transition-all shadow-luxury-ember hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold px-5 py-2.5 rounded-full bg-brand-pink text-white hover:bg-brand-pinkHover transition-all shadow-luxury-pink hover:-translate-y-0.5"
             >
               <CalendarDays className="w-3.5 h-3.5" />
               <span>Book Slot</span>
             </button>
           </div>
 
-          {/* Mobile Cart & Hamburger Toggle */}
+          {/* Mobile Cart, Winners & Hamburger Toggle */}
           <div className="flex sm:hidden items-center gap-2">
+            <WinnersButton
+              onNavigate={handleNavClick}
+              isActive={currentPage === 'hall-of-fame'}
+              variant="mobile-header"
+            />
+
             <button
               onClick={openDrawer}
-              className="relative p-2 rounded-full bg-brand-surface border border-brand-border text-brand-cream"
+              className="relative p-2 rounded-full bg-brand-surface border border-brand-border text-white"
               aria-label="Open Cart"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-4 h-4 text-brand-orange" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-terracotta text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-pink text-white rounded-full text-[9px] font-bold flex items-center justify-center">
                   {totalItems}
                 </span>
               )}
@@ -177,10 +191,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-cream focus:outline-none"
+              className="p-2 rounded-full bg-brand-surface border border-brand-border text-white focus:outline-none"
               aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5 text-brand-pink" />}
             </button>
           </div>
         </div>
@@ -198,22 +212,30 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <span className="font-serif text-xl font-bold tracking-tight text-brand-cream">
+              <span className="font-serif text-xl font-bold tracking-tight text-white">
                 GIOCASA
               </span>
             </div>
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-cream"
+              className="p-2 rounded-full bg-brand-surface border border-brand-border text-white"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           <nav className="flex flex-col gap-3 py-6">
-            <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-gold/70 pb-1">
-              Social House & Arena
+            <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-pink/90 pb-1">
+              Eat • Play • Connect
             </span>
+
+            {/* Mobile Drawer Featured Winners Card */}
+            <WinnersButton
+              onNavigate={handleNavClick}
+              isActive={currentPage === 'hall-of-fame'}
+              variant="mobile-drawer"
+            />
+
             {navLinks.map((link, idx) => (
               <button
                 key={link.id}
@@ -221,32 +243,32 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 className="flex items-center justify-between text-left py-2 group border-b border-brand-border/30"
               >
                 <div className="flex items-baseline gap-3">
-                  <span className="text-[10px] font-mono text-brand-terracotta">
+                  <span className="text-[10px] font-mono text-brand-pink">
                     0{idx + 1}
                   </span>
                   <span className={`font-serif text-2xl tracking-tight transition-colors ${
-                    currentPage === link.id ? 'text-brand-terracotta italic font-medium' : 'text-brand-cream group-hover:text-brand-gold'
+                    currentPage === link.id ? 'text-brand-pink italic font-medium' : 'text-white group-hover:text-brand-pink'
                   }`}>
                     {link.label}
                   </span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-brand-subtle group-hover:text-brand-cream transition-transform group-hover:translate-x-1" />
+                <ChevronRight className="w-4 h-4 text-brand-subtle group-hover:text-white transition-transform group-hover:translate-x-1" />
               </button>
             ))}
 
             <div className="flex items-center gap-4 pt-3 text-xs text-brand-subtle">
               <button
                 onClick={() => handleNavClick('about')}
-                className="hover:text-brand-cream transition-colors underline-offset-4 hover:underline"
+                className="hover:text-white transition-colors underline-offset-4 hover:underline"
               >
                 Our Story
               </button>
               <span>•</span>
               <button
                 onClick={() => handleNavClick('hall-of-fame')}
-                className="hover:text-brand-cream transition-colors underline-offset-4 hover:underline"
+                className="hover:text-brand-pink transition-colors underline-offset-4 hover:underline font-medium"
               >
-                Hall of Fame
+                🏆 Hall of Fame
               </button>
             </div>
           </nav>
@@ -255,7 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleNavClick('book')}
-                className="w-full py-3 px-4 rounded-full bg-brand-terracotta text-brand-cream font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                className="w-full py-3 px-4 rounded-full bg-brand-pink text-white font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-luxury-pink"
               >
                 <CalendarDays className="w-3.5 h-3.5" />
                 <span>Reserve Slot</span>
@@ -265,23 +287,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                   setMobileMenuOpen(false);
                   openDrawer();
                 }}
-                className="w-full py-3 px-4 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-cream font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                className="w-full py-3 px-4 rounded-full bg-brand-surfaceElevated border border-brand-orange/60 text-white font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-brand-orange/15"
               >
-                <ShoppingBag className="w-3.5 h-3.5 text-brand-gold" />
+                <ShoppingBag className="w-3.5 h-3.5 text-brand-orange" />
                 <span>Order Pizza</span>
               </button>
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-brand-subtle pt-2">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-brand-terracotta" />
+                <MapPin className="w-3.5 h-3.5 text-brand-orange" />
                 Ayodhya, India
               </span>
               <a 
                 href={`tel:${businessConfig.contact.phone}`} 
-                className="flex items-center gap-1 text-brand-cream hover:text-brand-gold"
+                className="flex items-center gap-1 text-white hover:text-brand-pink"
               >
-                <Phone className="w-3.5 h-3.5 text-brand-gold" />
+                <Phone className="w-3.5 h-3.5 text-brand-pink" />
                 {businessConfig.contact.displayPhone}
               </a>
             </div>

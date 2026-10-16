@@ -80,14 +80,14 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
   const otherStandings = results.standings.filter((s) => s.rank > 3);
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-pink selection:text-white">
       <div className="max-w-4xl mx-auto space-y-12">
         
         {/* Top Back Link */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => onNavigate('tournaments')}
-            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-subtle hover:text-brand-cream transition-colors group"
+            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-muted hover:text-brand-pink transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Tournaments</span>
@@ -95,7 +95,7 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
 
           <button
             onClick={() => onNavigate('hall-of-fame')}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-brand-surface border border-brand-gold/40 text-brand-gold text-xs font-mono hover:bg-brand-gold/15 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-brand-surface border border-brand-pink/40 text-brand-pink text-xs font-mono hover:bg-brand-pink/15 transition-colors"
           >
             <Trophy className="w-3.5 h-3.5" />
             <span>GioCasa Hall of Fame</span>
@@ -104,21 +104,21 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
 
         {/* Header & Editorial Spotlight */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-surface border border-brand-gold/30 text-[10px] font-mono text-brand-gold uppercase tracking-widest font-bold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-surface border border-brand-pink/40 text-[10px] font-mono text-brand-pink uppercase tracking-widest font-bold">
             <Sparkles className="w-3 h-3 fill-current" />
             <span>OFFICIAL ARENA RESULTS</span>
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-brand-cream">
+          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-white">
             {tournament.title}
           </h1>
 
-          <p className="text-xs sm:text-sm font-mono text-brand-subtle">
+          <p className="text-xs sm:text-sm font-mono text-brand-blue">
             {tournament.gameTitle} • {tournament.format} • Concluded on {tournament.startDate}
           </p>
 
           {results.summary && (
-            <p className="text-sm sm:text-base text-brand-subtle font-light max-w-2xl mx-auto leading-relaxed pt-2">
+            <p className="text-sm sm:text-base text-white/80 font-light max-w-2xl mx-auto leading-relaxed pt-2">
               "{results.summary}"
             </p>
           )}
@@ -126,12 +126,12 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
 
         {/* Champion Spotlight Banner */}
         {champion && (
-          <div className="relative rounded-3xl overflow-hidden bg-brand-surface border border-brand-gold/50 p-6 sm:p-10 shadow-2xl">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-brand-gold/10 rounded-full blur-[90px] pointer-events-none" />
+          <div className="relative rounded-3xl overflow-hidden bg-brand-surface border border-brand-pink/50 p-6 sm:p-10 shadow-2xl">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-brand-pink/10 rounded-full blur-[90px] pointer-events-none" />
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 sm:gap-8 items-center">
               {/* Champion Portrait or Trophy */}
-              <div className="sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden bg-brand-dark border border-brand-gold/40 shadow-xl">
+              <div className="sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden bg-brand-dark border border-brand-pink/40 shadow-xl">
                 <img
                   src={champion.photoUrl || tournament.bannerImage || '/assets/real/ps5_setup.png'}
                   alt={champion.participantName}
@@ -142,7 +142,7 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-transparent to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 text-center">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-gold text-brand-dark font-mono text-[10px] font-bold uppercase tracking-wider shadow">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-pink text-white font-mono text-[10px] font-bold uppercase tracking-wider shadow">
                     <Trophy className="w-3.5 h-3.5 fill-current" />
                     <span>CHAMPION</span>
                   </span>
@@ -152,33 +152,33 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
               {/* Champion Narrative */}
               <div className="sm:col-span-8 space-y-4">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-brand-gold font-bold block">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-brand-pink font-bold block">
                     1ST PLACE • {champion.awardLabel || 'ARENA CHAMPION'}
                   </span>
-                  <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-cream">
+                  <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
                     {champion.participantName}
                   </h2>
                   {champion.teamName && (
-                    <span className="text-xs font-mono text-brand-subtle block">
-                      Team: <strong className="text-brand-cream">{champion.teamName}</strong>
+                    <span className="text-xs font-mono text-brand-muted block">
+                      Team: <strong className="text-white">{champion.teamName}</strong>
                     </span>
                   )}
                   {champion.inGameId && (
-                    <span className="text-xs font-mono text-brand-gold block">
+                    <span className="text-xs font-mono text-brand-blue block">
                       Gamertag: {champion.inGameId}
                     </span>
                   )}
                 </div>
 
                 {champion.scoreOrRecord && (
-                  <div className="p-3.5 rounded-xl bg-brand-surfaceElevated border border-brand-border text-xs font-mono text-brand-cream">
-                    <span className="text-brand-subtle text-[10px] uppercase block mb-0.5">Final Record / Score</span>
+                  <div className="p-3.5 rounded-xl bg-brand-surfaceElevated border border-brand-border text-xs font-mono text-white">
+                    <span className="text-brand-muted text-[10px] uppercase block mb-0.5">Final Record / Score</span>
                     <strong>{champion.scoreOrRecord}</strong>
                   </div>
                 )}
 
                 {champion.notes && (
-                  <p className="text-xs text-brand-subtle font-light leading-relaxed">
+                  <p className="text-xs text-brand-muted font-light leading-relaxed">
                     {champion.notes}
                   </p>
                 )}
@@ -189,42 +189,42 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
 
         {/* Standings Podium Cards (Runner-up, 3rd, and Others) */}
         <div className="space-y-6">
-          <h3 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream border-b border-brand-border/60 pb-3">
+          <h3 className="font-serif text-xl sm:text-2xl font-bold text-white border-b border-brand-border/60 pb-3">
             Final Tournament Standings
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {runnerUp && (
-              <div className="bg-brand-surface border border-slate-400/30 rounded-2xl p-5 space-y-2 shadow-lg">
+              <div className="bg-brand-surface border border-brand-blue/30 rounded-2xl p-5 space-y-2 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-400/15 border border-slate-400/40 text-[10px] font-mono text-slate-300 font-bold uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full bg-brand-blue/15 border border-brand-blue/40 text-[10px] font-mono text-brand-blue font-bold uppercase tracking-wider">
                     2nd Place • Runner-Up
                   </span>
-                  <Award className="w-5 h-5 text-slate-300" />
+                  <Award className="w-5 h-5 text-brand-blue" />
                 </div>
-                <h4 className="font-serif text-xl font-bold text-brand-cream">{runnerUp.participantName}</h4>
-                {runnerUp.teamName && <p className="text-xs font-mono text-brand-subtle">Team: {runnerUp.teamName}</p>}
+                <h4 className="font-serif text-xl font-bold text-white">{runnerUp.participantName}</h4>
+                {runnerUp.teamName && <p className="text-xs font-mono text-brand-muted">Team: {runnerUp.teamName}</p>}
                 {runnerUp.scoreOrRecord && (
-                  <p className="text-xs font-mono text-brand-gold">{runnerUp.scoreOrRecord}</p>
+                  <p className="text-xs font-mono text-brand-blue">{runnerUp.scoreOrRecord}</p>
                 )}
-                {runnerUp.notes && <p className="text-xs text-brand-subtle">{runnerUp.notes}</p>}
+                {runnerUp.notes && <p className="text-xs text-brand-muted">{runnerUp.notes}</p>}
               </div>
             )}
 
             {thirdPlace && (
-              <div className="bg-brand-surface border border-amber-600/30 rounded-2xl p-5 space-y-2 shadow-lg">
+              <div className="bg-brand-surface border border-brand-orange/30 rounded-2xl p-5 space-y-2 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-600/15 border border-amber-600/40 text-[10px] font-mono text-amber-500 font-bold uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full bg-brand-orange/15 border border-brand-orange/40 text-[10px] font-mono text-brand-orange font-bold uppercase tracking-wider">
                     3rd Place • Bronze
                   </span>
-                  <Award className="w-5 h-5 text-amber-500" />
+                  <Award className="w-5 h-5 text-brand-orange" />
                 </div>
-                <h4 className="font-serif text-xl font-bold text-brand-cream">{thirdPlace.participantName}</h4>
-                {thirdPlace.teamName && <p className="text-xs font-mono text-brand-subtle">Team: {thirdPlace.teamName}</p>}
+                <h4 className="font-serif text-xl font-bold text-white">{thirdPlace.participantName}</h4>
+                {thirdPlace.teamName && <p className="text-xs font-mono text-brand-muted">Team: {thirdPlace.teamName}</p>}
                 {thirdPlace.scoreOrRecord && (
-                  <p className="text-xs font-mono text-brand-gold">{thirdPlace.scoreOrRecord}</p>
+                  <p className="text-xs font-mono text-brand-orange">{thirdPlace.scoreOrRecord}</p>
                 )}
-                {thirdPlace.notes && <p className="text-xs text-brand-subtle">{thirdPlace.notes}</p>}
+                {thirdPlace.notes && <p className="text-xs text-brand-muted">{thirdPlace.notes}</p>}
               </div>
             )}
           </div>
@@ -233,7 +233,7 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
           {otherStandings.length > 0 && (
             <div className="bg-brand-surface border border-brand-border rounded-2xl overflow-hidden">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-brand-surfaceElevated border-b border-brand-border text-brand-subtle uppercase text-[10px]">
+                <thead className="bg-brand-surfaceElevated border-b border-brand-border text-brand-muted uppercase text-[10px]">
                   <tr>
                     <th className="py-3 px-4">Rank</th>
                     <th className="py-3 px-4">Contender</th>
@@ -244,13 +244,13 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
                 <tbody className="divide-y divide-brand-border/60">
                   {otherStandings.map((s, idx) => (
                     <tr key={idx} className="hover:bg-brand-surfaceElevated/50 transition-colors">
-                      <td className="py-3 px-4 text-brand-gold font-bold">#{s.rank}</td>
-                      <td className="py-3 px-4 text-brand-cream font-bold">
+                      <td className="py-3 px-4 text-brand-blue font-bold">#{s.rank}</td>
+                      <td className="py-3 px-4 text-white font-bold">
                         {s.participantName}
-                        {s.teamName && <span className="text-brand-subtle font-normal block text-[11px]">{s.teamName}</span>}
+                        {s.teamName && <span className="text-brand-muted font-normal block text-[11px]">{s.teamName}</span>}
                       </td>
-                      <td className="py-3 px-4 text-brand-subtle">{s.awardLabel}</td>
-                      <td className="py-3 px-4 text-brand-cream/80">{s.scoreOrRecord || s.notes || '—'}</td>
+                      <td className="py-3 px-4 text-brand-muted">{s.awardLabel}</td>
+                      <td className="py-3 px-4 text-white/80">{s.scoreOrRecord || s.notes || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

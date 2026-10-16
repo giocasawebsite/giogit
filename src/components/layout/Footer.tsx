@@ -30,9 +30,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   };
 
   return (
-    <footer className="bg-brand-darker text-brand-cream border-t border-brand-border/60 relative overflow-hidden">
+    <footer className="bg-brand-charcoalDeep text-white border-t border-brand-border/40 relative overflow-hidden">
       {/* Subtle background ambient glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-brand-terracotta/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-brand-pink/5 blur-[120px] pointer-events-none" />
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-12 relative z-10">
@@ -42,8 +42,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           <div className="lg:col-span-5 space-y-6">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-brand-terracotta" />
-                <span className="text-[10px] uppercase tracking-[0.25em] text-brand-gold font-semibold">
+                <span className="w-2 h-2 rounded-full bg-brand-pink" />
+                <span className="text-[10px] uppercase tracking-[0.25em] text-brand-pink font-semibold">
                   Ayodhya • India
                 </span>
               </div>
@@ -56,10 +56,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   />
                 </div>
                 <div>
-                  <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-brand-cream leading-tight">
+                  <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
                     GIOCASA
                   </h2>
-                  <p className="font-italic-accent text-base sm:text-lg text-brand-terracotta italic leading-tight">
+                  <p className="font-italic-accent text-base sm:text-lg text-brand-orange italic leading-tight">
                     {businessConfig.tagline}
                   </p>
                 </div>
@@ -74,21 +74,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="flex flex-wrap gap-2.5 pt-2">
               <button
                 onClick={() => openBookingModal('dining')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-surface border border-brand-border hover:border-brand-terracotta text-xs font-semibold uppercase tracking-wider text-brand-cream hover:text-brand-terracotta transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-surface border border-brand-border hover:border-brand-orange text-xs font-semibold uppercase tracking-wider text-white hover:text-brand-orange transition-colors"
               >
-                <Flame className="w-3.5 h-3.5 text-brand-terracotta" />
+                <Flame className="w-3.5 h-3.5 text-brand-orange" />
                 <span>Reserve Table</span>
               </button>
               <button
                 onClick={() => handleNav('book')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-xs font-semibold uppercase tracking-wider text-brand-cream hover:text-brand-gold transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-surface border border-brand-border hover:border-brand-blue text-xs font-semibold uppercase tracking-wider text-white hover:text-brand-blue transition-colors"
               >
-                <Gamepad2 className="w-3.5 h-3.5 text-brand-gold" />
+                <Gamepad2 className="w-3.5 h-3.5 text-brand-blue" />
                 <span>Book Gaming Slot</span>
               </button>
               <button
                 onClick={openDrawer}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-terracotta/20 border border-brand-border hover:bg-brand-terracotta text-xs font-semibold uppercase tracking-wider text-brand-cream transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-orange/20 border border-brand-orange/40 hover:bg-brand-orange text-xs font-semibold uppercase tracking-wider text-white transition-colors"
               >
                 <span>Order Pizza</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -98,7 +98,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
           {/* Navigation Links (2 cols) */}
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xs uppercase tracking-[0.2em] text-brand-cream font-semibold border-b border-brand-border/40 pb-2">
+            <h3 className="text-xs uppercase tracking-[0.2em] text-white font-semibold border-b border-brand-border/40 pb-2">
               Explore
             </h3>
             <ul className="space-y-2.5 text-sm">
@@ -117,7 +117,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <li key={link.id}>
                   <button
                     onClick={() => handleNav(link.id)}
-                    className="text-brand-subtle hover:text-brand-terracotta transition-colors flex items-center gap-1 group text-xs uppercase tracking-wider"
+                    className="text-brand-subtle hover:text-brand-pink transition-colors flex items-center gap-1 group text-xs uppercase tracking-wider"
                   >
                     <span>{link.label}</span>
                   </button>
@@ -128,15 +128,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
           {/* Hours & Schedule (2 cols) */}
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xs uppercase tracking-[0.2em] text-brand-cream font-semibold border-b border-brand-border/40 pb-2 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-brand-gold" />
+            <h3 className="text-xs uppercase tracking-[0.2em] text-white font-semibold border-b border-brand-border/40 pb-2 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-brand-orange" />
               <span>Hours</span>
             </h3>
             <div className="space-y-3 text-xs">
               {businessConfig.hours.map((h, idx) => (
                 <div key={idx} className="space-y-0.5">
-                  <div className="text-brand-cream font-medium">{h.days}</div>
-                  <div className="text-brand-gold font-mono">{h.timing}</div>
+                  <div className="text-white font-medium">{h.days}</div>
+                  <div className="text-brand-orange font-mono font-semibold">{h.timing}</div>
                   <div className="text-[11px] text-brand-muted">{h.note}</div>
                 </div>
               ))}
@@ -148,7 +148,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
           {/* Contact & Social (3 cols) */}
           <div className="lg:col-span-3 space-y-4">
-            <h3 className="text-xs uppercase tracking-[0.2em] text-brand-cream font-semibold border-b border-brand-border/40 pb-2">
+            <h3 className="text-xs uppercase tracking-[0.2em] text-white font-semibold border-b border-brand-border/40 pb-2">
               Connect
             </h3>
             <ul className="space-y-3 text-xs">
@@ -157,9 +157,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   href={businessConfig.location.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-brand-subtle hover:text-brand-cream flex items-start gap-2.5 group"
+                  className="text-brand-subtle hover:text-white flex items-start gap-2.5 group"
                 >
-                  <MapPin className="w-4 h-4 text-brand-terracotta shrink-0 mt-0.5" />
+                  <MapPin className="w-4 h-4 text-brand-orange shrink-0 mt-0.5" />
                   <span>
                     {businessConfig.location.addressLine1}, {businessConfig.location.city}, {businessConfig.location.state}
                   </span>
@@ -168,9 +168,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <li>
                 <a
                   href={`tel:${businessConfig.contact.phone}`}
-                  className="text-brand-subtle hover:text-brand-cream flex items-center gap-2.5 group"
+                  className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
                 >
-                  <Phone className="w-4 h-4 text-brand-gold shrink-0" />
+                  <Phone className="w-4 h-4 text-brand-pink shrink-0" />
                   <span className="font-mono">{businessConfig.contact.displayPhone}</span>
                 </a>
               </li>
@@ -179,9 +179,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   href={`https://wa.me/${businessConfig.contact.whatsappNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-brand-subtle hover:text-brand-cream flex items-center gap-2.5 group"
+                  className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
                 >
-                  <MessageCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>WhatsApp Direct Concierge</span>
                 </a>
               </li>
@@ -190,9 +190,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   href={businessConfig.contact.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-brand-subtle hover:text-brand-cream flex items-center gap-2.5 group"
+                  className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
                 >
-                  <InstagramIcon className="w-4 h-4 text-brand-terracotta shrink-0" />
+                  <InstagramIcon className="w-4 h-4 text-brand-pink shrink-0" />
                   <span>{businessConfig.contact.instagramHandle}</span>
                 </a>
               </li>
@@ -203,17 +203,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         {/* Oversized Brand Watermark Statement */}
         <div className="pt-12 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-brand-muted border-b border-brand-border/30">
           <div>
-            <span className="text-brand-cream font-medium">GioCasa Hospitality</span> • Ayodhya, Uttar Pradesh, India
+            <span className="text-white font-medium">GioCasa Hospitality</span> • Ayodhya, Uttar Pradesh, India
           </div>
           <div className="flex items-center gap-1 text-[11px]">
-            <span>Crafted for great food, epic games & true company</span>
+            <span>Eat. Play. Connect.</span>
           </div>
           <div className="flex items-center gap-3">
             <span>© {new Date().getFullYear()} GioCasa. All rights reserved.</span>
             <span>•</span>
             <button
               onClick={() => handleNav('admin')}
-              className="text-[10px] text-brand-muted/50 hover:text-brand-gold transition-colors underline-offset-2 hover:underline"
+              className="text-[10px] text-brand-muted/70 hover:text-brand-pink transition-colors underline-offset-2 hover:underline"
             >
               Staff Arena Desk
             </button>

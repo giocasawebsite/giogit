@@ -64,21 +64,21 @@ export const ReservationModal: React.FC = () => {
       label: 'Dine & Café',
       sub: 'Basement Hearth • Pizza',
       icon: Flame,
-      color: 'text-brand-terracotta'
+      color: 'text-brand-orange'
     },
     {
       id: 'gaming' as ReservationType,
       label: 'Gaming Lounge',
       sub: '1st Floor • PS5 / Pool',
       icon: Gamepad2,
-      color: 'text-brand-gold'
+      color: 'text-brand-blue'
     },
     {
       id: 'combo' as ReservationType,
       label: 'Eat + Play',
       sub: 'Pizza + Reserved Station',
       icon: Sparkles,
-      color: 'text-brand-cream'
+      color: 'text-brand-pink'
     },
     {
       id: 'event' as ReservationType,
@@ -134,9 +134,9 @@ Please confirm availability for our booking. Thank you!`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-brand-darker/85 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-brand-darker/85 backdrop-blur-md animate-fade-in selection:bg-brand-pink selection:text-white">
       <div 
-        className="relative w-full max-w-xl max-h-[92dvh] bg-brand-surface rounded-2xl sm:rounded-3xl border border-brand-border shadow-2xl overflow-hidden my-auto flex flex-col"
+        className="relative w-full max-w-xl max-h-[92dvh] bg-brand-surface rounded-2xl sm:rounded-3xl border border-brand-border shadow-2xl overflow-hidden my-auto flex flex-col text-white"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -145,18 +145,18 @@ Please confirm availability for our booking. Thank you!`;
         <div className="p-4 sm:p-6 bg-gradient-to-r from-brand-surfaceElevated to-brand-surface border-b border-brand-border flex items-center justify-between shrink-0">
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-brand-gold font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-pink" />
+              <span className="text-[10px] uppercase tracking-[0.25em] text-brand-pink font-semibold">
                 GioCasa Ayodhya
               </span>
             </div>
-            <h3 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream tracking-tight">
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-white tracking-tight">
               {isSubmitted ? 'Reservation Requested' : 'Reserve Table or Station'}
             </h3>
           </div>
           <button
             onClick={closeBookingModal}
-            className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-cream transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+            className="p-2 rounded-full bg-brand-surface border border-brand-border text-brand-muted hover:text-white hover:border-brand-pink transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
             aria-label="Close modal"
           >
             <X className="w-4 h-4" />
@@ -169,7 +169,7 @@ Please confirm availability for our booking. Thank you!`;
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {/* Step 1: Select Experience */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-brand-subtle font-semibold mb-2">
+                <label className="block text-[10px] uppercase tracking-widest text-brand-muted font-semibold mb-2">
                   1. Select Experience
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -186,20 +186,20 @@ Please confirm availability for our booking. Thank you!`;
                         }}
                         className={`p-2.5 sm:p-3.5 rounded-xl text-left border transition-all flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-brand-surfaceElevated border-brand-terracotta shadow-glow-subtle'
+                            ? 'bg-brand-surfaceElevated border-brand-pink shadow-luxury-pink'
                             : 'bg-brand-dark/50 border-brand-border hover:border-brand-borderStrong'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${opt.color}`} />
                           <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                            isSelected ? 'border-brand-terracotta bg-brand-terracotta' : 'border-brand-border'
+                            isSelected ? 'border-brand-pink bg-brand-pink' : 'border-brand-border'
                           }`}>
                             {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                           </span>
                         </div>
                         <div>
-                          <div className="font-serif text-sm sm:text-base font-semibold text-brand-cream leading-tight">
+                          <div className="font-serif text-sm sm:text-base font-semibold text-white leading-tight">
                             {opt.label}
                           </div>
                           <div className="text-[9px] sm:text-[10px] text-brand-muted line-clamp-1 mt-0.5">
@@ -215,8 +215,8 @@ Please confirm availability for our booking. Thank you!`;
               {/* Step 2: Date, Time, Guests */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider text-brand-subtle font-semibold mb-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-brand-terracotta" />
+                  <label className="block text-[10px] uppercase tracking-wider text-brand-muted font-semibold mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-brand-orange" />
                     Date
                   </label>
                   <input
@@ -224,19 +224,19 @@ Please confirm availability for our booking. Thank you!`;
                     required
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta"
+                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider text-brand-subtle font-semibold mb-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-brand-gold" />
+                  <label className="block text-[10px] uppercase tracking-wider text-brand-muted font-semibold mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-brand-blue" />
                     Time Slot
                   </label>
                   <select
                     value={formData.time}
                     onChange={e => setFormData({ ...formData, time: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta"
+                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink"
                   >
                     {timeSlots.map(t => (
                       <option key={t} value={t}>{t}</option>
@@ -245,14 +245,14 @@ Please confirm availability for our booking. Thank you!`;
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider text-brand-subtle font-semibold mb-1 flex items-center gap-1">
-                    <Users className="w-3 h-3 text-brand-cream" />
+                  <label className="block text-[10px] uppercase tracking-wider text-brand-muted font-semibold mb-1 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-brand-pink" />
                     Guests
                   </label>
                   <select
                     value={formData.guests}
                     onChange={e => setFormData({ ...formData, guests: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta"
+                    className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink"
                   >
                     {[1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25].map(n => (
                       <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
@@ -263,7 +263,7 @@ Please confirm availability for our booking. Thank you!`;
 
               {/* Step 3: Contact Details */}
               <div className="space-y-2.5">
-                <label className="block text-[10px] uppercase tracking-widest text-brand-subtle font-semibold">
+                <label className="block text-[10px] uppercase tracking-widest text-brand-muted font-semibold">
                   2. Contact Details
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -274,7 +274,7 @@ Please confirm availability for our booking. Thank you!`;
                       placeholder="Your Full Name *"
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta placeholder:text-brand-muted"
+                      className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink placeholder:text-brand-muted"
                     />
                   </div>
                   <div>
@@ -284,7 +284,7 @@ Please confirm availability for our booking. Thank you!`;
                       placeholder="Phone / WhatsApp *"
                       value={formData.phone}
                       onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta placeholder:text-brand-muted"
+                      className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink placeholder:text-brand-muted"
                     />
                   </div>
                 </div>
@@ -294,12 +294,12 @@ Please confirm availability for our booking. Thank you!`;
                   placeholder="Special notes (e.g. Birthday setup, FIFA tournament, quiet booth)..."
                   value={formData.specialRequests}
                   onChange={e => setFormData({ ...formData, specialRequests: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta placeholder:text-brand-muted resize-none"
+                  className="w-full px-3 py-2 rounded-xl bg-brand-dark border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink placeholder:text-brand-muted resize-none"
                 />
               </div>
 
               {/* Notice */}
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-brand-surfaceElevated/60 border border-brand-border text-[11px] text-brand-subtle">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-brand-surfaceElevated/60 border border-brand-border text-[11px] text-brand-muted">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Zero advance deposit. We hold slots for 15 mins.</span>
               </div>
@@ -308,7 +308,7 @@ Please confirm availability for our booking. Thank you!`;
               <div className="pt-1">
                 <button
                   type="submit"
-                  className="w-full py-3.5 px-6 rounded-full bg-brand-terracotta text-brand-cream font-bold text-xs uppercase tracking-wider hover:bg-brand-terracottaHover active:scale-98 transition-all shadow-luxury-ember flex items-center justify-center gap-2 group"
+                  className="w-full py-3.5 px-6 rounded-full bg-brand-pink text-white font-bold text-xs uppercase tracking-wider hover:bg-brand-pinkHover active:scale-98 transition-all shadow-luxury-pink flex items-center justify-center gap-2 group"
                 >
                   <span>Request Instant Reservation</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -318,25 +318,25 @@ Please confirm availability for our booking. Thank you!`;
           ) : (
             /* Success confirmation screen */
             <div className="text-center py-4 sm:py-6 space-y-4 sm:space-y-5">
-              <div className="w-12 h-12 rounded-full bg-brand-terracotta/20 border border-brand-terracotta/40 text-brand-terracotta flex items-center justify-center mx-auto animate-pulse">
+              <div className="w-12 h-12 rounded-full bg-brand-pink/20 border border-brand-pink/40 text-brand-pink flex items-center justify-center mx-auto animate-pulse">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">
+                <span className="text-[10px] uppercase tracking-widest text-brand-pink font-semibold">
                   Booking Request Recorded
                 </span>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-brand-cream">
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-white">
                   Grazie, {formData.name}!
                 </h4>
-                <p className="text-xs text-brand-subtle max-w-md mx-auto font-light leading-relaxed">
-                  We have noted your reservation for <strong className="text-brand-cream">{formData.guests} guests</strong> on <strong className="text-brand-cream">{formData.date} at {formData.time}</strong>.
+                <p className="text-xs text-brand-muted max-w-md mx-auto font-light leading-relaxed">
+                  We have noted your reservation for <strong className="text-white">{formData.guests} guests</strong> on <strong className="text-white">{formData.date} at {formData.time}</strong>.
                 </p>
               </div>
 
               {/* Direct WhatsApp Confirmation Link */}
               <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-2.5">
-                <p className="text-xs text-brand-cream font-medium">
+                <p className="text-xs text-white font-medium">
                   Confirm immediately via WhatsApp for instant allocation:
                 </p>
                 <a
@@ -352,7 +352,7 @@ Please confirm availability for our booking. Thank you!`;
 
               <button
                 onClick={closeBookingModal}
-                className="text-xs text-brand-muted hover:text-brand-cream underline uppercase tracking-wider"
+                className="text-xs text-brand-muted hover:text-white underline uppercase tracking-wider"
               >
                 Back to Site
               </button>

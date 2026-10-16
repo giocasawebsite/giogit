@@ -119,14 +119,14 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
   const capacityPercent = Math.min(100, Math.round(((tournament.confirmedCount || 0) / tournament.maxCapacity) * 100));
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-pink selection:text-white">
       <div className="max-w-5xl mx-auto space-y-10 sm:space-y-14">
 
         {/* Back Link */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => onNavigate('tournaments')}
-            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-subtle hover:text-brand-cream transition-colors group"
+            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-brand-muted hover:text-brand-pink transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to All Tournaments</span>
@@ -136,7 +136,7 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopyLink}
-              className="p-2 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-subtle hover:text-brand-cream text-xs font-mono transition-colors relative"
+              className="p-2 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-blue text-brand-muted hover:text-white text-xs font-mono transition-colors relative"
               title="Copy shareable link"
             >
               {copyFeedback === 'Link Copied!' ? (
@@ -157,7 +157,7 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
 
             <button
               onClick={handleCopyDetails}
-              className="px-3 py-1.5 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-terracotta text-brand-subtle hover:text-brand-cream text-xs font-mono flex items-center gap-1.5 transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-pink text-brand-muted hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{copyFeedback || 'Share'}</span>
@@ -179,7 +179,7 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
             <div className="absolute inset-0 bg-gradient-to-t from-brand-surface via-brand-dark/40 to-transparent" />
 
             <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-brand-dark/85 backdrop-blur-md border border-brand-border text-xs font-mono font-bold uppercase text-brand-gold">
+              <span className="px-3 py-1 rounded-full bg-brand-dark/85 backdrop-blur-md border border-brand-border text-xs font-mono font-bold uppercase text-brand-blue">
                 {tournament.gameCategory.toUpperCase()} ARENA
               </span>
 
@@ -190,10 +190,10 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
                     : tournament.computedStatus === 'waitlist_open'
                     ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
                     : tournament.computedStatus === 'live'
-                    ? 'bg-brand-terracotta text-white border border-brand-terracotta animate-pulse'
+                    ? 'bg-brand-pink text-white border border-brand-pink animate-pulse'
                     : tournament.computedStatus === 'completed'
-                    ? 'bg-brand-gold/25 text-brand-gold border border-brand-gold/50'
-                    : 'bg-brand-dark/85 text-brand-subtle border border-brand-border'
+                    ? 'bg-brand-blue/25 text-brand-blue border border-brand-blue/50'
+                    : 'bg-brand-dark/85 text-brand-muted border border-brand-border'
                 }`}
               >
                 {tournament.statusLabel || tournament.status}
@@ -203,13 +203,13 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
 
           <div className="p-6 sm:p-10 space-y-6">
             <div className="space-y-3">
-              <span className="text-xs uppercase font-mono tracking-widest text-brand-gold font-bold block">
+              <span className="text-xs uppercase font-mono tracking-widest text-brand-blue font-bold block">
                 {tournament.gameTitle} • {tournament.format}
               </span>
-              <h1 className="font-serif text-3xl sm:text-5xl font-bold text-brand-cream">
+              <h1 className="font-serif text-3xl sm:text-5xl font-bold text-white">
                 {tournament.title}
               </h1>
-              <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed max-w-3xl">
+              <p className="text-sm sm:text-base text-white/80 font-light leading-relaxed max-w-3xl">
                 {tournament.description}
               </p>
             </div>
@@ -217,57 +217,57 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-2">
               <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-2xl p-4 space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-brand-terracotta" />
+                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-brand-blue" />
                   <span>Tournament Date</span>
                 </span>
-                <strong className="text-sm font-mono text-brand-cream block">
+                <strong className="text-sm font-mono text-white block">
                   {tournament.startDate}
                 </strong>
-                <span className="text-xs font-mono text-brand-gold">
+                <span className="text-xs font-mono text-brand-blue">
                   {tournament.startTime} IST
                 </span>
               </div>
 
               <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-2xl p-4 space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-brand-gold" />
+                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-brand-pink" />
                   <span>Venue Arena</span>
                 </span>
-                <strong className="text-xs sm:text-sm font-sans text-brand-cream block line-clamp-1">
+                <strong className="text-xs sm:text-sm font-sans text-white block line-clamp-1">
                   {tournament.venue}
                 </strong>
-                <span className="text-[10px] text-brand-subtle block">Ayodhya, India</span>
+                <span className="text-[10px] text-brand-muted block">Ayodhya, India</span>
               </div>
 
               <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-2xl p-4 space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle flex items-center gap-1.5">
-                  <Trophy className="w-3.5 h-3.5 text-brand-gold" />
+                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted flex items-center gap-1.5">
+                  <Trophy className="w-3.5 h-3.5 text-brand-orange" />
                   <span>Entry Fee</span>
                 </span>
-                <strong className="text-sm font-mono text-brand-cream block">
+                <strong className="text-sm font-mono text-brand-orange block">
                   {tournament.entryFeePaise === 0 ? 'Free Entry' : `₹${tournament.entryFeePaise / 100}`}
                 </strong>
-                <span className="text-[10px] text-brand-subtle block">
+                <span className="text-[10px] text-brand-muted block">
                   {tournament.teamType === 'team' ? 'Per Team' : 'Per Player'}
                 </span>
               </div>
 
               <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-2xl p-4 space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-brand-terracotta" />
+                <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-brand-blue" />
                   <span>Available Spots</span>
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <strong className="text-sm font-mono text-brand-gold">
+                  <strong className="text-sm font-mono text-brand-blue">
                     {tournament.confirmedCount || 0}
                   </strong>
-                  <span className="text-xs text-brand-subtle font-mono">/ {tournament.maxCapacity}</span>
+                  <span className="text-xs text-brand-muted font-mono">/ {tournament.maxCapacity}</span>
                 </div>
                 {/* Visual Progress Bar */}
                 <div className="w-full bg-brand-surface rounded-full h-1.5 overflow-hidden mt-1">
                   <div
-                    className="bg-brand-terracotta h-full rounded-full transition-all duration-500"
+                    className="bg-brand-pink h-full rounded-full transition-all duration-500"
                     style={{ width: `${capacityPercent}%` }}
                   />
                 </div>
@@ -276,9 +276,9 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
 
             {/* Registration CTA Actions */}
             <div className="pt-4 border-t border-brand-border/60 flex flex-wrap items-center justify-between gap-4">
-              <div className="text-xs font-mono text-brand-subtle">
+              <div className="text-xs font-mono text-brand-muted">
                 <span>Registration Deadline: </span>
-                <strong className="text-brand-cream">
+                <strong className="text-white">
                   {tournament.registrationDeadlineDate} at {tournament.registrationDeadlineTime || '16:00'} IST
                 </strong>
               </div>
@@ -287,7 +287,7 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
                 {tournament.isRegistrationAllowed ? (
                   <button
                     onClick={() => onNavigate('tournament-register', { slug: tournament.slug })}
-                    className="px-8 py-3.5 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-ember hover:-translate-y-0.5 flex items-center gap-2"
+                    className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
                   >
                     <span>
                       {tournament.computedStatus === 'waitlist_open'
@@ -299,13 +299,13 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
                 ) : tournament.status === 'completed' ? (
                   <button
                     onClick={() => onNavigate('tournament-results', { slug: tournament.slug })}
-                    className="px-7 py-3 rounded-full bg-brand-gold/20 border border-brand-gold text-brand-gold text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-brand-gold/30 transition-colors"
+                    className="px-7 py-3 rounded-full bg-brand-blue/20 border border-brand-blue text-brand-blue text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-brand-blue/30 transition-colors"
                   >
                     <Trophy className="w-4 h-4" />
                     <span>View Official Results</span>
                   </button>
                 ) : (
-                  <span className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-subtle text-xs font-mono">
+                  <span className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-muted text-xs font-mono">
                     {tournament.statusLabel || 'Registration Closed'}
                   </span>
                 )}
@@ -322,15 +322,15 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
             
             {/* Rules & Guidelines */}
             <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 sm:p-8 space-y-4">
-              <h3 className="font-serif text-xl font-bold text-brand-cream flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-brand-terracotta" />
+              <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-brand-blue" />
                 <span>Tournament Rules & Format</span>
               </h3>
               
-              <ul className="space-y-2.5 text-xs sm:text-sm text-brand-subtle">
+              <ul className="space-y-2.5 text-xs sm:text-sm text-brand-muted">
                 {tournament.rules.map((rule, idx) => (
                   <li key={idx} className="flex items-start gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta mt-2 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-blue mt-2 shrink-0" />
                     <span className="leading-relaxed">{rule}</span>
                   </li>
                 ))}
@@ -340,11 +340,11 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
             {/* Eligibility Requirements */}
             {tournament.eligibilityRequirements && (
               <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 sm:p-8 space-y-3">
-                <h3 className="font-serif text-xl font-bold text-brand-cream flex items-center gap-2">
+                <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span>Contender Eligibility</span>
                 </h3>
-                <p className="text-xs sm:text-sm text-brand-subtle leading-relaxed">
+                <p className="text-xs sm:text-sm text-brand-muted leading-relaxed">
                   {tournament.eligibilityRequirements}
                 </p>
               </div>
@@ -353,11 +353,11 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
             {/* Schedule & Important Instructions */}
             {tournament.scheduleInstructions && (
               <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 sm:p-8 space-y-3">
-                <h3 className="font-serif text-xl font-bold text-brand-cream flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-brand-gold" />
+                <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-brand-blue" />
                   <span>Reporting & Matchday Schedule</span>
                 </h3>
-                <p className="text-xs sm:text-sm text-brand-subtle leading-relaxed whitespace-pre-line">
+                <p className="text-xs sm:text-sm text-brand-muted leading-relaxed whitespace-pre-line">
                   {tournament.scheduleInstructions}
                 </p>
               </div>
@@ -368,21 +368,21 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 sm:p-8 space-y-5">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-brand-gold font-bold block">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-brand-orange font-bold block">
                   PRIZE POOL
                 </span>
-                <h3 className="font-serif text-xl font-bold text-brand-cream">
+                <h3 className="font-serif text-xl font-bold text-white">
                   Tournament Honors
                 </h3>
               </div>
 
-              <div className="p-4 rounded-xl bg-brand-surfaceElevated border border-brand-gold/30 text-xs font-mono text-brand-gold font-bold leading-relaxed">
+              <div className="p-4 rounded-xl bg-brand-surfaceElevated border border-brand-orange/40 text-xs font-mono text-brand-orange font-bold leading-relaxed">
                 {tournament.prizePoolDetails}
               </div>
 
               {tournament.prizes && tournament.prizes.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-brand-subtle block">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-brand-muted block">
                     Breakdown by Rank:
                   </span>
                   <div className="space-y-2">
@@ -392,11 +392,11 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
                         className="p-3 rounded-xl bg-brand-surfaceElevated border border-brand-border flex items-start gap-2.5 text-xs font-mono"
                       >
                         <Award className={`w-4 h-4 shrink-0 mt-0.5 ${
-                          idx === 0 ? 'text-brand-gold' : idx === 1 ? 'text-slate-300' : 'text-amber-600'
+                          idx === 0 ? 'text-brand-orange' : idx === 1 ? 'text-slate-300' : 'text-amber-600'
                         }`} />
                         <div>
-                          <strong className="text-brand-cream block">{p.rank}</strong>
-                          <span className="text-brand-subtle text-[11px]">{p.reward}</span>
+                          <strong className="text-white block">{p.rank}</strong>
+                          <span className="text-brand-muted text-[11px]">{p.reward}</span>
                         </div>
                       </div>
                     ))}
@@ -407,9 +407,9 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
               <div className="pt-4 border-t border-brand-border/60">
                 <button
                   onClick={handleCopyLink}
-                  className="w-full py-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-gold text-brand-cream text-xs font-mono flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-pink text-white text-xs font-mono flex items-center justify-center gap-2 transition-colors"
                 >
-                  <Copy className="w-3.5 h-3.5 text-brand-gold" />
+                  <Copy className="w-3.5 h-3.5 text-brand-pink" />
                   <span>{copyFeedback || 'Copy Registration Link'}</span>
                 </button>
               </div>

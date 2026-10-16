@@ -56,23 +56,23 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
   const featuredChampion = entries.find((e) => e.isFeatured) || entries[0] || null;
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-pink selection:text-white">
       <div className="max-w-7xl mx-auto space-y-16 sm:space-y-20">
 
         {/* =========================================================================
             EDITORIAL HERO (Phase 9 Requirement)
            ========================================================================= */}
         <section className="text-center max-w-3xl mx-auto space-y-4 pt-4 sm:pt-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-gold/40 text-[10px] font-mono text-brand-gold font-bold uppercase tracking-widest shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-pink/40 text-[10px] font-mono text-brand-pink font-bold uppercase tracking-widest shadow-sm">
             <Trophy className="w-3.5 h-3.5 fill-current" />
             <span>THE LEGACY OF COMPETITION</span>
           </div>
 
-          <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-brand-cream">
+          <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white">
             GioCasa Hall of Fame
           </h1>
 
-          <p className="font-italic-accent text-xl sm:text-2xl text-brand-terracotta italic">
+          <p className="font-italic-accent text-xl sm:text-2xl text-brand-pink italic">
             Where Ayodhya Champions Are Etched in Stone
           </p>
 
@@ -83,7 +83,7 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
           <div className="pt-2">
             <button
               onClick={() => onNavigate('tournaments')}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-cream text-xs font-mono uppercase tracking-wider transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-surface border border-brand-border hover:border-brand-blue text-white text-xs font-mono uppercase tracking-wider transition-colors hover:text-brand-blue"
             >
               <span>Explore Active Tournaments</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -95,12 +95,12 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
             FEATURED CHAMPION SPOTLIGHT (Phase 9 Requirement)
            ========================================================================= */}
         {featuredChampion && (
-          <section className="relative overflow-hidden rounded-3xl bg-brand-surface border border-brand-gold/50 shadow-2xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-gold/10 rounded-full blur-[100px] pointer-events-none" />
+          <section className="relative overflow-hidden rounded-3xl bg-brand-surface border border-brand-pink/50 shadow-2xl">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-pink/10 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 p-6 sm:p-10 lg:p-12 items-center">
               {/* Photo Showcase */}
-              <div className="lg:col-span-5 relative aspect-[4/5] sm:aspect-square lg:aspect-[4/5] rounded-2xl overflow-hidden bg-brand-dark border border-brand-gold/40 shadow-xl group">
+              <div className="lg:col-span-5 relative aspect-[4/5] sm:aspect-square lg:aspect-[4/5] rounded-2xl overflow-hidden bg-brand-dark border border-brand-pink/40 shadow-xl group">
                 <img
                   src={featuredChampion.photoUrl}
                   alt={featuredChampion.playerName}
@@ -112,17 +112,17 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/95 via-brand-dark/20 to-transparent" />
 
                 <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-gold text-brand-dark font-mono text-[10px] font-bold uppercase tracking-wider shadow-lg">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-pink text-white font-mono text-[10px] font-bold uppercase tracking-wider shadow-lg">
                     <Sparkles className="w-3 h-3 fill-current" />
                     <span>FEATURED CHAMPION</span>
                   </span>
                 </div>
 
                 <div className="absolute bottom-4 left-4 right-4">
-                  <span className="text-xs font-mono text-brand-gold uppercase tracking-wider block">
+                  <span className="text-xs font-mono text-brand-pink uppercase tracking-wider block font-semibold">
                     {featuredChampion.season}
                   </span>
-                  <strong className="font-serif text-2xl text-brand-cream block">
+                  <strong className="font-serif text-2xl text-white block">
                     {featuredChampion.playerName}
                   </strong>
                 </div>
@@ -132,20 +132,20 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
               <div className="lg:col-span-7 space-y-6">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-0.5 rounded-full bg-brand-gold/20 border border-brand-gold/40 text-[10px] font-mono text-brand-gold font-bold uppercase tracking-wider">
+                    <span className="px-3 py-0.5 rounded-full bg-brand-pink/20 border border-brand-pink/40 text-[10px] font-mono text-brand-pink font-bold uppercase tracking-wider">
                       {featuredChampion.award}
                     </span>
-                    <span className="text-xs font-mono text-brand-subtle">
+                    <span className="text-xs font-mono text-brand-blue font-semibold">
                       • {featuredChampion.gameTitle}
                     </span>
                   </div>
 
-                  <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-cream">
+                  <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
                     {featuredChampion.tournamentTitle}
                   </h2>
 
                   {featuredChampion.teamName && (
-                    <p className="text-sm font-mono text-brand-gold">
+                    <p className="text-sm font-mono text-brand-orange">
                       Representing Team: <strong>{featuredChampion.teamName}</strong>
                     </p>
                   )}
@@ -153,10 +153,10 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
 
                 {featuredChampion.scoreDescription && (
                   <div className="p-4 sm:p-5 rounded-2xl bg-brand-surfaceElevated border border-brand-border/70 space-y-1">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-brand-gold block">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-brand-orange block font-semibold">
                       Victory Narrative & Achievement
                     </span>
-                    <p className="text-xs sm:text-sm text-brand-cream/90 font-light leading-relaxed">
+                    <p className="text-xs sm:text-sm text-white/90 font-light leading-relaxed">
                       "{featuredChampion.scoreDescription}"
                     </p>
                   </div>
@@ -165,17 +165,17 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono pt-2">
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] text-brand-subtle uppercase block">Season</span>
-                    <strong className="text-brand-cream block mt-0.5">{featuredChampion.season}</strong>
+                    <strong className="text-white block mt-0.5">{featuredChampion.season}</strong>
                   </div>
 
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] text-brand-subtle uppercase block">Event Date</span>
-                    <strong className="text-brand-cream block mt-0.5">{featuredChampion.eventDate}</strong>
+                    <strong className="text-white block mt-0.5">{featuredChampion.eventDate}</strong>
                   </div>
 
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] text-brand-subtle uppercase block">Arena Category</span>
-                    <strong className="text-brand-gold block mt-0.5 uppercase">{featuredChampion.gameCategory}</strong>
+                    <strong className="text-brand-blue block mt-0.5 uppercase">{featuredChampion.gameCategory}</strong>
                   </div>
                 </div>
 
@@ -183,10 +183,10 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
                   <div className="pt-2">
                     <button
                       onClick={() => onNavigate('tournament-results', { slug: featuredChampion.tournamentSlug })}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-gold text-brand-cream text-xs font-mono transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue text-white text-xs font-mono transition-colors hover:text-brand-blue"
                     >
                       <span>View Official Bracket Standings</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-brand-gold" />
+                      <ExternalLink className="w-3.5 h-3.5 text-brand-blue" />
                     </button>
                   </div>
                 )}

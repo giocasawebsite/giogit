@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageRoute, RouteParams, Tournament } from '../types';
 import { arenaApi } from '../services/arenaApi';
+import { WinnersButton } from '../components/ui/WinnersButton';
 import {
   Trophy,
   Calendar,
@@ -95,21 +96,21 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-blue selection:text-brand-charcoalDeep">
       <div className="max-w-7xl mx-auto space-y-16 sm:space-y-24">
         
         {/* =========================================================================
             HERO SECTION (Phase 3 Requirements)
            ========================================================================= */}
         <section className="relative text-center max-w-4xl mx-auto space-y-6 pt-6 sm:pt-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-gold/30 text-[11px] font-mono text-brand-gold font-bold tracking-widest uppercase shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-brand-terracotta animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-blue/40 text-[11px] font-mono text-brand-blue font-bold tracking-widest uppercase shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-brand-pink animate-pulse" />
             <span>GIOCASA ARENA</span>
           </div>
 
-          <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-brand-cream leading-[1.08]">
+          <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-[1.08]">
             Your Game. Your People.<br />
-            <span className="font-italic-accent text-brand-terracotta italic font-normal">
+            <span className="font-italic-accent text-brand-pink italic font-normal">
               Your Moment.
             </span>
           </h1>
@@ -124,19 +125,16 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 const el = document.getElementById('arena-tournaments-grid');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-7 py-3.5 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream text-xs uppercase tracking-wider font-semibold transition-all shadow-luxury-ember hover:-translate-y-0.5 flex items-center gap-2"
+              className="px-7 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs uppercase tracking-wider font-semibold transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
             >
               <span>Explore Tournaments</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={() => onNavigate('hall-of-fame')}
-              className="px-6 py-3.5 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold/60 text-brand-cream text-xs uppercase tracking-wider font-semibold transition-all flex items-center gap-2 hover:text-brand-gold"
-            >
-              <Trophy className="w-4 h-4 text-brand-gold" />
-              <span>Hall of Fame</span>
-            </button>
+            <WinnersButton
+              onNavigate={onNavigate}
+              variant="cta"
+            />
           </div>
         </section>
 
@@ -145,7 +143,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
            ========================================================================= */}
         {featuredTournament && (
           <section className="relative overflow-hidden rounded-3xl bg-brand-surface border border-brand-border/80 shadow-2xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-terracotta/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-blue/10 rounded-full blur-[100px] pointer-events-none" />
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 p-6 sm:p-10 lg:p-12 items-center">
               {/* Image side */}
@@ -161,17 +159,17 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-transparent to-black/20" />
                 
                 <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-gold text-brand-dark font-mono text-[10px] font-bold uppercase tracking-wider shadow-lg">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-pink text-white font-mono text-[10px] font-bold uppercase tracking-wider shadow-lg">
                     <Sparkles className="w-3 h-3 fill-current" />
                     <span>FEATURED SHOWDOWN</span>
                   </span>
                 </div>
 
-                <div className="absolute bottom-4 left-4 right-4 text-xs font-mono text-brand-cream/90 flex items-center justify-between">
+                <div className="absolute bottom-4 left-4 right-4 text-xs font-mono text-white/90 flex items-center justify-between">
                   <span className="bg-brand-dark/80 backdrop-blur-md px-3 py-1 rounded-full border border-brand-border/50">
                     {featuredTournament.gameTitle}
                   </span>
-                  <span className="bg-brand-dark/80 backdrop-blur-md px-3 py-1 rounded-full border border-brand-border/50 text-brand-gold">
+                  <span className="bg-brand-dark/80 backdrop-blur-md px-3 py-1 rounded-full border border-brand-border/50 text-brand-blue font-semibold">
                     {featuredTournament.format}
                   </span>
                 </div>
@@ -181,15 +179,15 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
               <div className="lg:col-span-7 space-y-6">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-brand-terracotta/20 border border-brand-terracotta/40 text-[10px] font-mono text-brand-terracotta font-semibold uppercase">
+                    <span className="px-2.5 py-0.5 rounded-full bg-brand-blue/20 border border-brand-blue/40 text-[10px] font-mono text-brand-blue font-semibold uppercase">
                       {featuredTournament.gameCategory.toUpperCase()}
                     </span>
-                    <span className="text-xs font-mono text-brand-gold">
+                    <span className="text-xs font-mono text-brand-pink font-semibold">
                       • {featuredTournament.statusLabel || 'Registration Open'}
                     </span>
                   </div>
 
-                  <h2 className="font-serif text-2xl sm:text-4xl font-bold text-brand-cream">
+                  <h2 className="font-serif text-2xl sm:text-4xl font-bold text-white">
                     {featuredTournament.title}
                   </h2>
 
@@ -202,17 +200,17 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle block">Date & Time</span>
-                    <strong className="text-xs font-mono text-brand-cream block mt-0.5">
+                    <strong className="text-xs font-mono text-white block mt-0.5">
                       {featuredTournament.startDate}
                     </strong>
-                    <span className="text-[11px] font-mono text-brand-gold">
+                    <span className="text-[11px] font-mono text-brand-blue font-semibold">
                       {featuredTournament.startTime} IST
                     </span>
                   </div>
 
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle block">Entry Fee</span>
-                    <strong className="text-xs font-mono text-brand-cream block mt-0.5">
+                    <strong className="text-xs font-mono text-white block mt-0.5">
                       {featuredTournament.entryFeePaise === 0 ? 'Free Entry' : `₹${featuredTournament.entryFeePaise / 100}`}
                     </strong>
                     <span className="text-[10px] text-brand-subtle block">per contender</span>
@@ -220,7 +218,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
 
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle block">Prize Honor</span>
-                    <strong className="text-xs font-mono text-brand-gold block mt-0.5 line-clamp-1">
+                    <strong className="text-xs font-mono text-brand-pink block mt-0.5 line-clamp-1 font-bold">
                       {featuredTournament.prizePoolDetails || 'Trophy & Honors'}
                     </strong>
                     <span className="text-[10px] text-brand-subtle block">Cash + Awards</span>
@@ -228,7 +226,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
 
                   <div className="bg-brand-surfaceElevated border border-brand-border/60 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-brand-subtle block">Capacity</span>
-                    <strong className="text-xs font-mono text-brand-cream block mt-0.5">
+                    <strong className="text-xs font-mono text-white block mt-0.5">
                       {featuredTournament.confirmedCount || 0} / {featuredTournament.maxCapacity}
                     </strong>
                     <span className="text-[10px] text-brand-subtle block">
@@ -241,7 +239,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     onClick={() => onNavigate('tournament-detail', { slug: featuredTournament.slug })}
-                    className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-gold/60 text-brand-cream text-xs font-semibold uppercase tracking-wider transition-colors"
+                    className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue text-white text-xs font-semibold uppercase tracking-wider transition-colors"
                   >
                     View Details & Rules
                   </button>
@@ -249,7 +247,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   {featuredTournament.isRegistrationAllowed ? (
                     <button
                       onClick={() => onNavigate('tournament-register', { slug: featuredTournament.slug })}
-                      className="px-7 py-3 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-ember hover:-translate-y-0.5 flex items-center gap-2"
+                      className="px-7 py-3 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
                     >
                       <span>
                         {featuredTournament.computedStatus === 'waitlist_open' ? 'Join Official Waitlist' : 'Register Now'}
@@ -259,7 +257,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   ) : featuredTournament.status === 'completed' ? (
                     <button
                       onClick={() => onNavigate('tournament-results', { slug: featuredTournament.slug })}
-                      className="px-6 py-3 rounded-full bg-brand-gold/20 border border-brand-gold text-brand-gold text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                      className="px-6 py-3 rounded-full bg-brand-blue/20 border border-brand-blue text-brand-blue text-xs font-bold uppercase tracking-wider flex items-center gap-2"
                     >
                       <Trophy className="w-4 h-4" />
                       <span>View Results</span>
@@ -297,7 +295,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 placeholder="Search games, brackets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-brand-surface border border-brand-border rounded-xl pl-9 pr-4 py-2 text-xs text-brand-cream placeholder-brand-subtle/70 focus:outline-none focus:border-brand-terracotta"
+                className="w-full bg-brand-surface border border-brand-border rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-brand-subtle/70 focus:outline-none focus:border-brand-blue"
               />
             </div>
           </div>
@@ -318,13 +316,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   onClick={() => setStatusFilter(tab.id as any)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all flex items-center gap-1.5 ${
                     statusFilter === tab.id
-                      ? 'bg-brand-terracotta text-brand-cream font-bold shadow-luxury-ember'
-                      : 'bg-brand-surface border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-borderStrong'
+                      ? 'bg-brand-blue text-brand-charcoalDeep font-bold shadow-luxury-blue'
+                      : 'bg-brand-surface border border-brand-border text-brand-subtle hover:text-white hover:border-brand-borderStrong'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    statusFilter === tab.id ? 'bg-black/25 text-white' : 'bg-brand-surfaceElevated text-brand-subtle'
+                    statusFilter === tab.id ? 'bg-black/25 text-brand-charcoalDeep font-bold' : 'bg-brand-surfaceElevated text-brand-subtle'
                   }`}>
                     {tab.count}
                   </span>
@@ -338,7 +336,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-brand-surface border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-cream font-mono focus:outline-none focus:border-brand-terracotta cursor-pointer"
+                className="bg-brand-surface border border-brand-border rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-brand-blue cursor-pointer"
               >
                 <option value="all">All Arenas</option>
                 <option value="ps5">PS5 Gaming</option>
@@ -372,12 +370,12 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
             <div className="bg-brand-surface border border-red-500/30 rounded-2xl p-8 text-center space-y-4 max-w-lg mx-auto">
               <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
               <div className="space-y-1">
-                <h3 className="font-serif text-lg font-bold text-brand-cream">Unable to load tournaments</h3>
+                <h3 className="font-serif text-lg font-bold text-white">Unable to load tournaments</h3>
                 <p className="text-xs text-brand-subtle">{error}</p>
               </div>
               <button
                 onClick={fetchTournaments}
-                className="px-5 py-2 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-terracotta text-brand-cream text-xs font-mono inline-flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue text-white text-xs font-mono inline-flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry Connection</span>
@@ -386,11 +384,11 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
           ) : filteredTournaments.length === 0 ? (
             /* Empty State */
             <div className="bg-brand-surface border border-brand-border rounded-3xl p-12 text-center space-y-4 max-w-lg mx-auto">
-              <div className="w-12 h-12 rounded-2xl bg-brand-surfaceElevated border border-brand-border text-brand-gold flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-brand-surfaceElevated border border-brand-border text-brand-blue flex items-center justify-center mx-auto">
                 <Trophy className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-serif text-xl font-bold text-brand-cream">No tournaments found</h3>
+                <h3 className="font-serif text-xl font-bold text-white">No tournaments found</h3>
                 <p className="text-xs text-brand-subtle max-w-sm mx-auto">
                   {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
                     ? 'No events match the selected filters. Try resetting your search or filter options.'
@@ -404,7 +402,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                     setStatusFilter('all');
                     setCategoryFilter('all');
                   }}
-                  className="px-4 py-2 rounded-full bg-brand-surfaceElevated border border-brand-border text-xs text-brand-cream hover:border-brand-terracotta transition-colors font-mono"
+                  className="px-4 py-2 rounded-full bg-brand-surfaceElevated border border-brand-border text-xs text-white hover:border-brand-blue transition-colors font-mono"
                 >
                   Clear Filters
                 </button>
@@ -416,7 +414,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
               {filteredTournaments.map((t) => (
                 <div
                   key={t.id}
-                  className="group bg-brand-surface border border-brand-border/80 hover:border-brand-terracotta/50 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                  className="group bg-brand-surface border border-brand-border/80 hover:border-brand-blue/60 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
                 >
                   {/* Banner Image */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-dark">
@@ -432,7 +430,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
 
                     {/* Top Badges */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-full bg-brand-dark/85 backdrop-blur-md border border-brand-border text-[10px] font-mono text-brand-cream font-semibold uppercase">
+                      <span className="px-2.5 py-0.5 rounded-full bg-brand-dark/85 backdrop-blur-md border border-brand-border text-[10px] font-mono text-white font-semibold uppercase">
                         {t.gameCategory.toUpperCase()}
                       </span>
 
@@ -444,9 +442,9 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                             : t.computedStatus === 'waitlist_open'
                             ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                             : t.computedStatus === 'live'
-                            ? 'bg-brand-terracotta text-white border border-brand-terracotta animate-pulse'
+                            ? 'bg-brand-pink text-white border border-brand-pink animate-pulse'
                             : t.computedStatus === 'completed'
-                            ? 'bg-brand-gold/20 text-brand-gold border border-brand-gold/40'
+                            ? 'bg-brand-blue/20 text-brand-blue border border-brand-blue/40'
                             : 'bg-brand-dark/80 text-brand-subtle border border-brand-border'
                         }`}
                       >
@@ -455,7 +453,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                     </div>
 
                     <div className="absolute bottom-3 left-3 right-3">
-                      <span className="text-[11px] font-mono text-brand-gold block font-semibold drop-shadow">
+                      <span className="text-[11px] font-mono text-brand-blue block font-semibold drop-shadow">
                         {t.gameTitle} • {t.format}
                       </span>
                     </div>
@@ -464,7 +462,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   {/* Body Content */}
                   <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
                     <div className="space-y-2">
-                      <h3 className="font-serif text-lg font-bold text-brand-cream group-hover:text-brand-terracotta transition-colors line-clamp-2">
+                      <h3 className="font-serif text-lg font-bold text-white group-hover:text-brand-blue transition-colors line-clamp-2">
                         {t.title}
                       </h3>
                       <p className="text-xs text-brand-subtle line-clamp-2 font-light">
@@ -474,17 +472,17 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
 
                     {/* Meta row */}
                     <div className="space-y-1.5 pt-2 border-t border-brand-border/60 text-xs font-mono">
-                      <div className="flex items-center justify-between text-brand-cream">
+                      <div className="flex items-center justify-between text-white">
                         <span className="flex items-center gap-1.5 text-brand-subtle">
-                          <Calendar className="w-3.5 h-3.5 text-brand-terracotta shrink-0" />
+                          <Calendar className="w-3.5 h-3.5 text-brand-blue shrink-0" />
                           <span>Schedule</span>
                         </span>
                         <span>{t.startDate} • {t.startTime} IST</span>
                       </div>
 
-                      <div className="flex items-center justify-between text-brand-cream">
+                      <div className="flex items-center justify-between text-white">
                         <span className="flex items-center gap-1.5 text-brand-subtle">
-                          <Users className="w-3.5 h-3.5 text-brand-gold shrink-0" />
+                          <Users className="w-3.5 h-3.5 text-brand-pink shrink-0" />
                           <span>Capacity</span>
                         </span>
                         <span>
@@ -492,12 +490,12 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-brand-cream">
+                      <div className="flex items-center justify-between text-white">
                         <span className="flex items-center gap-1.5 text-brand-subtle">
-                          <Trophy className="w-3.5 h-3.5 text-brand-gold shrink-0" />
+                          <Trophy className="w-3.5 h-3.5 text-brand-pink shrink-0" />
                           <span>Fee / Prize</span>
                         </span>
-                        <span className="text-brand-gold font-bold">
+                        <span className="text-brand-pink font-bold">
                           {t.entryFeePaise === 0 ? 'Free' : `₹${t.entryFeePaise / 100}`}
                         </span>
                       </div>
@@ -507,7 +505,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                     <div className="pt-2 flex items-center gap-2">
                       <button
                         onClick={() => onNavigate('tournament-detail', { slug: t.slug })}
-                        className="flex-1 py-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-gold/50 text-brand-cream text-xs font-semibold uppercase tracking-wider transition-colors text-center"
+                        className="flex-1 py-2.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue/50 text-white text-xs font-semibold uppercase tracking-wider transition-colors text-center"
                       >
                         Details
                       </button>
@@ -515,14 +513,14 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                       {t.isRegistrationAllowed ? (
                         <button
                           onClick={() => onNavigate('tournament-register', { slug: t.slug })}
-                          className="flex-1 py-2.5 rounded-xl bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-ember text-center"
+                          className="flex-1 py-2.5 rounded-xl bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-pink text-center"
                         >
                           {t.computedStatus === 'waitlist_open' ? 'Waitlist' : 'Register'}
                         </button>
                       ) : t.status === 'completed' ? (
                         <button
                           onClick={() => onNavigate('tournament-results', { slug: t.slug })}
-                          className="flex-1 py-2.5 rounded-xl bg-brand-gold/15 border border-brand-gold/40 text-brand-gold text-xs font-bold uppercase tracking-wider transition-colors text-center"
+                          className="flex-1 py-2.5 rounded-xl bg-brand-blue/15 border border-brand-blue/40 text-brand-blue text-xs font-bold uppercase tracking-wider transition-colors text-center"
                         >
                           Results
                         </button>

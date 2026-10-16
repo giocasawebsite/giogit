@@ -298,26 +298,26 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
   });
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-terracotta selection:text-white">
+    <div className="min-h-screen bg-brand-dark text-white pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-pink selection:text-white">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Page Header */}
         <div className="text-center max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-gold/40 shadow-lg">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-blue/40 shadow-lg">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-brand-gold font-bold">
+            <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-brand-blue font-bold">
               LEVEL 1 • THE ARENA • LIVE BOOKING
             </span>
           </div>
 
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-brand-cream leading-tight">
+          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white leading-tight">
             Reserve Your Gaming Station
           </h1>
 
-          <p className="font-italic-accent text-lg sm:text-xl text-brand-terracotta italic">
+          <p className="font-italic-accent text-lg sm:text-xl text-brand-pink italic">
             PlayStation 5 Pro • Hot-Shot Slate Championship Pool • The Arena
           </p>
 
-          <p className="text-xs sm:text-sm text-brand-subtle max-w-xl mx-auto font-light leading-relaxed">
+          <p className="text-xs sm:text-sm text-brand-muted max-w-xl mx-auto font-light leading-relaxed">
             Real-time automated slot reservation with double-booking protection. Select your station, choose your
             duration, and step straight into the competition.
           </p>
@@ -331,8 +331,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               }}
               className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
                 activeTab === 'booking'
-                  ? 'bg-brand-terracotta text-brand-cream shadow-luxury-ember'
-                  : 'text-brand-subtle hover:text-brand-cream'
+                  ? 'bg-brand-pink text-white shadow-luxury-pink'
+                  : 'text-brand-muted hover:text-white'
               }`}
             >
               <Gamepad2 className="w-4 h-4" />
@@ -343,8 +343,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               onClick={() => setActiveTab('lookup')}
               className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
                 activeTab === 'lookup'
-                  ? 'bg-brand-terracotta text-brand-cream shadow-luxury-ember'
-                  : 'text-brand-subtle hover:text-brand-cream'
+                  ? 'bg-brand-pink text-white shadow-luxury-pink'
+                  : 'text-brand-muted hover:text-white'
               }`}
             >
               <Search className="w-4 h-4" />
@@ -374,18 +374,18 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     disabled={s.num > step}
                     className={`flex flex-col items-center gap-1 transition-all ${
                       step === s.num
-                        ? 'text-brand-terracotta font-bold'
+                        ? 'text-brand-pink font-bold'
                         : step > s.num
-                        ? 'text-brand-gold cursor-pointer hover:opacity-80'
+                        ? 'text-brand-blue cursor-pointer hover:opacity-80'
                         : 'text-brand-muted/40 cursor-not-allowed'
                     }`}
                   >
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all ${
                         step === s.num
-                          ? 'bg-brand-terracotta text-brand-cream ring-2 ring-brand-terracotta/40 scale-105'
+                          ? 'bg-brand-pink text-white ring-2 ring-brand-pink/40 scale-105 shadow-luxury-pink'
                           : step > s.num
-                          ? 'bg-brand-gold/20 text-brand-gold border border-brand-gold/40'
+                          ? 'bg-brand-blue/20 text-brand-blue border border-brand-blue/40'
                           : 'bg-brand-surfaceElevated text-brand-muted/40 border border-brand-border/40'
                       }`}
                     >
@@ -406,8 +406,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                 <div className="space-y-6 animate-fade-in">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-brand-border/60">
                     <div>
-                      <span className="text-xs font-mono uppercase tracking-widest text-brand-gold">Step 1 of 3</span>
-                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-brand-cream">
+                      <span className="text-xs font-mono uppercase tracking-widest text-brand-blue font-bold">Step 1 of 3</span>
+                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white">
                         Choose Gaming Equipment
                       </h2>
                     </div>
@@ -426,8 +426,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                           onClick={() => setSelectedCategory(cat.id)}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wider transition-all ${
                             selectedCategory === cat.id
-                              ? 'bg-brand-terracotta text-brand-cream font-bold shadow-md'
-                              : 'bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-brand-cream'
+                              ? 'bg-brand-blue text-white font-bold shadow-md'
+                              : 'bg-brand-surfaceElevated border border-brand-border text-brand-muted hover:text-white'
                           }`}
                         >
                           {cat.label}
@@ -452,8 +452,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             isMaint
                               ? 'opacity-60 bg-brand-surfaceElevated/50 border-red-900/40 cursor-not-allowed'
                               : isSelected
-                              ? 'bg-brand-surfaceElevated border-brand-terracotta ring-2 ring-brand-terracotta/40 shadow-xl -translate-y-0.5'
-                              : 'bg-brand-surfaceElevated/60 border-brand-border hover:border-brand-gold/60 hover:bg-brand-surfaceElevated'
+                              ? 'bg-brand-surfaceElevated border-brand-pink ring-2 ring-brand-pink/40 shadow-xl -translate-y-0.5'
+                              : 'bg-brand-surfaceElevated/60 border-brand-border hover:border-brand-blue/60 hover:bg-brand-surfaceElevated'
                           }`}
                         >
                           {/* Image & Price Header */}
@@ -465,7 +465,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                                 className="w-full h-full object-cover brightness-90"
                               />
                               <div className="absolute top-2.5 left-2.5 flex items-center gap-2">
-                                <span className="px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[11px] font-mono font-bold text-brand-gold shadow-md">
+                                <span className="px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[11px] font-mono font-bold text-brand-blue shadow-md">
                                   {getPricingDescription(res.category)}
                                 </span>
                               </div>
@@ -476,7 +476,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                                   <span>Maintenance</span>
                                 </div>
                               ) : isSelected ? (
-                                <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-brand-terracotta text-brand-cream text-[10px] font-mono font-bold flex items-center gap-1 shadow-md">
+                                <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-brand-pink text-white text-[10px] font-mono font-bold flex items-center gap-1 shadow-md">
                                   <Check className="w-3 h-3" />
                                   <span>Selected</span>
                                 </div>
@@ -484,16 +484,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             </div>
 
                             <div>
-                              <h3 className="font-serif text-lg font-bold text-brand-cream">{res.name}</h3>
-                              <p className="text-[11px] font-mono text-brand-terracotta mt-0.5">
+                              <h3 className="font-serif text-lg font-bold text-white">{res.name}</h3>
+                              <p className="text-[11px] font-mono text-brand-pink mt-0.5 font-semibold">
                                 Capacity: {res.playersCapacity.min} – {res.playersCapacity.max} Players
                               </p>
                             </div>
 
-                            <ul className="space-y-1 text-xs text-brand-subtle pt-1">
+                            <ul className="space-y-1 text-xs text-brand-muted pt-1">
                               {res.specs.slice(0, 3).map((spec, idx) => (
                                 <li key={idx} className="flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-brand-blue" />
                                   <span>{spec}</span>
                                 </li>
                               ))}
@@ -502,7 +502,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                           {/* Footer Action */}
                           <div className="pt-4 mt-3 border-t border-brand-border/40 flex items-center justify-between">
-                            <span className="text-[11px] font-mono text-brand-subtle">
+                            <span className="text-[11px] font-mono text-brand-muted">
                               Min: {res.minDurationMinutes}m • Max: {res.maxDurationMinutes / 60}h
                             </span>
                             <span
@@ -510,8 +510,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                                 isMaint
                                   ? 'text-red-400'
                                   : isSelected
-                                  ? 'text-brand-terracotta font-bold'
-                                  : 'text-brand-cream'
+                                  ? 'text-brand-pink font-bold'
+                                  : 'text-white'
                               }`}
                             >
                               {isMaint ? 'Unavailable' : isSelected ? 'Station Chosen' : 'Select'}
@@ -526,7 +526,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     <button
                       onClick={() => setStep(2)}
                       disabled={!selectedResource || selectedResource.isMaintenance}
-                      className="px-8 py-3.5 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-ember flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span>Proceed to Schedule</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -540,24 +540,24 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                 <div className="space-y-6 animate-fade-in">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-brand-border/60">
                     <div>
-                      <span className="text-xs font-mono uppercase tracking-widest text-brand-gold">Step 2 of 3</span>
-                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-brand-cream">
+                      <span className="text-xs font-mono uppercase tracking-widest text-brand-blue font-bold">Step 2 of 3</span>
+                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white">
                         Choose Date, Duration & Time
                       </h2>
                     </div>
-                    <span className="text-xs font-mono text-brand-subtle">
-                      Station: <strong className="text-brand-terracotta">{selectedResource?.name}</strong>
+                    <span className="text-xs font-mono text-brand-muted">
+                      Station: <strong className="text-brand-blue">{selectedResource?.name}</strong>
                     </span>
                   </div>
 
                   {/* 1. Date Selection */}
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle flex items-center gap-1.5 font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-brand-gold" />
+                      <label className="text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center gap-1.5 font-semibold">
+                        <Calendar className="w-3.5 h-3.5 text-brand-blue" />
                         <span>1. Select Date</span>
                       </label>
-                      <span className="text-xs font-serif text-brand-cream font-bold">
+                      <span className="text-xs font-serif text-white font-bold">
                         {getReadableDate(selectedDate)}
                       </span>
                     </div>
@@ -580,14 +580,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             }}
                             className={`p-3 rounded-xl border text-center transition-all ${
                               isSelected
-                                ? 'bg-brand-surfaceElevated border-brand-terracotta ring-2 ring-brand-terracotta/40 text-brand-cream shadow-md'
-                                : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-subtle hover:text-brand-cream hover:bg-brand-surfaceElevated'
+                                ? 'bg-brand-surfaceElevated border-brand-blue ring-2 ring-brand-blue/40 text-white shadow-md'
+                                : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-muted hover:text-white hover:bg-brand-surfaceElevated'
                             }`}
                           >
-                            <span className="text-[11px] font-bold uppercase tracking-wider block text-brand-terracotta">
+                            <span className="text-[11px] font-bold uppercase tracking-wider block text-brand-pink">
                               {p.label}
                             </span>
-                            <span className="text-xs font-mono font-medium text-brand-cream mt-0.5 block truncate">
+                            <span className="text-xs font-mono font-medium text-white mt-0.5 block truncate">
                               {pDate.slice(5)}
                             </span>
                           </button>
@@ -604,7 +604,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             setSelectedDate(e.target.value);
                             setSelectedSlot(null);
                           }}
-                          className="w-full h-full min-h-[52px] bg-brand-surfaceElevated/50 border border-brand-border rounded-xl px-2.5 py-2 text-brand-cream font-mono text-xs focus:outline-none focus:border-brand-terracotta text-center cursor-pointer hover:bg-brand-surfaceElevated"
+                          className="w-full h-full min-h-[52px] bg-brand-surfaceElevated/50 border border-brand-border rounded-xl px-2.5 py-2 text-white font-mono text-xs focus:outline-none focus:border-brand-pink text-center cursor-pointer hover:bg-brand-surfaceElevated"
                         />
                       </div>
                     </div>
@@ -613,11 +613,11 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   {/* 2. Duration Selection */}
                   <div className="space-y-2.5 pt-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle flex items-center gap-1.5 font-semibold">
-                        <Clock className="w-3.5 h-3.5 text-brand-gold" />
+                      <label className="text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center gap-1.5 font-semibold">
+                        <Clock className="w-3.5 h-3.5 text-brand-blue" />
                         <span>2. Select Duration</span>
                       </label>
-                      <span className="text-xs font-mono text-brand-gold font-bold">
+                      <span className="text-xs font-mono text-brand-blue font-bold">
                         {selectedResource ? getPricingDescription(selectedResource.category) : 'Select Station'}
                       </span>
                     </div>
@@ -644,19 +644,19 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             }}
                             className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between ${
                               isSelected
-                                ? 'bg-brand-surfaceElevated border-brand-terracotta ring-2 ring-brand-terracotta/40 text-brand-cream shadow-md -translate-y-0.5'
-                                : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-subtle hover:text-brand-cream hover:bg-brand-surfaceElevated'
+                                ? 'bg-brand-surfaceElevated border-brand-blue ring-2 ring-brand-blue/40 text-white shadow-md -translate-y-0.5'
+                                : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-muted hover:text-white hover:bg-brand-surfaceElevated'
                             }`}
                           >
                             {opt.popular && (
-                              <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-brand-gold text-brand-dark text-[8px] font-mono font-bold uppercase tracking-wider shadow">
+                              <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-brand-pink text-white text-[8px] font-mono font-bold uppercase tracking-wider shadow">
                                 {opt.badge}
                               </span>
                             )}
-                            <div className="font-serif text-sm sm:text-base font-bold text-brand-cream">
+                            <div className="font-serif text-sm sm:text-base font-bold text-white">
                               {opt.label}
                             </div>
-                            <div className="text-xs font-mono font-bold text-brand-gold mt-1">
+                            <div className="text-xs font-mono font-bold text-brand-pink mt-1">
                               ₹{cost}
                             </div>
                           </button>
@@ -668,8 +668,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   {/* 3. Live Time Slots Grid */}
                   <div className="space-y-2.5 pt-1">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
-                      <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle flex items-center gap-1.5 font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 text-brand-terracotta" />
+                      <label className="text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center gap-1.5 font-semibold">
+                        <Sparkles className="w-3.5 h-3.5 text-brand-blue" />
                         <span>3. Pick Available Time Slot</span>
                       </label>
 
@@ -692,8 +692,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                     {loadingSlots ? (
                       <div className="py-12 text-center space-y-2 bg-brand-dark/40 rounded-2xl border border-brand-border/40">
-                        <RefreshCw className="w-6 h-6 text-brand-terracotta animate-spin mx-auto" />
-                        <p className="text-xs font-mono text-brand-subtle">
+                        <RefreshCw className="w-6 h-6 text-brand-blue animate-spin mx-auto" />
+                        <p className="text-xs font-mono text-brand-muted">
                           Checking real-time slot availability from database...
                         </p>
                       </div>
@@ -703,7 +703,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                         <p className="text-xs text-red-200">{slotsError}</p>
                       </div>
                     ) : slots.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-brand-subtle bg-brand-dark/40 rounded-2xl border border-brand-border/40">
+                      <div className="py-8 text-center text-xs text-brand-muted bg-brand-dark/40 rounded-2xl border border-brand-border/40">
                         No slots available for this date and duration. Please select another date.
                       </div>
                     ) : (
@@ -722,9 +722,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                               }}
                               className={`p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                                 isSelected
-                                  ? 'bg-brand-terracotta text-brand-cream border-brand-terracotta ring-2 ring-brand-terracotta/40 shadow-lg scale-102'
+                                  ? 'bg-brand-blue text-white border-brand-blue ring-2 ring-brand-blue/40 shadow-lg scale-102'
                                   : s.status === 'available'
-                                  ? 'bg-brand-surfaceElevated border-emerald-900/40 text-brand-cream hover:border-emerald-500 hover:bg-emerald-950/20 cursor-pointer'
+                                  ? 'bg-brand-surfaceElevated border-emerald-900/40 text-white hover:border-emerald-500 hover:bg-emerald-950/20 cursor-pointer'
                                   : s.status === 'playing'
                                   ? 'bg-amber-950/20 border-amber-900/30 text-amber-500/60 cursor-not-allowed opacity-60'
                                   : s.status === 'booked'
@@ -766,14 +766,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                   {/* Selected Slot Callout Pill */}
                   {selectedSlot && (
-                    <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-brand-terracotta/60 flex items-center justify-between text-xs animate-fade-in shadow-md">
+                    <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-brand-blue/60 flex items-center justify-between text-xs animate-fade-in shadow-md">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="text-brand-cream font-medium">
-                          Selected Slot: <strong className="text-brand-terracotta">{formatTime12(selectedSlot.startTime)} – {formatTime12(selectedSlot.endTime)}</strong> ({durationMinutes} mins)
+                        <span className="text-white font-medium">
+                          Selected Slot: <strong className="text-brand-blue">{formatTime12(selectedSlot.startTime)} – {formatTime12(selectedSlot.endTime)}</strong> ({durationMinutes} mins)
                         </span>
                       </div>
-                      <span className="font-mono font-bold text-brand-gold text-sm">
+                      <span className="font-mono font-bold text-brand-pink text-sm">
                         ₹{calculateTotal()}
                       </span>
                     </div>
@@ -784,7 +784,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-cream text-xs uppercase tracking-wider font-semibold flex items-center gap-2"
+                      className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-white text-xs uppercase tracking-wider font-semibold flex items-center gap-2 hover:bg-brand-surface transition-colors"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       <span>Back to Station</span>
@@ -794,7 +794,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       type="button"
                       onClick={() => setStep(3)}
                       disabled={!selectedSlot}
-                      className="px-8 py-3.5 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-ember flex items-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <span>Next: Enter Details</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -807,8 +807,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               {step === 3 && (
                 <div className="space-y-6 animate-fade-in">
                   <div className="pb-4 border-b border-brand-border/60">
-                    <span className="text-xs font-mono uppercase tracking-widest text-brand-gold">Step 3 of 3</span>
-                    <h2 className="font-serif text-2xl sm:text-3xl font-bold text-brand-cream">
+                    <span className="text-xs font-mono uppercase tracking-widest text-brand-blue font-bold">Step 3 of 3</span>
+                    <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white">
                       Guest Details & Review
                     </h2>
                   </div>
@@ -827,8 +827,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Full Name */}
                         <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle">
-                            Full Name <span className="text-brand-terracotta">*</span>
+                          <label className="text-xs font-mono uppercase tracking-wider text-brand-muted">
+                            Full Name <span className="text-brand-pink">*</span>
                           </label>
                           <input
                             type="text"
@@ -836,17 +836,17 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                             placeholder="e.g. Rahul Sharma"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-3 text-brand-cream text-sm focus:outline-none focus:border-brand-terracotta"
+                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-brand-pink"
                           />
                         </div>
 
                         {/* Phone Number */}
                         <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle">
-                            Mobile Number (+91) <span className="text-brand-terracotta">*</span>
+                          <label className="text-xs font-mono uppercase tracking-wider text-brand-muted">
+                            Mobile Number (+91) <span className="text-brand-pink">*</span>
                           </label>
                           <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-mono text-brand-subtle">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-mono text-brand-muted">
                               +91
                             </span>
                             <input
@@ -856,49 +856,49 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                               placeholder="98765 43210"
                               value={phone}
                               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                              className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl pl-12 pr-4 py-3 text-brand-cream text-sm font-mono focus:outline-none focus:border-brand-terracotta"
+                              className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl pl-12 pr-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-brand-pink"
                             />
                           </div>
                         </div>
 
                         {/* Email */}
                         <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle">
-                            Email Address <span className="text-brand-muted text-[10px]">(Optional for receipt)</span>
+                          <label className="text-xs font-mono uppercase tracking-wider text-brand-muted">
+                            Email Address <span className="text-brand-muted/70 text-[10px]">(Optional for receipt)</span>
                           </label>
                           <input
                             type="email"
                             placeholder="rahul@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-3 text-brand-cream text-sm focus:outline-none focus:border-brand-terracotta"
+                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-brand-pink"
                           />
                         </div>
 
                         {/* Number of Players */}
                         <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle">
+                          <label className="text-xs font-mono uppercase tracking-wider text-brand-muted">
                             Number of Players (Max {selectedResource?.playersCapacity.max})
                           </label>
                           <div className="flex items-center gap-3">
                             <button
                               type="button"
                               onClick={() => setNumberOfPeople(Math.max(selectedResource?.playersCapacity.min || 1, numberOfPeople - 1))}
-                              className="w-11 h-11 rounded-xl bg-brand-surfaceElevated border border-brand-border text-brand-cream font-bold text-lg flex items-center justify-center hover:bg-brand-surface"
+                              className="w-11 h-11 rounded-xl bg-brand-surfaceElevated border border-brand-border text-white font-bold text-lg flex items-center justify-center hover:bg-brand-surface"
                             >
                               -
                             </button>
-                            <span className="font-mono text-lg font-bold text-brand-gold w-8 text-center">
+                            <span className="font-mono text-lg font-bold text-brand-blue w-8 text-center">
                               {numberOfPeople}
                             </span>
                             <button
                               type="button"
                               onClick={() => setNumberOfPeople(Math.min(selectedResource?.playersCapacity.max || 4, numberOfPeople + 1))}
-                              className="w-11 h-11 rounded-xl bg-brand-surfaceElevated border border-brand-border text-brand-cream font-bold text-lg flex items-center justify-center hover:bg-brand-surface"
+                              className="w-11 h-11 rounded-xl bg-brand-surfaceElevated border border-brand-border text-white font-bold text-lg flex items-center justify-center hover:bg-brand-surface"
                             >
                               +
                             </button>
-                            <span className="text-xs text-brand-subtle font-mono">
+                            <span className="text-xs text-brand-muted font-mono">
                               ({selectedResource?.playersCapacity.min}–{selectedResource?.playersCapacity.max} allowed)
                             </span>
                           </div>
@@ -906,15 +906,15 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                         {/* Special Requests */}
                         <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-brand-subtle">
-                            Special Requests / Notes <span className="text-brand-muted text-[10px]">(Optional)</span>
+                          <label className="text-xs font-mono uppercase tracking-wider text-brand-muted">
+                            Special Requests / Notes <span className="text-brand-muted/70 text-[10px]">(Optional)</span>
                           </label>
                           <textarea
                             rows={2}
                             placeholder="e.g. Need 4 controllers for FIFA, tournament setup..."
                             value={specialRequests}
                             onChange={(e) => setSpecialRequests(e.target.value)}
-                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-brand-cream text-xs focus:outline-none focus:border-brand-terracotta"
+                            className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-2.5 text-white text-xs focus:outline-none focus:border-brand-pink"
                           />
                         </div>
                       </div>
@@ -923,35 +923,35 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     {/* Right Column: Live Boarding Pass Summary & Confirm (5 cols) */}
                     <div className="lg:col-span-5 rounded-2xl bg-brand-dark/95 border border-brand-border/90 p-5 space-y-4 shadow-xl">
                       <div className="pb-3 border-b border-brand-border/40">
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-brand-gold block">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-brand-blue block font-bold">
                           Reservation Ticket
                         </span>
-                        <h3 className="font-serif text-lg font-bold text-brand-cream mt-0.5">
+                        <h3 className="font-serif text-lg font-bold text-white mt-0.5">
                           {selectedResource?.name}
                         </h3>
                       </div>
 
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
-                          <span className="text-brand-subtle">Date:</span>
-                          <span className="font-semibold text-brand-cream">{getReadableDate(selectedDate)}</span>
+                          <span className="text-brand-muted">Date:</span>
+                          <span className="font-semibold text-white">{getReadableDate(selectedDate)}</span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
-                          <span className="text-brand-subtle">Time Slot:</span>
-                          <span className="font-semibold text-brand-gold font-mono">
+                          <span className="text-brand-muted">Time Slot:</span>
+                          <span className="font-semibold text-brand-blue font-mono">
                             {selectedSlot ? `${formatTime12(selectedSlot.startTime)} – ${formatTime12(selectedSlot.endTime)}` : ''}
                           </span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
-                          <span className="text-brand-subtle">Duration:</span>
-                          <span className="font-mono text-brand-cream">{durationMinutes} Minutes</span>
+                          <span className="text-brand-muted">Duration:</span>
+                          <span className="font-mono text-white">{durationMinutes} Minutes</span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
-                          <span className="text-brand-subtle">Players:</span>
-                          <span className="font-mono text-brand-cream">{numberOfPeople} Guests</span>
+                          <span className="text-brand-muted">Players:</span>
+                          <span className="font-mono text-white">{numberOfPeople} Guests</span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
-                          <span className="text-brand-subtle">Payment Mode:</span>
+                          <span className="text-brand-muted">Payment Mode:</span>
                           <span className="font-semibold text-emerald-400">Pay at Venue</span>
                         </div>
                       </div>
@@ -959,10 +959,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       {/* Total Price Callout */}
                       <div className="p-3.5 rounded-xl bg-brand-surfaceElevated border border-brand-border/60 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-mono uppercase text-brand-subtle block">Total Amount</span>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Total Amount</span>
                           <span className="text-[10px] text-emerald-400">✓ Zero deposit required</span>
                         </div>
-                        <span className="font-serif text-2xl font-bold text-brand-gold">
+                        <span className="font-serif text-2xl font-bold text-brand-pink">
                           ₹{calculateTotal()}
                         </span>
                       </div>
@@ -972,7 +972,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                         type="button"
                         onClick={handleConfirmBooking}
                         disabled={submitting}
-                        className="w-full py-4 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-bold text-xs uppercase tracking-widest transition-all shadow-luxury-ember flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed group"
+                        className="w-full py-4 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-bold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed group"
                       >
                         {submitting ? (
                           <>
@@ -990,7 +990,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       <button
                         type="button"
                         onClick={() => setStep(2)}
-                        className="w-full text-center text-xs text-brand-subtle hover:text-brand-cream transition-colors pt-1"
+                        className="w-full text-center text-xs text-brand-muted hover:text-white transition-colors pt-1"
                       >
                         ← Change Schedule
                       </button>
@@ -1008,18 +1008,18 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
         {activeTab === 'booking' && confirmedBooking && (
           <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
             {/* Confirmation Ticket Card */}
-            <div className="bg-brand-surface border border-brand-gold/60 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="bg-brand-surface border border-brand-pink/60 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 relative overflow-hidden">
               <div className="text-center space-y-2">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-lg">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <span className="text-xs font-mono uppercase tracking-[0.25em] text-brand-gold font-bold block">
+                <span className="text-xs font-mono uppercase tracking-[0.25em] text-brand-pink font-bold block">
                   BOOKING CONFIRMED
                 </span>
-                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-cream">
+                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
                   {confirmedBooking.resourceName}
                 </h2>
-                <p className="text-xs text-brand-subtle">
+                <p className="text-xs text-brand-muted">
                   Your gaming slot is officially locked into our live database.
                 </p>
               </div>
@@ -1027,14 +1027,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               {/* Booking ID Banner with 1-Click Copy */}
               <div className="p-4 rounded-2xl bg-brand-dark border border-brand-border flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-mono text-brand-subtle uppercase block">Booking Pass ID</span>
-                  <span className="font-mono text-xl font-bold text-brand-gold tracking-widest">
+                  <span className="text-[10px] font-mono text-brand-muted uppercase block">Booking Pass ID</span>
+                  <span className="font-mono text-xl font-bold text-brand-pink tracking-widest">
                     {confirmedBooking.id}
                   </span>
                 </div>
                 <button
                   onClick={() => copyBookingId(confirmedBooking.id)}
-                  className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-border text-xs font-mono text-brand-cream hover:text-brand-gold transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-border text-xs font-mono text-white hover:text-brand-pink transition-colors flex items-center gap-1.5"
                 >
                   {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedId ? 'Copied!' : 'Copy ID'}</span>
@@ -1044,47 +1044,47 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               {/* Receipt Details */}
               <div className="grid grid-cols-2 gap-4 text-xs pt-2">
                 <div>
-                  <span className="text-[10px] font-mono text-brand-subtle block uppercase">Date</span>
-                  <span className="font-semibold text-brand-cream mt-0.5 block">
+                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Date</span>
+                  <span className="font-semibold text-white mt-0.5 block">
                     {getReadableDate(confirmedBooking.date)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono text-brand-subtle block uppercase">Reserved Slot</span>
-                  <span className="font-semibold text-brand-gold mt-0.5 block">
+                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Reserved Slot</span>
+                  <span className="font-semibold text-brand-blue mt-0.5 block">
                     {formatTime12(confirmedBooking.startTime)} – {formatTime12(confirmedBooking.endTime)} ({confirmedBooking.durationMinutes}m)
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono text-brand-subtle block uppercase">Guest Name</span>
-                  <span className="font-semibold text-brand-cream mt-0.5 block">
+                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Guest Name</span>
+                  <span className="font-semibold text-white mt-0.5 block">
                     {confirmedBooking.customerName}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono text-brand-subtle block uppercase">Contact Phone</span>
-                  <span className="font-mono font-semibold text-brand-cream mt-0.5 block">
+                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Contact Phone</span>
+                  <span className="font-mono font-semibold text-white mt-0.5 block">
                     +91 {confirmedBooking.phone}
                   </span>
                 </div>
               </div>
 
               {/* Cross-Sell Experience Callout (Requirement 21) */}
-              <div className="p-5 rounded-2xl bg-brand-dark/80 border border-brand-gold/30 space-y-3 pt-4">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-brand-gold font-bold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-gold" />
+              <div className="p-5 rounded-2xl bg-brand-dark/80 border border-brand-orange/40 space-y-3 pt-4">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-brand-orange font-bold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-orange" />
                   <span>Make it a Full GioCasa Night</span>
                 </span>
-                <p className="text-xs text-brand-cream/90 leading-relaxed font-light">
+                <p className="text-xs text-white/90 leading-relaxed font-light">
                   Enhance your session with wood-fired sourdough pizzas & specialty cold coffee brewed downstairs at The Hearth, served straight to your game station.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
                     onClick={openDrawer}
-                    className="py-2.5 px-4 rounded-xl bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-cream font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    className="py-2.5 px-4 rounded-xl bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-orange/40 text-brand-orange font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5 text-brand-gold" />
+                    <ShoppingBag className="w-3.5 h-3.5 text-brand-orange" />
                     <span>Pre-order Wood-Fired Pizza</span>
                   </button>
 
@@ -1094,7 +1094,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-2.5 px-4 rounded-xl bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-cream font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    className="py-2.5 px-4 rounded-xl bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Inquire Birthday / Group Setup</span>
@@ -1109,14 +1109,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     setConfirmedBooking(null);
                     setStep(1);
                   }}
-                  className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-cream font-semibold text-xs uppercase tracking-wider hover:bg-brand-surface transition-colors"
+                  className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-surfaceElevated border border-brand-border text-white font-semibold text-xs uppercase tracking-wider hover:bg-brand-surface transition-colors"
                 >
                   Book Another Experience
                 </button>
 
                 <button
                   onClick={() => onNavigate('home')}
-                  className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-terracotta text-brand-cream font-semibold text-xs uppercase tracking-wider shadow-luxury-ember hover:bg-brand-terracottaHover transition-colors"
+                  className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-pink text-white font-semibold text-xs uppercase tracking-wider shadow-luxury-pink hover:bg-brand-pinkHover transition-colors"
                 >
                   Back to GioCasa
                 </button>
@@ -1133,30 +1133,30 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
             {/* Search Card */}
             <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
               <div>
-                <h2 className="font-serif text-2xl font-bold text-brand-cream">
+                <h2 className="font-serif text-2xl font-bold text-white">
                   Find Your Reservation
                 </h2>
-                <p className="text-xs text-brand-subtle mt-1">
+                <p className="text-xs text-brand-muted mt-1">
                   Enter your Booking Pass ID (e.g. <code>GC-NV572Y</code>) or your 10-digit mobile number.
                 </p>
               </div>
 
               <form onSubmit={handleLookup} className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-brand-subtle absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-brand-muted absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     required
                     placeholder="Enter Booking ID (e.g. GC-XXXXXX) or Phone"
                     value={lookupQuery}
                     onChange={(e) => setLookupQuery(e.target.value)}
-                    className="w-full bg-brand-surfaceElevated border border-brand-border rounded-2xl pl-11 pr-4 py-3.5 text-brand-cream font-mono text-sm focus:outline-none focus:border-brand-terracotta"
+                    className="w-full bg-brand-surfaceElevated border border-brand-border rounded-2xl pl-11 pr-4 py-3.5 text-white font-mono text-sm focus:outline-none focus:border-brand-pink"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={lookupLoading}
-                  className="py-3.5 px-8 rounded-2xl bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-wider shadow-luxury-ember flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+                  className="py-3.5 px-8 rounded-2xl bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-wider shadow-luxury-pink flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
                 >
                   {lookupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   <span>Search</span>
@@ -1181,7 +1181,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
             {/* Results List */}
             {lookupResults.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-brand-gold">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-brand-blue font-bold">
                   Found {lookupResults.length} Reservation(s)
                 </h3>
 
@@ -1192,8 +1192,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-brand-border/40">
                       <div>
-                        <span className="font-mono text-sm font-bold text-brand-gold">{b.id}</span>
-                        <h4 className="font-serif text-lg font-bold text-brand-cream mt-0.5">{b.resourceName}</h4>
+                        <span className="font-mono text-sm font-bold text-brand-blue">{b.id}</span>
+                        <h4 className="font-serif text-lg font-bold text-white mt-0.5">{b.resourceName}</h4>
                       </div>
                       <div className="flex items-center gap-2">
                         <span
@@ -1214,22 +1214,22 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                       <div>
-                        <span className="text-[10px] font-mono text-brand-subtle block uppercase">Date</span>
-                        <span className="font-semibold text-brand-cream">{getReadableDate(b.date)}</span>
+                        <span className="text-[10px] font-mono text-brand-muted block uppercase">Date</span>
+                        <span className="font-semibold text-white">{getReadableDate(b.date)}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono text-brand-subtle block uppercase">Time</span>
-                        <span className="font-semibold text-brand-gold">
+                        <span className="text-[10px] font-mono text-brand-muted block uppercase">Time</span>
+                        <span className="font-semibold text-brand-blue">
                           {formatTime12(b.startTime)} – {formatTime12(b.endTime)} ({b.durationMinutes}m)
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono text-brand-subtle block uppercase">Guest</span>
-                        <span className="font-semibold text-brand-cream">{b.customerName}</span>
+                        <span className="text-[10px] font-mono text-brand-muted block uppercase">Guest</span>
+                        <span className="font-semibold text-white">{b.customerName}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono text-brand-subtle block uppercase">Amount</span>
-                        <span className="font-mono font-bold text-brand-gold">₹{b.totalAmount}</span>
+                        <span className="text-[10px] font-mono text-brand-muted block uppercase">Amount</span>
+                        <span className="font-mono font-bold text-brand-pink">₹{b.totalAmount}</span>
                       </div>
                     </div>
 
@@ -1240,7 +1240,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                           <button
                             onClick={() => handleExtend(b.id, 30)}
                             disabled={extendingId === b.id}
-                            className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-gold/40 text-brand-gold text-xs font-mono font-bold hover:bg-brand-surface transition-colors flex items-center gap-1.5"
+                            className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-blue/40 text-brand-blue text-xs font-mono font-bold hover:bg-brand-surface transition-colors flex items-center gap-1.5"
                           >
                             {extendingId === b.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Clock className="w-3 h-3" />}
                             <span>Extend +30m</span>
@@ -1249,7 +1249,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                           <button
                             onClick={() => handleExtend(b.id, 60)}
                             disabled={extendingId === b.id}
-                            className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-gold/40 text-brand-gold text-xs font-mono font-bold hover:bg-brand-surface transition-colors flex items-center gap-1.5"
+                            className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-blue/40 text-brand-blue text-xs font-mono font-bold hover:bg-brand-surface transition-colors flex items-center gap-1.5"
                           >
                             {extendingId === b.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Clock className="w-3 h-3" />}
                             <span>Extend +1h</span>
