@@ -3,6 +3,7 @@ import { PageRoute, RouteParams } from '../types';
 import { bookingApi, AdminOverviewData, Booking, GamingResource } from '../services/bookingApi';
 import { AdminTournamentsManager } from '../components/admin/AdminTournamentsManager';
 import { AdminHallOfFameManager } from '../components/admin/AdminHallOfFameManager';
+import { AdminPlayerCRM } from '../components/admin/AdminPlayerCRM';
 import { getPricingDescription } from '../utils/pricing';
 import {
   ShieldAlert,
@@ -36,27 +37,40 @@ interface AdminPageProps {
   onNavigate: (page: PageRoute, params?: RouteParams) => void;
   adminTab?: string;
   adminTournamentId?: string;
+  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty';
+  adminPlayerId?: string;
 }
 
-export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, adminTab, adminTournamentId }) => {
+export const AdminPage: React.FC<AdminPageProps> = ({
+  onNavigate,
+  adminTab,
+  adminTournamentId,
+  adminSubTab,
+  adminPlayerId,
+}) => {
   // Passcode authentication
   const [passcode, setPasscode] = useState<string>(() => localStorage.getItem('giocasa_admin_passcode') || '');
   const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Tab Navigation: 'stations' | 'tournaments' | 'hall-of-fame'
-  const [selectedTab, setSelectedTab] = useState<'stations' | 'tournaments' | 'hall-of-fame'>(() => {
+  // Tab Navigation: 'stations' | 'tournaments' | 'hall-of-fame' | 'players'
+  const [selectedTab, setSelectedTab] = useState<'stations' | 'tournaments' | 'hall-of-fame' | 'players'>(() => {
+    if (adminTab === 'players') return 'players';
     if (adminTab === 'hall-of-fame') return 'hall-of-fame';
     if (adminTab?.startsWith('tournament')) return 'tournaments';
     return 'stations';
   });
 
   useEffect(() => {
-    if (adminTab === 'hall-of-fame') {
+    if (adminTab === 'players') {
+      setSelectedTab('players');
+    } else if (adminTab === 'hall-of-fame') {
       setSelectedTab('hall-of-fame');
     } else if (adminTab?.startsWith('tournament')) {
       setSelectedTab('tournaments');
+    } else if (adminTab === 'overview' || !adminTab) {
+      setSelectedTab('stations');
     }
   }, [adminTab]);
 
@@ -535,6 +549,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, adminTab, admi
             <Award className="w-4 h-4 text-brand-gold" />
             <span>Hall of Fame Archive</span>
           </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('players');
+              onNavigate('admin', { adminTab: 'players', adminSubTab: 'directory' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'players'
+                ? 'border-[#ED249B] text-[#ED249B] font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <Users className="w-4 h-4 text-[#ED249B]" />
+            <span>Player CRM</span>
+          </button>
         </div>
 
         {selectedTab === 'stations' && (
@@ -991,6 +1020,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, adminTab, admi
     {selectedTab === 'hall-of-fame' && (
       <AdminHallOfFameManager
         passcode={passcode}
+      />
+    )}
+
+    {/* PLAYER CRM MANAGER */}
+    {selectedTab === 'players' && (
+      <AdminPlayerCRM
+        passcode={passcode}
+        onNavigate={onNavigate}
+        subTab={adminSubTab}
+        playerId={adminPlayerId}
       />
     )}
 

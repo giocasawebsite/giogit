@@ -76,6 +76,8 @@ export const App: React.FC = () => {
             onNavigate={navigateTo}
             adminTab={currentRoute.params.adminTab}
             adminTournamentId={currentRoute.params.adminTournamentId}
+            adminSubTab={currentRoute.params.adminSubTab}
+            adminPlayerId={currentRoute.params.adminPlayerId}
           />
         );
       case 'tournaments':

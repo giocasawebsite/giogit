@@ -19,9 +19,13 @@ export interface RouteParams {
   slug?: string;
   registrationId?: string;
   token?: string;
-  adminTab?: 'overview' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame';
+  adminTab?: 'overview' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players';
+  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty';
   adminTournamentId?: string;
+  adminPlayerId?: string;
 }
+
+export type ResourceCategory = 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
 
 // ==========================================
 // GIOCASA ARENA TYPES
@@ -228,4 +232,146 @@ export interface BookingFormData {
   reservationType: ReservationType;
   preferredLevel: 'downstairs-dine' | 'upstairs-gaming' | 'full-venue' | 'any';
   specialRequests?: string;
+}
+
+// ==========================================
+// GIOCASA PLAYER CRM TYPES
+// ==========================================
+
+export type MembershipTier = 'standard' | 'bronze' | 'silver' | 'gold' | 'vip';
+export type PlayerStatus = 'active' | 'inactive' | 'banned' | 'archived';
+
+export interface StaffNote {
+  id: string;
+  text: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface FollowUpReminder {
+  id: string;
+  title: string;
+  dueDate: string; // YYYY-MM-DD
+  isCompleted: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface LoyaltyLedgerEntry {
+  id: string;
+  playerId: string;
+  points: number; // positive for earn/bonus, negative for redeem
+  type: 'earn' | 'redeem' | 'adjustment' | 'bonus';
+  reason: string;
+  referenceId?: string; // bookingId or tournamentId
+  createdAt: string;
+}
+
+export interface PlayerStats {
+  tournamentCount: number;
+  tournamentWins: number;
+  bookingsCount: number;
+  totalHoursPlayed: number;
+  totalSpend: number; // Verified INR
+  firstVisitDate?: string;
+  lastVisitDate?: string;
+}
+
+export interface Player {
+  id: string; // 'ply-xxx'
+  name: string;
+  gamerTag: string;
+  phone: string;
+  normalizedPhone: string; // 10 digit normalized
+  email?: string;
+  avatarUrl?: string;
+  favoriteGame?: string;
+  favoritePlatform?: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames' | 'other';
+  membershipTier: MembershipTier;
+  status: PlayerStatus;
+  notes: StaffNote[];
+  reminders: FollowUpReminder[];
+  tags: string[];
+  consent: {
+    whatsappUpdates: boolean;
+    emailUpdates: boolean;
+  };
+  loyalty: {
+    pointsBalance: number;
+    lifetimePoints: number;
+    tier: MembershipTier;
+  };
+  stats: PlayerStats;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PlayerSegment =
+  | 'all'
+  | 'new'
+  | 'frequent'
+  | 'tournament_regulars'
+  | 'winners'
+  | 'vip'
+  | 'inactive'
+  | 'upcoming_bookings';
+
+export interface PlayerQueryParams {
+  search?: string;
+  segment?: PlayerSegment;
+  status?: PlayerStatus | 'all';
+  tier?: MembershipTier | 'all';
+  sortBy?: 'lastVisit' | 'totalSpend' | 'tournaments' | 'name' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface PlayerTimelineEvent {
+  id: string;
+  type: 'tournament' | 'booking' | 'win' | 'loyalty' | 'note' | 'reminder';
+  title: string;
+  description: string;
+  date: string;
+  badge?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface Booking {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  resourceId: string;
+  resourceName?: string;
+  category?: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
+  date: string;
+  startTime: string;
+  endTime?: string;
+  durationMinutes: number;
+  numberOfPeople?: number;
+  totalAmount?: number;
+  totalPrice?: number;
+  status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' | 'expired';
+  paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'refunded';
+  notes?: string;
+  createdAt: string;
+  playerId?: string;
+}
+
+export interface PlayerProfileDetails {
+  player: Player;
+  registrations: TournamentRegistration[];
+  bookings: Booking[];
+  wins: Array<{
+    id: string;
+    tournamentTitle: string;
+    award: string;
+    gameTitle: string;
+    season?: string;
+    eventDate?: string;
+    scoreDescription?: string;
+  }>;
+  loyaltyLedger: LoyaltyLedgerEntry[];
+  activityTimeline: PlayerTimelineEvent[];
 }

@@ -14,6 +14,17 @@ import {
   HallOfFameEntry,
   TournamentStatus,
   TournamentRegistrationStatus,
+  Player,
+  StaffNote,
+  FollowUpReminder,
+  LoyaltyLedgerEntry,
+  PlayerStats,
+  MembershipTier,
+  PlayerStatus,
+  PlayerSegment,
+  PlayerQueryParams,
+  PlayerProfileDetails,
+  PlayerTimelineEvent,
 } from './types';
 import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/timezone';
 import { calculateBookingPrice } from './utils/pricing';
@@ -115,6 +126,8 @@ class DatabaseService {
   private fileRegistrations: TournamentRegistration[] = [];
   private fileResults: TournamentResult[] = [...INITIAL_TOURNAMENT_RESULTS];
   private fileHallOfFame: HallOfFameEntry[] = [...INITIAL_HALL_OF_FAME];
+  private filePlayers: Player[] = [];
+  private fileLoyaltyLedger: LoyaltyLedgerEntry[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
@@ -122,6 +135,8 @@ class DatabaseService {
   private registrationsFilePath = path.join(DATA_DIR, 'tournament_registrations.json');
   private resultsFilePath = path.join(DATA_DIR, 'tournament_results.json');
   private hallOfFameFilePath = path.join(DATA_DIR, 'hall_of_fame.json');
+  private playersFilePath = path.join(DATA_DIR, 'players.json');
+  private loyaltyFilePath = path.join(DATA_DIR, 'loyalty_ledger.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
 
@@ -215,12 +230,31 @@ class DatabaseService {
           await hofCol.insertMany(INITIAL_HALL_OF_FAME);
           console.log(`🌱 Seeded ${INITIAL_HALL_OF_FAME.length} Hall of Fame champions in MongoDB Atlas.`);
         }
+
+        // Player CRM collection & indexes
+        const playersCol = this.db.collection<Player>('players');
+        await playersCol.createIndex({ id: 1 }, { unique: true });
+        await playersCol.createIndex({ normalizedPhone: 1 });
+        await playersCol.createIndex({ status: 1 });
+        await playersCol.createIndex({ membershipTier: 1 });
+        await playersCol.createIndex({ gamerTag: 1 });
+
+        const loyaltyCol = this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger');
+        await loyaltyCol.createIndex({ id: 1 }, { unique: true });
+        await loyaltyCol.createIndex({ playerId: 1, createdAt: -1 });
       } catch (err) {
         console.warn('⚠️ MongoDB Atlas connection failed or timed out. Falling back to persistent disk store.', err);
         this.isMongoConnected = false;
       }
     } else {
       console.log('ℹ️ MONGODB_URI not provided. Operating in robust local persistent file-store mode.');
+    }
+
+    // Auto-backfill existing registrations and bookings into player profiles
+    try {
+      await this.backfillHistoricalData();
+    } catch (bfErr) {
+      console.warn('Warning during startup player backfill:', bfErr);
     }
   }
 
@@ -283,6 +317,24 @@ class DatabaseService {
         this.fileHallOfFame = [...INITIAL_HALL_OF_FAME];
         this.saveHallOfFameToFile();
       }
+
+      // Load Players
+      if (fs.existsSync(this.playersFilePath)) {
+        const raw = fs.readFileSync(this.playersFilePath, 'utf-8');
+        this.filePlayers = JSON.parse(raw);
+      } else {
+        this.filePlayers = [];
+        this.savePlayersToFile();
+      }
+
+      // Load Loyalty Ledger
+      if (fs.existsSync(this.loyaltyFilePath)) {
+        const raw = fs.readFileSync(this.loyaltyFilePath, 'utf-8');
+        this.fileLoyaltyLedger = JSON.parse(raw);
+      } else {
+        this.fileLoyaltyLedger = [];
+        this.saveLoyaltyToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -291,6 +343,8 @@ class DatabaseService {
       this.fileRegistrations = [];
       this.fileResults = [...INITIAL_TOURNAMENT_RESULTS];
       this.fileHallOfFame = [...INITIAL_HALL_OF_FAME];
+      this.filePlayers = [];
+      this.fileLoyaltyLedger = [];
     }
   }
 
@@ -339,6 +393,22 @@ class DatabaseService {
       fs.writeFileSync(this.hallOfFameFilePath, JSON.stringify(this.fileHallOfFame, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving hall of fame to file:', err);
+    }
+  }
+
+  private savePlayersToFile(): void {
+    try {
+      fs.writeFileSync(this.playersFilePath, JSON.stringify(this.filePlayers, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving players to file:', err);
+    }
+  }
+
+  private saveLoyaltyToFile(): void {
+    try {
+      fs.writeFileSync(this.loyaltyFilePath, JSON.stringify(this.fileLoyaltyLedger, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving loyalty ledger to file:', err);
     }
   }
 
@@ -547,6 +617,13 @@ class DatabaseService {
       } else {
         this.fileBookings.push(booking);
         this.saveBookingsToFile();
+      }
+
+      // 3. Link or create player profile in CRM
+      try {
+        await this.linkPlayerToBooking(booking);
+      } catch (crmErr) {
+        console.warn('Non-fatal: Failed to link player to booking in CRM:', crmErr);
       }
 
       return { success: true, booking };
@@ -1180,6 +1257,13 @@ class DatabaseService {
         this.saveRegistrationsToFile();
       }
 
+      // Link or create player profile in CRM
+      try {
+        await this.linkPlayerToRegistration(registration);
+      } catch (crmErr) {
+        console.warn('Non-fatal: Failed to link player to registration in CRM:', crmErr);
+      }
+
       // Update tournament participant counts
       const newConfirmedCount = regStatus === 'confirmed' || regStatus === 'pending_approval'
         ? confirmedActiveCount + 1
@@ -1602,6 +1686,885 @@ class DatabaseService {
       this.saveHallOfFameToFile();
     }
     return true;
+  }
+
+  // =========================================================================
+  // GIOCASA PLAYER CRM IMPLEMENTATION
+  // =========================================================================
+
+  normalizePhone(rawPhone?: string): string {
+    if (!rawPhone) return '';
+    const digits = rawPhone.replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('91')) {
+      return digits.slice(2);
+    }
+    if (digits.length === 11 && digits.startsWith('0')) {
+      return digits.slice(1);
+    }
+    return digits;
+  }
+
+  calculateLoyaltyTier(lifetimePoints: number): MembershipTier {
+    if (lifetimePoints >= 5000) return 'vip';
+    if (lifetimePoints >= 2500) return 'gold';
+    if (lifetimePoints >= 1000) return 'silver';
+    if (lifetimePoints >= 500) return 'bronze';
+    return 'standard';
+  }
+
+  async getPlayers(params: PlayerQueryParams = {}): Promise<{
+    players: Player[];
+    total: number;
+    page: number;
+    totalPages: number;
+    segmentsSummary: Record<string, number>;
+  }> {
+    let allPlayers: Player[] = [];
+    if (this.isMongoConnected && this.db) {
+      allPlayers = await this.db.collection<Player>('players').find({}).toArray();
+    } else {
+      allPlayers = [...this.filePlayers];
+    }
+
+    const todayStr = getNowInKolkata().dateStr;
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    // Calculate segments summary across all non-archived players
+    const activePool = allPlayers.filter((p) => p.status !== 'archived');
+    
+    // Check upcoming bookings across all bookings for segment calculation
+    const allBookings = await this.getBookings();
+    const upcomingBookingsMap = new Set<string>();
+    for (const b of allBookings) {
+      if (b.date >= todayStr && (b.status === 'confirmed' || b.status === 'active' || b.status === 'pending')) {
+        const norm = this.normalizePhone(b.phone);
+        if (norm) upcomingBookingsMap.add(norm);
+      }
+    }
+
+    const segmentsSummary: Record<string, number> = {
+      all: activePool.length,
+      new: activePool.filter((p) => (p.createdAt && p.createdAt.slice(0, 10) >= fourteenDaysAgo) || ((p.stats.bookingsCount || 0) <= 1 && (p.stats.tournamentCount || 0) <= 1)).length,
+      frequent: activePool.filter((p) => (p.stats.bookingsCount || 0) >= 3 || (p.stats.totalHoursPlayed || 0) >= 5).length,
+      tournament_regulars: activePool.filter((p) => (p.stats.tournamentCount || 0) >= 2).length,
+      winners: activePool.filter((p) => (p.stats.tournamentWins || 0) > 0).length,
+      vip: activePool.filter((p) => p.membershipTier === 'vip' || (p.stats.totalSpend || 0) >= 2000).length,
+      inactive: activePool.filter((p) => p.status === 'inactive' || (p.stats.lastVisitDate && p.stats.lastVisitDate < thirtyDaysAgo)).length,
+      upcoming_bookings: activePool.filter((p) => upcomingBookingsMap.has(p.normalizedPhone)).length,
+    };
+
+    // Filter pipeline
+    let filtered = allPlayers;
+
+    // Status filter
+    if (params.status && params.status !== 'all') {
+      filtered = filtered.filter((p) => p.status === params.status);
+    } else if (params.segment !== 'inactive') {
+      // Default: exclude archived players unless explicitly requested
+      filtered = filtered.filter((p) => p.status !== 'archived');
+    }
+
+    // Tier filter
+    if (params.tier && params.tier !== 'all') {
+      filtered = filtered.filter((p) => p.membershipTier === params.tier);
+    }
+
+    // Segment filter
+    if (params.segment && params.segment !== 'all') {
+      switch (params.segment) {
+        case 'new':
+          filtered = filtered.filter((p) => (p.createdAt && p.createdAt.slice(0, 10) >= fourteenDaysAgo) || ((p.stats.bookingsCount || 0) <= 1 && (p.stats.tournamentCount || 0) <= 1));
+          break;
+        case 'frequent':
+          filtered = filtered.filter((p) => (p.stats.bookingsCount || 0) >= 3 || (p.stats.totalHoursPlayed || 0) >= 5);
+          break;
+        case 'tournament_regulars':
+          filtered = filtered.filter((p) => (p.stats.tournamentCount || 0) >= 2);
+          break;
+        case 'winners':
+          filtered = filtered.filter((p) => (p.stats.tournamentWins || 0) > 0);
+          break;
+        case 'vip':
+          filtered = filtered.filter((p) => p.membershipTier === 'vip' || (p.stats.totalSpend || 0) >= 2000);
+          break;
+        case 'inactive':
+          filtered = filtered.filter((p) => p.status === 'inactive' || (p.stats.lastVisitDate && p.stats.lastVisitDate < thirtyDaysAgo));
+          break;
+        case 'upcoming_bookings':
+          filtered = filtered.filter((p) => upcomingBookingsMap.has(p.normalizedPhone));
+          break;
+      }
+    }
+
+    // Search filter
+    if (params.search && params.search.trim()) {
+      const q = params.search.trim().toLowerCase();
+      filtered = filtered.filter((p) => {
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.gamerTag.toLowerCase().includes(q) ||
+          p.phone.includes(q) ||
+          p.normalizedPhone.includes(q) ||
+          (p.email && p.email.toLowerCase().includes(q)) ||
+          p.tags.some((t) => t.toLowerCase().includes(q)) ||
+          (p.favoriteGame && p.favoriteGame.toLowerCase().includes(q))
+        );
+      });
+    }
+
+    // Sorting
+    const sortBy = params.sortBy || 'createdAt';
+    const sortOrder = params.sortOrder || 'desc';
+    const factor = sortOrder === 'asc' ? 1 : -1;
+
+    filtered.sort((a, b) => {
+      if (sortBy === 'lastVisit') {
+        const dA = a.stats.lastVisitDate || '';
+        const dB = b.stats.lastVisitDate || '';
+        return factor * dA.localeCompare(dB);
+      }
+      if (sortBy === 'totalSpend') {
+        return factor * ((a.stats.totalSpend || 0) - (b.stats.totalSpend || 0));
+      }
+      if (sortBy === 'tournaments') {
+        return factor * ((a.stats.tournamentCount || 0) - (b.stats.tournamentCount || 0));
+      }
+      if (sortBy === 'name') {
+        return factor * a.name.localeCompare(b.name);
+      }
+      return factor * a.createdAt.localeCompare(b.createdAt);
+    });
+
+    // Pagination
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(100, Math.max(1, params.limit || 15));
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const startIndex = (page - 1) * limit;
+    const paginated = filtered.slice(startIndex, startIndex + limit);
+
+    return {
+      players: paginated,
+      total,
+      page,
+      totalPages,
+      segmentsSummary,
+    };
+  }
+
+  async getPlayerById(id: string): Promise<Player | null> {
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Player>('players').findOne({ id });
+    }
+    return this.filePlayers.find((p) => p.id === id) || null;
+  }
+
+  async getPlayerByPhone(phone: string): Promise<Player | null> {
+    const norm = this.normalizePhone(phone);
+    if (!norm) return null;
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Player>('players').findOne({ normalizedPhone: norm });
+    }
+    return this.filePlayers.find((p) => p.normalizedPhone === norm) || null;
+  }
+
+  async createPlayer(data: Partial<Player>): Promise<Player> {
+    if (!data.name || !data.name.trim()) {
+      throw new Error('Player full name is required.');
+    }
+    if (!data.phone || !data.phone.trim()) {
+      throw new Error('Player phone number is required.');
+    }
+
+    const normalizedPhone = this.normalizePhone(data.phone);
+    if (normalizedPhone.length < 10) {
+      throw new Error('Valid 10-digit mobile number is required.');
+    }
+
+    // Check for duplicate player with active status
+    const existing = await this.getPlayerByPhone(normalizedPhone);
+    if (existing && existing.status !== 'archived') {
+      throw new Error(`A player profile already exists with mobile number ${data.phone} (${existing.name} • @${existing.gamerTag}).`);
+    }
+
+    const nowIso = new Date().toISOString();
+    const id = `ply-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    const gamerTag = data.gamerTag && data.gamerTag.trim() ? data.gamerTag.trim() : data.name.trim().split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900);
+
+    const initialNotes: StaffNote[] = [];
+    if (Array.isArray(data.notes)) {
+      initialNotes.push(...data.notes);
+    } else if (typeof (data as any).notes === 'string' && (data as any).notes.trim()) {
+      initialNotes.push({
+        id: `note-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`,
+        text: (data as any).notes.trim(),
+        author: 'Staff Admin',
+        createdAt: nowIso,
+      });
+    }
+
+    const initialReminders: FollowUpReminder[] = Array.isArray(data.reminders) ? data.reminders : [];
+
+    const player: Player = {
+      id,
+      name: data.name.trim(),
+      gamerTag,
+      phone: data.phone.trim(),
+      normalizedPhone,
+      email: data.email ? data.email.trim().toLowerCase() : undefined,
+      avatarUrl: data.avatarUrl || undefined,
+      favoriteGame: data.favoriteGame || 'EA Sports FC 25',
+      favoritePlatform: data.favoritePlatform || 'ps5',
+      membershipTier: data.membershipTier || 'standard',
+      status: 'active',
+      notes: initialNotes,
+      reminders: initialReminders,
+      tags: data.tags || ['New Player'],
+      consent: {
+        whatsappUpdates: data.consent?.whatsappUpdates ?? true,
+        emailUpdates: data.consent?.emailUpdates ?? true,
+      },
+      loyalty: {
+        pointsBalance: data.loyalty?.pointsBalance || 0,
+        lifetimePoints: data.loyalty?.lifetimePoints || 0,
+        tier: data.membershipTier || 'standard',
+      },
+      stats: {
+        tournamentCount: 0,
+        tournamentWins: 0,
+        bookingsCount: 0,
+        totalHoursPlayed: 0,
+        totalSpend: 0,
+        firstVisitDate: nowIso.slice(0, 10),
+        lastVisitDate: nowIso.slice(0, 10),
+        ...data.stats,
+      },
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<Player>('players').insertOne(player);
+    } else {
+      this.filePlayers.push(player);
+      this.savePlayersToFile();
+    }
+
+    return player;
+  }
+
+  async updatePlayer(id: string, updates: Partial<Player>): Promise<Player | null> {
+    const existing = await this.getPlayerById(id);
+    if (!existing) return null;
+
+    let normalizedPhone = existing.normalizedPhone;
+    if (updates.phone && updates.phone.trim() !== existing.phone) {
+      normalizedPhone = this.normalizePhone(updates.phone);
+      if (normalizedPhone.length < 10) {
+        throw new Error('Valid 10-digit mobile number is required.');
+      }
+      const duplicate = await this.getPlayerByPhone(normalizedPhone);
+      if (duplicate && duplicate.id !== id && duplicate.status !== 'archived') {
+        throw new Error(`Mobile number ${updates.phone} is already linked to another player (${duplicate.name}).`);
+      }
+    }
+
+    // Strict whitelisting - never allow _id or id modification
+    const safeUpdates: Partial<Player> = {
+      name: updates.name ? updates.name.trim() : existing.name,
+      gamerTag: updates.gamerTag ? updates.gamerTag.trim() : existing.gamerTag,
+      phone: updates.phone ? updates.phone.trim() : existing.phone,
+      normalizedPhone,
+      email: updates.email !== undefined ? (updates.email ? updates.email.trim().toLowerCase() : undefined) : existing.email,
+      avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : existing.avatarUrl,
+      favoriteGame: updates.favoriteGame !== undefined ? updates.favoriteGame : existing.favoriteGame,
+      favoritePlatform: updates.favoritePlatform !== undefined ? updates.favoritePlatform : existing.favoritePlatform,
+      membershipTier: updates.membershipTier !== undefined ? updates.membershipTier : existing.membershipTier,
+      status: updates.status !== undefined ? updates.status : existing.status,
+      tags: updates.tags !== undefined ? updates.tags : existing.tags,
+      consent: updates.consent ? { ...existing.consent, ...updates.consent } : existing.consent,
+      stats: updates.stats ? { ...existing.stats, ...updates.stats } : existing.stats,
+      loyalty: updates.loyalty ? { ...existing.loyalty, ...updates.loyalty } : existing.loyalty,
+      notes: updates.notes !== undefined ? (Array.isArray(updates.notes) ? updates.notes : existing.notes) : existing.notes,
+      reminders: updates.reminders !== undefined ? (Array.isArray(updates.reminders) ? updates.reminders : existing.reminders) : existing.reminders,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const merged: Player = {
+      ...existing,
+      ...safeUpdates,
+      id: existing.id,
+      createdAt: existing.createdAt,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = merged as any;
+      await this.db.collection<Player>('players').updateOne({ id }, { $set: fieldsToSet });
+    } else {
+      const idx = this.filePlayers.findIndex((p) => p.id === id);
+      if (idx !== -1) {
+        this.filePlayers[idx] = merged;
+        this.savePlayersToFile();
+      }
+    }
+
+    return merged;
+  }
+
+  async archivePlayer(id: string): Promise<Player | null> {
+    return this.updatePlayer(id, { status: 'archived' });
+  }
+
+  async restorePlayer(id: string): Promise<Player | null> {
+    return this.updatePlayer(id, { status: 'active' });
+  }
+
+  async addPlayerNote(id: string, text: string, author: string): Promise<StaffNote | null> {
+    const player = await this.getPlayerById(id);
+    if (!player) return null;
+
+    const note: StaffNote = {
+      id: `note-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`,
+      text: text.trim(),
+      author: author.trim() || 'Staff Admin',
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedNotes = [note, ...player.notes];
+    await this.updatePlayer(id, { notes: updatedNotes } as any);
+    return note;
+  }
+
+  async deletePlayerNote(id: string, noteId: string): Promise<boolean> {
+    const player = await this.getPlayerById(id);
+    if (!player) return false;
+
+    const filtered = player.notes.filter((n) => n.id !== noteId);
+    await this.updatePlayer(id, { notes: filtered } as any);
+    return true;
+  }
+
+  async addPlayerReminder(id: string, title: string, dueDate: string): Promise<FollowUpReminder | null> {
+    const player = await this.getPlayerById(id);
+    if (!player) return null;
+
+    const reminder: FollowUpReminder = {
+      id: `rem-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`,
+      title: title.trim(),
+      dueDate: dueDate.trim(),
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [reminder, ...player.reminders];
+    await this.updatePlayer(id, { reminders: updated } as any);
+    return reminder;
+  }
+
+  async updatePlayerReminder(id: string, reminderId: string, isCompleted: boolean): Promise<FollowUpReminder | null> {
+    const player = await this.getPlayerById(id);
+    if (!player) return null;
+
+    let target: FollowUpReminder | null = null;
+    const updated = player.reminders.map((r) => {
+      if (r.id === reminderId) {
+        target = {
+          ...r,
+          isCompleted,
+          completedAt: isCompleted ? new Date().toISOString() : undefined,
+        };
+        return target;
+      }
+      return r;
+    });
+
+    if (!target) return null;
+    await this.updatePlayer(id, { reminders: updated } as any);
+    return target;
+  }
+
+  async adjustPlayerLoyalty(
+    id: string,
+    points: number,
+    type: 'earn' | 'redeem' | 'adjustment' | 'bonus',
+    reason: string,
+    referenceId?: string
+  ): Promise<{ player: Player; ledgerEntry: LoyaltyLedgerEntry }> {
+    const player = await this.getPlayerById(id);
+    if (!player) throw new Error('Player not found.');
+
+    const newBalance = Math.max(0, player.loyalty.pointsBalance + points);
+    const newLifetime = points > 0 ? player.loyalty.lifetimePoints + points : player.loyalty.lifetimePoints;
+    const newTier = this.calculateLoyaltyTier(newLifetime);
+
+    const ledgerEntry: LoyaltyLedgerEntry = {
+      id: `ledg-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      playerId: id,
+      points,
+      type,
+      reason: reason.trim() || 'Manual Staff Adjustment',
+      referenceId,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save ledger entry
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').insertOne(ledgerEntry);
+    } else {
+      this.fileLoyaltyLedger.unshift(ledgerEntry);
+      this.saveLoyaltyToFile();
+    }
+
+    // Update player
+    const updatedPlayer = await this.updatePlayer(id, {
+      membershipTier: newTier,
+      loyalty: {
+        pointsBalance: newBalance,
+        lifetimePoints: newLifetime,
+        tier: newTier,
+      },
+    } as any);
+
+    return { player: updatedPlayer || player, ledgerEntry };
+  }
+
+  async getPlayerLoyaltyLedger(playerId: string): Promise<LoyaltyLedgerEntry[]> {
+    if (this.isMongoConnected && this.db) {
+      return this.db
+        .collection<LoyaltyLedgerEntry>('loyalty_ledger')
+        .find({ playerId })
+        .sort({ createdAt: -1 })
+        .toArray();
+    }
+    return this.fileLoyaltyLedger
+      .filter((l) => l.playerId === playerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getAllLoyaltyLedger(limit = 100): Promise<LoyaltyLedgerEntry[]> {
+    if (this.isMongoConnected && this.db) {
+      return this.db
+        .collection<LoyaltyLedgerEntry>('loyalty_ledger')
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .toArray();
+    }
+    return this.fileLoyaltyLedger
+      .slice(0, limit)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getPlayerDetailedProfile(id: string): Promise<PlayerProfileDetails | null> {
+    const player = await this.getPlayerById(id);
+    if (!player) return null;
+
+    const norm = player.normalizedPhone;
+
+    // 1. Linked tournament registrations
+    let registrations: TournamentRegistration[] = [];
+    if (this.isMongoConnected && this.db) {
+      registrations = await this.db
+        .collection<TournamentRegistration>('tournament_registrations')
+        .find({
+          $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
+    } else {
+      registrations = this.fileRegistrations
+        .filter((r) => r.playerId === player.id || r.phone === player.phone || this.normalizePhone(r.phone) === norm)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    // 2. Linked bookings
+    let bookings: Booking[] = [];
+    if (this.isMongoConnected && this.db) {
+      bookings = await this.db
+        .collection<Booking>('bookings')
+        .find({
+          $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+        })
+        .sort({ date: -1, startTime: -1 })
+        .toArray();
+    } else {
+      bookings = this.fileBookings
+        .filter((b) => b.playerId === player.id || b.phone === player.phone || this.normalizePhone(b.phone) === norm)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+    }
+
+    // 3. Linked tournament results / wins
+    const wins: Array<{
+      id: string;
+      tournamentTitle: string;
+      award: string;
+      gameTitle: string;
+      season?: string;
+      eventDate?: string;
+      scoreDescription?: string;
+    }> = [];
+
+    // From hall of fame
+    const hofEntries = this.isMongoConnected && this.db
+      ? await this.db.collection<HallOfFameEntry>('hall_of_fame').find({}).toArray()
+      : this.fileHallOfFame;
+
+    for (const h of hofEntries) {
+      const matchName = h.playerName.toLowerCase().includes(player.name.toLowerCase()) ||
+        (player.gamerTag && h.playerName.toLowerCase().includes(player.gamerTag.toLowerCase()));
+      if (matchName) {
+        wins.push({
+          id: h.id,
+          tournamentTitle: h.tournamentTitle,
+          award: h.award,
+          gameTitle: h.gameTitle,
+          season: h.season,
+          eventDate: h.eventDate,
+          scoreDescription: h.scoreDescription,
+        });
+      }
+    }
+
+    // From tournament results standings
+    const allResults = this.isMongoConnected && this.db
+      ? await this.db.collection<TournamentResult>('tournament_results').find({}).toArray()
+      : this.fileResults;
+
+    for (const res of allResults) {
+      for (const st of res.standings) {
+        const matchParticipant = st.participantName.toLowerCase().includes(player.name.toLowerCase()) ||
+          (player.gamerTag && (st.participantName.toLowerCase().includes(player.gamerTag.toLowerCase()) || (st.inGameId && st.inGameId.toLowerCase().includes(player.gamerTag.toLowerCase()))));
+        if (matchParticipant) {
+          const already = wins.find((w) => w.id === res.id);
+          if (!already) {
+            wins.push({
+              id: `${res.id}-${st.rank}`,
+              tournamentTitle: res.tournamentSlug.replace(/-/g, ' ').toUpperCase(),
+              award: st.awardLabel,
+              gameTitle: 'GioCasa Arena Tournament',
+              eventDate: res.publishedAt ? res.publishedAt.slice(0, 10) : undefined,
+              scoreDescription: st.scoreOrRecord || st.notes,
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Loyalty Ledger
+    const loyaltyLedger = await this.getPlayerLoyaltyLedger(player.id);
+
+    // 5. Activity Timeline aggregation
+    const activityTimeline: PlayerTimelineEvent[] = [];
+
+    // Add bookings
+    for (const b of bookings) {
+      activityTimeline.push({
+        id: `act-bk-${b.id}`,
+        type: 'booking',
+        title: `Gaming Session: ${b.resourceName}`,
+        description: `${b.durationMinutes} mins • ₹${b.totalAmount} • Status: ${b.status} (${b.paymentStatus})`,
+        date: `${b.date}T${b.startTime}:00.000Z`,
+        badge: b.status.toUpperCase(),
+        metadata: { bookingId: b.id, amount: b.totalAmount },
+      });
+    }
+
+    // Add tournament registrations
+    for (const r of registrations) {
+      activityTimeline.push({
+        id: `act-reg-${r.id}`,
+        type: 'tournament',
+        title: `Tournament Entry: ${r.tournamentSlug.replace(/-/g, ' ').toUpperCase()}`,
+        description: `Ref: ${r.registrationReference} • Status: ${r.status} • Payment: ${r.paymentStatus}`,
+        date: r.createdAt,
+        badge: r.status.toUpperCase(),
+        metadata: { registrationId: r.id, reference: r.registrationReference },
+      });
+    }
+
+    // Add wins
+    for (const w of wins) {
+      activityTimeline.push({
+        id: `act-win-${w.id}`,
+        type: 'win',
+        title: `🏆 ${w.award} — ${w.tournamentTitle}`,
+        description: w.scoreDescription || w.gameTitle,
+        date: w.eventDate ? `${w.eventDate}T20:00:00.000Z` : player.createdAt,
+        badge: 'CHAMPION',
+      });
+    }
+
+    // Add staff notes
+    for (const n of (player.notes || [])) {
+      if (!n || !n.id) continue;
+      activityTimeline.push({
+        id: `act-note-${n.id}`,
+        type: 'note',
+        title: `Internal Note by ${n.author || 'Staff Admin'}`,
+        description: n.text || '',
+        date: n.createdAt || player.createdAt || new Date().toISOString(),
+        badge: 'STAFF',
+      });
+    }
+
+    // Add follow-up reminders
+    for (const rem of (player.reminders || [])) {
+      if (!rem || !rem.id) continue;
+      activityTimeline.push({
+        id: `act-rem-${rem.id}`,
+        type: 'reminder',
+        title: `Reminder: ${rem.title || 'Follow up'}`,
+        description: `Target Date: ${rem.dueDate || 'N/A'} • Status: ${rem.isCompleted ? 'Completed' : 'Pending'}`,
+        date: rem.completedAt || rem.createdAt || player.createdAt || new Date().toISOString(),
+        badge: rem.isCompleted ? 'COMPLETED' : 'REMINDER',
+      });
+    }
+
+    // Add loyalty ledger entries
+    for (const ledg of loyaltyLedger) {
+      activityTimeline.push({
+        id: `act-loy-${ledg.id}`,
+        type: 'loyalty',
+        title: `Loyalty Points: ${ledg.points > 0 ? '+' : ''}${ledg.points} pts`,
+        description: `${ledg.reason} (${ledg.type.toUpperCase()})`,
+        date: ledg.createdAt || new Date().toISOString(),
+        badge: ledg.type.toUpperCase(),
+      });
+    }
+
+    // Sort timeline descending by date safely
+    activityTimeline.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    return {
+      player,
+      registrations,
+      bookings,
+      wins,
+      loyaltyLedger,
+      activityTimeline,
+    };
+  }
+
+  async linkPlayerToRegistration(registration: TournamentRegistration): Promise<Player> {
+    const norm = this.normalizePhone(registration.phone);
+    if (!norm) return null as any;
+
+    let player = await this.getPlayerByPhone(norm);
+
+    const nowIso = new Date().toISOString();
+    const eventDate = registration.createdAt ? registration.createdAt.slice(0, 10) : nowIso.slice(0, 10);
+
+    if (!player) {
+      // Create new player profile automatically
+      player = await this.createPlayer({
+        name: registration.participantName,
+        gamerTag: registration.inGameId || registration.participantName.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
+        phone: registration.phone,
+        email: registration.email,
+        favoriteGame: 'EA Sports FC 25',
+        favoritePlatform: 'ps5',
+        membershipTier: 'standard',
+        tags: ['Tournament Registrant'],
+        stats: {
+          tournamentCount: 1,
+          tournamentWins: 0,
+          bookingsCount: 0,
+          totalHoursPlayed: 0,
+          totalSpend: 0,
+          firstVisitDate: eventDate,
+          lastVisitDate: eventDate,
+        },
+      });
+    } else {
+      // Update existing player stats
+      const newCount = (player.stats.tournamentCount || 0) + 1;
+      const lastVisit = !player.stats.lastVisitDate || eventDate > player.stats.lastVisitDate ? eventDate : player.stats.lastVisitDate;
+      const tags = Array.from(new Set([...player.tags, 'Tournament Regular']));
+
+      const updated = await this.updatePlayer(player.id, {
+        stats: {
+          ...player.stats,
+          tournamentCount: newCount,
+          lastVisitDate: lastVisit,
+        },
+        tags,
+      } as any);
+
+      if (updated) player = updated;
+    }
+
+    // Attach playerId to registration
+    if (player) {
+      registration.playerId = player.id;
+      if (this.isMongoConnected && this.db) {
+        await this.db
+          .collection<TournamentRegistration>('tournament_registrations')
+          .updateOne({ id: registration.id }, { $set: { playerId: player.id } });
+      } else {
+        const idx = this.fileRegistrations.findIndex((r) => r.id === registration.id);
+        if (idx !== -1) {
+          this.fileRegistrations[idx].playerId = player.id;
+          this.saveRegistrationsToFile();
+        }
+      }
+    }
+
+    return player;
+  }
+
+  async linkPlayerToBooking(booking: Booking): Promise<Player> {
+    const norm = this.normalizePhone(booking.phone);
+    if (!norm) return null as any;
+
+    let player = await this.getPlayerByPhone(norm);
+    const nowIso = new Date().toISOString();
+    const eventDate = booking.date || nowIso.slice(0, 10);
+
+    const spendPaise = booking.status !== 'cancelled' ? booking.totalAmount : 0;
+    const hours = (booking.durationMinutes || 60) / 60;
+
+    if (!player) {
+      player = await this.createPlayer({
+        name: booking.customerName,
+        phone: booking.phone,
+        email: booking.email,
+        favoritePlatform: booking.category || 'ps5',
+        membershipTier: 'standard',
+        tags: ['Gamer', 'Station Guest'],
+        stats: {
+          tournamentCount: 0,
+          tournamentWins: 0,
+          bookingsCount: 1,
+          totalHoursPlayed: hours,
+          totalSpend: spendPaise,
+          firstVisitDate: eventDate,
+          lastVisitDate: eventDate,
+        },
+      });
+    } else {
+      const bookingsCount = (player.stats.bookingsCount || 0) + 1;
+      const totalHoursPlayed = Number(((player.stats.totalHoursPlayed || 0) + hours).toFixed(1));
+      const totalSpend = (player.stats.totalSpend || 0) + spendPaise;
+      const lastVisit = !player.stats.lastVisitDate || eventDate > player.stats.lastVisitDate ? eventDate : player.stats.lastVisitDate;
+      const tags = [...player.tags];
+      if (bookingsCount >= 3 && !tags.includes('Frequent Visitor')) tags.push('Frequent Visitor');
+
+      const updated = await this.updatePlayer(player.id, {
+        stats: {
+          ...player.stats,
+          bookingsCount,
+          totalHoursPlayed,
+          totalSpend,
+          lastVisitDate: lastVisit,
+        },
+        tags,
+      } as any);
+
+      if (updated) player = updated;
+    }
+
+    // Award loyalty points: 1 point per ₹10 spent if paid
+    if (player && booking.paymentStatus === 'paid' && booking.totalAmount >= 50) {
+      const pointsToAward = Math.floor(booking.totalAmount / 10);
+      if (pointsToAward > 0) {
+        try {
+          await this.adjustPlayerLoyalty(
+            player.id,
+            pointsToAward,
+            'earn',
+            `Gaming Session #${booking.id} (${booking.resourceName})`,
+            booking.id
+          );
+        } catch (e) {
+          console.warn('Failed to award loyalty points for booking:', e);
+        }
+      }
+    }
+
+    // Attach playerId to booking
+    if (player) {
+      booking.playerId = player.id;
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection<Booking>('bookings').updateOne({ id: booking.id }, { $set: { playerId: player.id } });
+      } else {
+        const idx = this.fileBookings.findIndex((b) => b.id === booking.id);
+        if (idx !== -1) {
+          this.fileBookings[idx].playerId = player.id;
+          this.saveBookingsToFile();
+        }
+      }
+    }
+
+    return player;
+  }
+
+  async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {
+    console.log('🔄 Performing Player CRM historical backfill check...');
+    let synced = 0;
+
+    // 1. Process registrations
+    const regs = this.isMongoConnected && this.db
+      ? await this.db.collection<TournamentRegistration>('tournament_registrations').find({}).toArray()
+      : this.fileRegistrations;
+
+    for (const r of regs) {
+      try {
+        const norm = this.normalizePhone(r.phone);
+        if (!norm) continue;
+        const p = await this.getPlayerByPhone(norm);
+        if (!p) {
+          await this.linkPlayerToRegistration(r);
+          synced++;
+        } else if (!r.playerId) {
+          r.playerId = p.id;
+          if (this.isMongoConnected && this.db) {
+            await this.db.collection('tournament_registrations').updateOne({ id: r.id }, { $set: { playerId: p.id } });
+          } else {
+            const idx = this.fileRegistrations.findIndex((item) => item.id === r.id);
+            if (idx !== -1) this.fileRegistrations[idx].playerId = p.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Backfill skipped registration:', r.id, err);
+      }
+    }
+
+    // 2. Process bookings
+    const bks = this.isMongoConnected && this.db
+      ? await this.db.collection<Booking>('bookings').find({}).toArray()
+      : this.fileBookings;
+
+    for (const b of bks) {
+      try {
+        const norm = this.normalizePhone(b.phone);
+        if (!norm) continue;
+        const p = await this.getPlayerByPhone(norm);
+        if (!p) {
+          await this.linkPlayerToBooking(b);
+          synced++;
+        } else if (!b.playerId) {
+          b.playerId = p.id;
+          if (this.isMongoConnected && this.db) {
+            await this.db.collection('bookings').updateOne({ id: b.id }, { $set: { playerId: p.id } });
+          } else {
+            const idx = this.fileBookings.findIndex((item) => item.id === b.id);
+            if (idx !== -1) this.fileBookings[idx].playerId = p.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Backfill skipped booking:', b.id, err);
+      }
+    }
+
+    // Save updated registrations/bookings if on file mode
+    if (!this.isMongoConnected) {
+      this.saveRegistrationsToFile();
+      this.saveBookingsToFile();
+    }
+
+    console.log(`✅ Player CRM historical backfill complete. Synced ${synced} new player profiles.`);
+    return { syncedPlayersCount: synced };
   }
 }
 
