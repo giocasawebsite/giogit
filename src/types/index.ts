@@ -20,7 +20,7 @@ export interface RouteParams {
   registrationId?: string;
   token?: string;
   adminTab?: 'overview' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players';
-  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty';
+  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminTournamentId?: string;
   adminPlayerId?: string;
 }
@@ -257,13 +257,104 @@ export interface FollowUpReminder {
   completedAt?: string;
 }
 
+export type LoyaltyTransactionType = 'earn' | 'redeem' | 'adjustment' | 'bonus' | 'reversal';
+export type LoyaltySourceActivity =
+  | 'gaming_session'
+  | 'tournament_participation'
+  | 'tournament_placement'
+  | 'referral_reward'
+  | 'referred_welcome'
+  | 'admin_adjustment'
+  | 'reversal'
+  | 'manual';
+
 export interface LoyaltyLedgerEntry {
   id: string;
   playerId: string;
-  points: number; // positive for earn/bonus, negative for redeem
-  type: 'earn' | 'redeem' | 'adjustment' | 'bonus';
+  gioId?: string;
+  points: number; // positive for earn/bonus, negative for redeem/reversal
+  type: LoyaltyTransactionType;
+  sourceActivityType?: LoyaltySourceActivity;
+  sourceRecordId?: string;
+  idempotencyKey?: string;
+  ruleVersion?: string;
   reason: string;
-  referenceId?: string; // bookingId or tournamentId
+  adminActor?: string;
+  referenceId?: string;
+  createdAt: string;
+}
+
+export interface LoyaltyRules {
+  gamingSessionPoints: number;
+  tournamentParticipationPoints: number;
+  tournamentPlacementBonus: {
+    first: number;
+    second: number;
+    third: number;
+  };
+  referralPoints: number;
+  referredWelcomeBonus: number;
+  rulesEnabled: {
+    gamingSession: boolean;
+    tournamentParticipation: boolean;
+    tournamentPlacement: boolean;
+    referral: boolean;
+    referredWelcome: boolean;
+  };
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export type ReferralStatus = 'pending' | 'qualified' | 'rejected' | 'reversed';
+
+export interface Referral {
+  id: string;
+  referrerPlayerId: string;
+  referrerGioId: string;
+  referrerName: string;
+  referredPlayerId: string;
+  referredGioId: string;
+  referredPlayerName?: string;
+  referredName?: string;
+  referredPlayerPhone?: string;
+  referralCodeUsed?: string;
+  referralCode?: string;
+  status: ReferralStatus;
+  qualifyingActivityType?: 'gaming_session' | 'tournament_participation';
+  qualifyingRecordId?: string;
+  pointsAwarded?: number;
+  notes?: string;
+  createdAt: string;
+  qualifiedAt?: string;
+}
+
+export interface AdminReminder {
+  id: string;
+  playerId?: string;
+  gioId?: string;
+  playerName?: string;
+  playerPhone?: string;
+  title: string;
+  description?: string;
+  dueDate: string; // YYYY-MM-DD
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: 'upcoming_booking' | 'upcoming_tournament' | 'pending_verification' | 'referral_review' | 'inactive_followup' | 'failed_automation' | 'general';
+  status: 'pending' | 'completed' | 'dismissed';
+  assignedAdmin?: string;
+  notes?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface CommunicationLog {
+  id: string;
+  playerId: string;
+  gioId?: string;
+  channel: 'whatsapp';
+  action: 'whatsapp_opened' | 'message_prepared';
+  templateName: string;
+  phone: string;
+  initiatedBy: string;
   createdAt: string;
 }
 
@@ -279,14 +370,21 @@ export interface PlayerStats {
 
 export interface Player {
   id: string; // 'ply-xxx'
+  gioId: string; // Permanent Public Unique ID: e.g. 'GIO-7K4P9X'
+  referralCode: string; // e.g. 'REF-7K4P9X'
+  referredBy?: string; // referrer's referralCode or gioId
+  referralCount: number;
+  successfulReferralCount: number;
+  identityVerificationStatus: 'unverified' | 'phone_verified' | 'id_verified';
   name: string;
   gamerTag: string;
   phone: string;
   normalizedPhone: string; // 10 digit normalized
   email?: string;
   avatarUrl?: string;
+  dateOfBirth?: string;
   favoriteGame?: string;
-  favoritePlatform?: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames' | 'other';
+  favoritePlatform?: ResourceCategory | 'other';
   membershipTier: MembershipTier;
   status: PlayerStatus;
   notes: StaffNote[];
@@ -295,6 +393,7 @@ export interface Player {
   consent: {
     whatsappUpdates: boolean;
     emailUpdates: boolean;
+    privacyTermsAccepted?: boolean;
   };
   loyalty: {
     pointsBalance: number;
@@ -329,7 +428,7 @@ export interface PlayerQueryParams {
 
 export interface PlayerTimelineEvent {
   id: string;
-  type: 'tournament' | 'booking' | 'win' | 'loyalty' | 'note' | 'reminder';
+  type: 'tournament' | 'booking' | 'win' | 'loyalty' | 'note' | 'reminder' | 'referral' | 'communication';
   title: string;
   description: string;
   date: string;
@@ -373,5 +472,8 @@ export interface PlayerProfileDetails {
     scoreDescription?: string;
   }>;
   loyaltyLedger: LoyaltyLedgerEntry[];
+  referrals?: Referral[];
+  reminders?: AdminReminder[];
+  communicationLogs?: CommunicationLog[];
   activityTimeline: PlayerTimelineEvent[];
 }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PageRoute, RouteParams, Tournament } from '../types';
 import { arenaApi, RegisterTournamentPayload } from '../services/arenaApi';
+import { PlayerIdLookup, VerifiedPlayerData } from '../components/common/PlayerIdLookup';
+import { PlayerRegistrationModal } from '../components/common/PlayerRegistrationModal';
 import {
   Trophy,
   Calendar,
@@ -35,6 +37,21 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
   const [teammate1Phone, setTeammate1Phone] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [rulesAccepted, setRulesAccepted] = useState<boolean>(false);
+  const [regModalOpen, setRegModalOpen] = useState<boolean>(false);
+
+  const handlePlayerVerified = (player: VerifiedPlayerData) => {
+    setParticipantName(player.name || '');
+    if (player.phone) {
+      const digits = player.phone.replace(/\D/g, '');
+      setPhone(digits.slice(-10));
+    }
+    if (player.email) {
+      setEmail(player.email);
+    }
+    if (player.gamerTag) {
+      setInGameId(player.gamerTag);
+    }
+  };
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -229,6 +246,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
             </div>
           )}
 
+          {/* GioCasa Player ID Autofill Bar */}
+          <PlayerIdLookup
+            onVerified={handlePlayerVerified}
+            onOpenRegister={() => setRegModalOpen(true)}
+            className="mb-2"
+          />
+
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {/* Primary Registrant Info */}
@@ -397,6 +421,13 @@ export const TournamentRegisterPage: React.FC<TournamentRegisterPageProps> = ({ 
         </div>
 
       </div>
+
+      {/* Quick Player Registration Modal */}
+      <PlayerRegistrationModal
+        isOpen={regModalOpen}
+        onClose={() => setRegModalOpen(false)}
+        onRegistered={handlePlayerVerified}
+      />
     </div>
   );
 };

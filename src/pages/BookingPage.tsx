@@ -6,6 +6,8 @@ import { businessConfig } from '../data/businessConfig';
 import { calculateBookingPrice, getPricingDescription } from '../utils/pricing';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { PlayerIdLookup, VerifiedPlayerData } from '../components/common/PlayerIdLookup';
+import { PlayerRegistrationModal } from '../components/common/PlayerRegistrationModal';
 import {
   Gamepad2,
   Calendar,
@@ -69,6 +71,21 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
   const [email, setEmail] = useState<string>('');
   const [numberOfPeople, setNumberOfPeople] = useState<number>(2);
   const [specialRequests, setSpecialRequests] = useState<string>('');
+  const [regModalOpen, setRegModalOpen] = useState<boolean>(false);
+
+  const handlePlayerVerified = (player: VerifiedPlayerData) => {
+    setCustomerName(player.name || '');
+    if (player.phone) {
+      const digits = player.phone.replace(/\D/g, '');
+      setPhone(digits.slice(-10));
+    }
+    if (player.email) {
+      setEmail(player.email);
+    }
+    if (player.gamerTag && !specialRequests) {
+      setSpecialRequests(`Player: @${player.gamerTag} (ID: ${player.gioId})`);
+    }
+  };
 
   // Form Validation & Submission
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -824,6 +841,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     {/* Left Column: Form Details (7 cols) */}
                     <div className="lg:col-span-7 space-y-4">
+                      {/* GioCasa Player ID Autofill Bar */}
+                      <PlayerIdLookup
+                        onVerified={handlePlayerVerified}
+                        onOpenRegister={() => setRegModalOpen(true)}
+                        className="mb-2"
+                      />
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Full Name */}
                         <div className="space-y-1.5 sm:col-span-2">
@@ -1272,6 +1296,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
           </div>
         )}
       </div>
+
+      {/* Quick Player Registration Modal */}
+      <PlayerRegistrationModal
+        isOpen={regModalOpen}
+        onClose={() => setRegModalOpen(false)}
+        onRegistered={handlePlayerVerified}
+      />
     </div>
   );
 };

@@ -18,11 +18,14 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PlayerIdLookup, VerifiedPlayerData } from '../common/PlayerIdLookup';
+import { PlayerRegistrationModal } from '../common/PlayerRegistrationModal';
 
 export const ReservationModal: React.FC = () => {
   const { isOpen, reservationType: initialType, closeBookingModal } = useBookingModal();
   
   const [selectedType, setSelectedType] = useState<ReservationType>(initialType);
+  const [regModalOpen, setRegModalOpen] = useState(false);
   const [formData, setFormData] = useState<BookingFormData>({
     name: '',
     phone: '',
@@ -34,6 +37,18 @@ export const ReservationModal: React.FC = () => {
     preferredLevel: 'any',
     specialRequests: ''
   });
+
+  const handlePlayerVerified = (player: VerifiedPlayerData) => {
+    setFormData(prev => ({
+      ...prev,
+      name: player.name || prev.name,
+      phone: player.phone || prev.phone,
+      email: player.email || prev.email,
+      specialRequests: prev.specialRequests
+        ? `${prev.specialRequests} [ID: ${player.gioId}]`
+        : `GioCasa Player ID: ${player.gioId} (@${player.gamerTag})`,
+    }));
+  };
   
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -167,6 +182,13 @@ Please confirm availability for our booking. Thank you!`;
         <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0">
           {!isSubmitted ? (
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              {/* Player ID 1-Click Autofill */}
+              <PlayerIdLookup
+                onVerified={handlePlayerVerified}
+                onOpenRegister={() => setRegModalOpen(true)}
+                className="mb-2"
+              />
+
               {/* Step 1: Select Experience */}
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-brand-muted font-semibold mb-2">
@@ -360,6 +382,13 @@ Please confirm availability for our booking. Thank you!`;
           )}
         </div>
       </div>
+
+      {/* Quick Player Registration Modal */}
+      <PlayerRegistrationModal
+        isOpen={regModalOpen}
+        onClose={() => setRegModalOpen(false)}
+        onRegistered={handlePlayerVerified}
+      />
     </div>
   );
 };

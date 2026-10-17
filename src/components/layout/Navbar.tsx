@@ -11,10 +11,12 @@ import {
   MapPin, 
   Phone, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Gamepad2
 } from 'lucide-react';
 import { businessConfig } from '../../data/businessConfig';
 import { WinnersButton } from '../ui/WinnersButton';
+import { PlayerIdentityModal } from '../common/PlayerIdentityModal';
 
 interface NavbarProps {
   currentPage: PageRoute;
@@ -24,6 +26,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [playerModalOpen, setPlayerModalOpen] = useState(false);
   const [isJerkShaking, setIsJerkShaking] = useState(false);
   const { openBookingModal } = useBookingModal();
   const { totalItems, openDrawer } = useOrderCart();
@@ -136,6 +139,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
           {/* Desktop Actions - Minimalist & refined */}
           <div className="hidden sm:flex items-center gap-3">
+            {/* Player ID Button */}
+            <button
+              onClick={() => setPlayerModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-brand-surface/80 hover:bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue/60 text-white text-xs font-mono font-semibold transition-all group"
+              aria-label="GioCasa Player ID"
+              title="GioCasa Player ID & Rewards"
+            >
+              <Gamepad2 className="w-3.5 h-3.5 text-brand-blue group-hover:scale-110 transition-transform" />
+              <span className="hidden xl:inline text-brand-subtle group-hover:text-white">Player ID</span>
+            </button>
+
             {/* Winners Button */}
             <WinnersButton
               onNavigate={handleNavClick}
@@ -170,6 +184,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
           {/* Mobile Cart, Winners & Hamburger Toggle */}
           <div className="flex sm:hidden items-center gap-2">
+            <button
+              onClick={() => setPlayerModalOpen(true)}
+              className="p-2 rounded-full bg-brand-surface border border-brand-border text-white hover:border-brand-blue/60"
+              aria-label="GioCasa Player ID"
+              title="Player ID"
+            >
+              <Gamepad2 className="w-4 h-4 text-brand-blue" />
+            </button>
+
             <WinnersButton
               onNavigate={handleNavClick}
               isActive={currentPage === 'hall-of-fame'}
@@ -229,12 +252,35 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               Eat • Play • Connect
             </span>
 
-            {/* Mobile Drawer Featured Winners Card */}
-            <WinnersButton
-              onNavigate={handleNavClick}
-              isActive={currentPage === 'hall-of-fame'}
-              variant="mobile-drawer"
-            />
+            {/* Mobile Drawer Featured Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <WinnersButton
+                onNavigate={handleNavClick}
+                isActive={currentPage === 'hall-of-fame'}
+                variant="mobile-drawer"
+              />
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setPlayerModalOpen(true);
+                }}
+                className="p-3.5 rounded-2xl bg-gradient-to-r from-brand-surfaceElevated to-brand-surface border border-brand-blue/40 flex items-center justify-between text-left group hover:border-brand-blue transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold">
+                    <Gamepad2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">GioCasa Player ID</span>
+                    <span className="text-[10px] text-brand-subtle block">Autofill & rewards pass</span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono font-bold text-brand-blue uppercase px-2 py-0.5 rounded-full bg-brand-blue/10 border border-brand-blue/30">
+                  GIO-ID
+                </span>
+              </button>
+            </div>
 
             {navLinks.map((link, idx) => (
               <button
@@ -310,6 +356,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* Player Identity Modal */}
+      <PlayerIdentityModal
+        isOpen={playerModalOpen}
+        onClose={() => setPlayerModalOpen(false)}
+      />
     </>
   );
 };

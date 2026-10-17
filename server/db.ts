@@ -18,6 +18,11 @@ import {
   StaffNote,
   FollowUpReminder,
   LoyaltyLedgerEntry,
+  LoyaltyRules,
+  Referral,
+  AdminReminder,
+  AutomationEvent,
+  CommunicationLog,
   PlayerStats,
   MembershipTier,
   PlayerStatus,
@@ -33,6 +38,39 @@ import { INITIAL_TOURNAMENTS, INITIAL_TOURNAMENT_RESULTS, INITIAL_HALL_OF_FAME }
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
+
+// 32-character non-ambiguous uppercase alphabet (excludes 0, O, 1, I)
+const GIO_ID_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+function generateRandomCode(prefix: string, length = 6): string {
+  const bytes = crypto.randomBytes(length);
+  let res = prefix;
+  for (let i = 0; i < length; i++) {
+    res += GIO_ID_ALPHABET[bytes[i] % GIO_ID_ALPHABET.length];
+  }
+  return res;
+}
+
+export const DEFAULT_LOYALTY_RULES: LoyaltyRules = {
+  gamingSessionPoints: 50,
+  tournamentParticipationPoints: 100,
+  tournamentPlacementBonus: {
+    first: 500,
+    second: 300,
+    third: 150,
+  },
+  referralPoints: 200,
+  referredWelcomeBonus: 0,
+  rulesEnabled: {
+    gamingSession: true,
+    tournamentParticipation: true,
+    tournamentPlacement: true,
+    referral: true,
+    referredWelcome: false,
+  },
+  updatedAt: new Date().toISOString(),
+  updatedBy: 'System Default',
+};
 
 // Initial default resources based on GioCasa gamingData.ts
 export const INITIAL_RESOURCES: GamingResource[] = [
@@ -128,6 +166,11 @@ class DatabaseService {
   private fileHallOfFame: HallOfFameEntry[] = [...INITIAL_HALL_OF_FAME];
   private filePlayers: Player[] = [];
   private fileLoyaltyLedger: LoyaltyLedgerEntry[] = [];
+  private fileReferrals: Referral[] = [];
+  private fileLoyaltyRules: LoyaltyRules = { ...DEFAULT_LOYALTY_RULES };
+  private fileAutomationEvents: AutomationEvent[] = [];
+  private fileCrmReminders: AdminReminder[] = [];
+  private fileCommunicationLogs: CommunicationLog[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
@@ -137,6 +180,11 @@ class DatabaseService {
   private hallOfFameFilePath = path.join(DATA_DIR, 'hall_of_fame.json');
   private playersFilePath = path.join(DATA_DIR, 'players.json');
   private loyaltyFilePath = path.join(DATA_DIR, 'loyalty_ledger.json');
+  private referralsFilePath = path.join(DATA_DIR, 'referrals.json');
+  private loyaltyRulesFilePath = path.join(DATA_DIR, 'loyalty_rules.json');
+  private automationEventsFilePath = path.join(DATA_DIR, 'automation_events.json');
+  private crmRemindersFilePath = path.join(DATA_DIR, 'crm_reminders.json');
+  private communicationLogsFilePath = path.join(DATA_DIR, 'communication_logs.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
 
@@ -234,6 +282,8 @@ class DatabaseService {
         // Player CRM collection & indexes
         const playersCol = this.db.collection<Player>('players');
         await playersCol.createIndex({ id: 1 }, { unique: true });
+        await playersCol.createIndex({ gioId: 1 }, { unique: true, sparse: true });
+        await playersCol.createIndex({ referralCode: 1 }, { unique: true, sparse: true });
         await playersCol.createIndex({ normalizedPhone: 1 });
         await playersCol.createIndex({ status: 1 });
         await playersCol.createIndex({ membershipTier: 1 });
@@ -242,6 +292,26 @@ class DatabaseService {
         const loyaltyCol = this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger');
         await loyaltyCol.createIndex({ id: 1 }, { unique: true });
         await loyaltyCol.createIndex({ playerId: 1, createdAt: -1 });
+        await loyaltyCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
+
+        const referralsCol = this.db.collection<Referral>('referrals');
+        await referralsCol.createIndex({ id: 1 }, { unique: true });
+        await referralsCol.createIndex({ referrerPlayerId: 1 });
+        await referralsCol.createIndex({ referredPlayerId: 1 });
+        await referralsCol.createIndex({ status: 1 });
+
+        const remindersCol = this.db.collection<AdminReminder>('crm_reminders');
+        await remindersCol.createIndex({ id: 1 }, { unique: true });
+        await remindersCol.createIndex({ status: 1, dueDate: 1 });
+
+        const eventsCol = this.db.collection<AutomationEvent>('automation_events');
+        await eventsCol.createIndex({ id: 1 }, { unique: true });
+        await eventsCol.createIndex({ status: 1 });
+        await eventsCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
+
+        const commsCol = this.db.collection<CommunicationLog>('communication_logs');
+        await commsCol.createIndex({ id: 1 }, { unique: true });
+        await commsCol.createIndex({ playerId: 1, createdAt: -1 });
       } catch (err) {
         console.warn('⚠️ MongoDB Atlas connection failed or timed out. Falling back to persistent disk store.', err);
         this.isMongoConnected = false;
@@ -335,6 +405,51 @@ class DatabaseService {
         this.fileLoyaltyLedger = [];
         this.saveLoyaltyToFile();
       }
+
+      // Load Referrals
+      if (fs.existsSync(this.referralsFilePath)) {
+        const raw = fs.readFileSync(this.referralsFilePath, 'utf-8');
+        this.fileReferrals = JSON.parse(raw);
+      } else {
+        this.fileReferrals = [];
+        this.saveReferralsToFile();
+      }
+
+      // Load Loyalty Rules
+      if (fs.existsSync(this.loyaltyRulesFilePath)) {
+        const raw = fs.readFileSync(this.loyaltyRulesFilePath, 'utf-8');
+        this.fileLoyaltyRules = JSON.parse(raw);
+      } else {
+        this.fileLoyaltyRules = { ...DEFAULT_LOYALTY_RULES };
+        this.saveLoyaltyRulesToFile();
+      }
+
+      // Load Automation Events
+      if (fs.existsSync(this.automationEventsFilePath)) {
+        const raw = fs.readFileSync(this.automationEventsFilePath, 'utf-8');
+        this.fileAutomationEvents = JSON.parse(raw);
+      } else {
+        this.fileAutomationEvents = [];
+        this.saveAutomationEventsToFile();
+      }
+
+      // Load CRM Reminders
+      if (fs.existsSync(this.crmRemindersFilePath)) {
+        const raw = fs.readFileSync(this.crmRemindersFilePath, 'utf-8');
+        this.fileCrmReminders = JSON.parse(raw);
+      } else {
+        this.fileCrmReminders = [];
+        this.saveCrmRemindersToFile();
+      }
+
+      // Load Communication Logs
+      if (fs.existsSync(this.communicationLogsFilePath)) {
+        const raw = fs.readFileSync(this.communicationLogsFilePath, 'utf-8');
+        this.fileCommunicationLogs = JSON.parse(raw);
+      } else {
+        this.fileCommunicationLogs = [];
+        this.saveCommunicationLogsToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -345,6 +460,11 @@ class DatabaseService {
       this.fileHallOfFame = [...INITIAL_HALL_OF_FAME];
       this.filePlayers = [];
       this.fileLoyaltyLedger = [];
+      this.fileReferrals = [];
+      this.fileLoyaltyRules = { ...DEFAULT_LOYALTY_RULES };
+      this.fileAutomationEvents = [];
+      this.fileCrmReminders = [];
+      this.fileCommunicationLogs = [];
     }
   }
 
@@ -409,6 +529,46 @@ class DatabaseService {
       fs.writeFileSync(this.loyaltyFilePath, JSON.stringify(this.fileLoyaltyLedger, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving loyalty ledger to file:', err);
+    }
+  }
+
+  private saveReferralsToFile(): void {
+    try {
+      fs.writeFileSync(this.referralsFilePath, JSON.stringify(this.fileReferrals, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving referrals to file:', err);
+    }
+  }
+
+  private saveLoyaltyRulesToFile(): void {
+    try {
+      fs.writeFileSync(this.loyaltyRulesFilePath, JSON.stringify(this.fileLoyaltyRules, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving loyalty rules to file:', err);
+    }
+  }
+
+  private saveAutomationEventsToFile(): void {
+    try {
+      fs.writeFileSync(this.automationEventsFilePath, JSON.stringify(this.fileAutomationEvents, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving automation events to file:', err);
+    }
+  }
+
+  private saveCrmRemindersToFile(): void {
+    try {
+      fs.writeFileSync(this.crmRemindersFilePath, JSON.stringify(this.fileCrmReminders, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving CRM reminders to file:', err);
+    }
+  }
+
+  private saveCommunicationLogsToFile(): void {
+    try {
+      fs.writeFileSync(this.communicationLogsFilePath, JSON.stringify(this.fileCommunicationLogs, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving communication logs to file:', err);
     }
   }
 
@@ -706,22 +866,44 @@ class DatabaseService {
 
   async updateBooking(id: string, updates: Partial<Booking>): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
+    const existing = await this.getBookingById(cleanId);
     const payload = { ...updates, updatedAt: new Date().toISOString() };
 
+    let updated: Booking | null = null;
     if (this.isMongoConnected && this.db) {
       const res = await this.db.collection<Booking>('bookings').findOneAndUpdate(
         { id: cleanId },
         { $set: payload },
         { returnDocument: 'after' }
       );
-      return res || null;
+      updated = res || null;
     } else {
       const idx = this.fileBookings.findIndex((b) => b.id === cleanId);
-      if (idx === -1) return null;
-      this.fileBookings[idx] = { ...this.fileBookings[idx], ...payload };
-      this.saveBookingsToFile();
-      return this.fileBookings[idx];
+      if (idx !== -1) {
+        this.fileBookings[idx] = { ...this.fileBookings[idx], ...payload };
+        this.saveBookingsToFile();
+        updated = this.fileBookings[idx];
+      }
     }
+
+    if (updated) {
+      if (updates.status === 'completed' && existing?.status !== 'completed') {
+        try {
+          await this.processGamingSessionCompleted(updated);
+        } catch (e) {
+          console.warn('Error processing gaming session completed loyalty:', e);
+        }
+      }
+      if (updates.status === 'cancelled' && existing?.status === 'completed') {
+        try {
+          await this.processBookingCancelledOrRefunded(updated);
+        } catch (e) {
+          console.warn('Error reversing loyalty for cancelled booking:', e);
+        }
+      }
+    }
+
+    return updated;
   }
 
   async cancelBooking(id: string, reason?: string): Promise<{ success: boolean; booking?: Booking; error?: string }> {
@@ -1421,6 +1603,15 @@ class DatabaseService {
       }
     }
 
+    // Award loyalty points on verified check-in
+    if (newStatus === 'checked_in' && oldStatus !== 'checked_in') {
+      try {
+        await this.processTournamentParticipation(updated);
+      } catch (err) {
+        console.warn('Error processing tournament participation loyalty:', err);
+      }
+    }
+
     return updated;
   }
 
@@ -1476,6 +1667,14 @@ class DatabaseService {
         this.fileResults.push(result);
       }
       this.saveResultsToFile();
+    }
+
+    if (result.isPublished) {
+      try {
+        await this.processTournamentResultsFinalized(result);
+      } catch (err) {
+        console.warn('Error processing tournament placement loyalty bonuses:', err);
+      }
     }
 
     return result;
@@ -1853,11 +2052,69 @@ class DatabaseService {
     };
   }
 
+  async generateUniqueGioId(): Promise<string> {
+    const len = 6;
+    for (let attempt = 0; attempt < 50; attempt++) {
+      let code = '';
+      for (let i = 0; i < len; i++) {
+        const idx = crypto.randomInt(0, GIO_ID_ALPHABET.length);
+        code += GIO_ID_ALPHABET[idx];
+      }
+      const gioId = `GIO-${code}`;
+      const existing = await this.getPlayerByGioId(gioId);
+      if (!existing) return gioId;
+    }
+    return `GIO-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  }
+
+  async generateUniqueReferralCode(): Promise<string> {
+    const len = 6;
+    for (let attempt = 0; attempt < 50; attempt++) {
+      let code = '';
+      for (let i = 0; i < len; i++) {
+        const idx = crypto.randomInt(0, GIO_ID_ALPHABET.length);
+        code += GIO_ID_ALPHABET[idx];
+      }
+      const refCode = `REF-${code}`;
+      const existing = await this.getPlayerByReferralCode(refCode);
+      if (!existing) return refCode;
+    }
+    return `REF-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  }
+
   async getPlayerById(id: string): Promise<Player | null> {
     if (this.isMongoConnected && this.db) {
       return this.db.collection<Player>('players').findOne({ id });
     }
     return this.filePlayers.find((p) => p.id === id) || null;
+  }
+
+  async getPlayerByGioId(gioId: string): Promise<Player | null> {
+    if (!gioId) return null;
+    const clean = gioId.trim().toUpperCase();
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Player>('players').findOne({
+        $or: [{ gioId: clean }, { gioId: clean.startsWith('GIO-') ? clean : `GIO-${clean}` }]
+      });
+    }
+    return this.filePlayers.find((p) => {
+      const pId = p.gioId?.toUpperCase();
+      return pId === clean || pId === (clean.startsWith('GIO-') ? clean : `GIO-${clean}`);
+    }) || null;
+  }
+
+  async getPlayerByReferralCode(code: string): Promise<Player | null> {
+    if (!code) return null;
+    const clean = code.trim().toUpperCase();
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Player>('players').findOne({
+        $or: [{ referralCode: clean }, { referralCode: clean.startsWith('REF-') ? clean : `REF-${clean}` }]
+      });
+    }
+    return this.filePlayers.find((p) => {
+      const rCode = p.referralCode?.toUpperCase();
+      return rCode === clean || rCode === (clean.startsWith('REF-') ? clean : `REF-${clean}`);
+    }) || null;
   }
 
   async getPlayerByPhone(phone: string): Promise<Player | null> {
@@ -1867,6 +2124,183 @@ class DatabaseService {
       return this.db.collection<Player>('players').findOne({ normalizedPhone: norm });
     }
     return this.filePlayers.find((p) => p.normalizedPhone === norm) || null;
+  }
+
+  async lookupPlayerPublic(gioId: string): Promise<{
+    found: boolean;
+    player?: {
+      gioId: string;
+      name: string;
+      gamerTag: string;
+      phoneMasked: string;
+      emailMasked?: string;
+      favoriteGame?: string;
+      favoritePlatform?: string;
+      membershipTier: MembershipTier;
+    };
+    challenge?: {
+      type: 'phone_last_4';
+      prompt: string;
+    };
+    error?: string;
+  }> {
+    if (!gioId || !gioId.trim()) {
+      return { found: false, error: 'Please enter a valid GioCasa Player ID.' };
+    }
+
+    const player = await this.getPlayerByGioId(gioId);
+    if (!player || player.status === 'archived') {
+      return {
+        found: false,
+        error: `No player profile found for ID "${gioId.trim().toUpperCase()}". Check your ID or register once to get one.`,
+      };
+    }
+
+    const digits = player.phone.replace(/\D/g, '');
+    const last4 = digits.length >= 4 ? digits.slice(-4) : '••••';
+    const phoneMasked = `+91 ••••• ••${last4}`;
+
+    let emailMasked: string | undefined = undefined;
+    if (player.email && player.email.includes('@')) {
+      const [local, dom] = player.email.split('@');
+      emailMasked = `${local[0]}***${local.length > 2 ? local.slice(-1) : ''}@${dom}`;
+    }
+
+    return {
+      found: true,
+      player: {
+        gioId: player.gioId,
+        name: player.name,
+        gamerTag: player.gamerTag,
+        phoneMasked,
+        emailMasked,
+        favoriteGame: player.favoriteGame,
+        favoritePlatform: player.favoritePlatform,
+        membershipTier: player.membershipTier,
+      },
+      challenge: {
+        type: 'phone_last_4',
+        prompt: `Confirm the last 4 digits of your registered mobile number ending in ••${last4} to auto-fill your details.`,
+      },
+    };
+  }
+
+  async verifyPlayerIdentity(gioId: string, phoneLast4: string, fullPhone?: string): Promise<{
+    verified: boolean;
+    token?: string;
+    player?: {
+      id: string;
+      gioId: string;
+      referralCode: string;
+      name: string;
+      gamerTag: string;
+      phone: string;
+      email?: string;
+      favoriteGame?: string;
+      favoritePlatform?: string;
+      membershipTier: MembershipTier;
+      dateOfBirth?: string;
+    };
+    error?: string;
+  }> {
+    if (!gioId) {
+      return { verified: false, error: 'Player ID is required.' };
+    }
+
+    const player = await this.getPlayerByGioId(gioId);
+    if (!player || player.status === 'archived') {
+      return { verified: false, error: 'Player profile not found.' };
+    }
+
+    const digits = (player.normalizedPhone || player.phone.replace(/\D/g, ''));
+    let matched = false;
+
+    if (phoneLast4 && phoneLast4.trim().length === 4) {
+      matched = digits.endsWith(phoneLast4.trim());
+    } else if (fullPhone) {
+      matched = this.normalizePhone(fullPhone) === player.normalizedPhone;
+    }
+
+    if (!matched) {
+      return {
+        verified: false,
+        error: 'The 4 digits entered do not match the registered phone number for this Player ID.',
+      };
+    }
+
+    // Generate signed session verification token
+    const tokenPayload = {
+      playerId: player.id,
+      gioId: player.gioId,
+      iat: Date.now(),
+      exp: Date.now() + 2 * 60 * 60 * 1000,
+    };
+    const secret = config.adminPasscode || 'giocasa-secret';
+    const sig = crypto.createHmac('sha256', secret).update(JSON.stringify(tokenPayload)).digest('hex');
+    const token = `gio_vtok_${Buffer.from(JSON.stringify(tokenPayload)).toString('base64url')}.${sig.slice(0, 16)}`;
+
+    return {
+      verified: true,
+      token,
+      player: {
+        id: player.id,
+        gioId: player.gioId,
+        referralCode: player.referralCode,
+        name: player.name,
+        gamerTag: player.gamerTag,
+        phone: player.phone,
+        email: player.email,
+        favoriteGame: player.favoriteGame,
+        favoritePlatform: player.favoritePlatform,
+        membershipTier: player.membershipTier,
+        dateOfBirth: player.dateOfBirth,
+      },
+    };
+  }
+
+  async recoverPlayerId(phone: string): Promise<{
+    found: boolean;
+    gioId?: string;
+    name?: string;
+    gamerTag?: string;
+    message?: string;
+    error?: string;
+  }> {
+    if (!phone || !phone.trim()) {
+      return { found: false, error: 'Mobile number is required to recover your Player ID.' };
+    }
+
+    const norm = this.normalizePhone(phone);
+    if (norm.length < 10) {
+      return { found: false, error: 'Please enter a valid 10-digit mobile number.' };
+    }
+
+    const player = await this.getPlayerByPhone(norm);
+    if (!player || player.status === 'archived') {
+      return {
+        found: false,
+        error: 'No active GioCasa profile found with this mobile number. You can register for a new Player ID instantly.',
+      };
+    }
+
+    await this.recordAutomationEvent({
+      eventType: 'player.id_recovered',
+      entityId: player.id,
+      entityType: 'player',
+      payload: {
+        gioId: player.gioId,
+        phone: player.phone,
+        name: player.name,
+      },
+    });
+
+    return {
+      found: true,
+      gioId: player.gioId,
+      name: player.name,
+      gamerTag: player.gamerTag,
+      message: `Welcome back, ${player.name}! Your GioCasa Player ID is ${player.gioId}.`,
+    };
   }
 
   async createPlayer(data: Partial<Player>): Promise<Player> {
@@ -1885,12 +2319,14 @@ class DatabaseService {
     // Check for duplicate player with active status
     const existing = await this.getPlayerByPhone(normalizedPhone);
     if (existing && existing.status !== 'archived') {
-      throw new Error(`A player profile already exists with mobile number ${data.phone} (${existing.name} • @${existing.gamerTag}).`);
+      throw new Error(`A player profile already exists with mobile number ${data.phone} (${existing.name} • @${existing.gamerTag} • ID: ${existing.gioId}).`);
     }
 
     const nowIso = new Date().toISOString();
     const id = `ply-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
     const gamerTag = data.gamerTag && data.gamerTag.trim() ? data.gamerTag.trim() : data.name.trim().split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900);
+    const gioId = data.gioId || await this.generateUniqueGioId();
+    const referralCode = data.referralCode || await this.generateUniqueReferralCode();
 
     const initialNotes: StaffNote[] = [];
     if (Array.isArray(data.notes)) {
@@ -1908,16 +2344,20 @@ class DatabaseService {
 
     const player: Player = {
       id,
+      gioId,
+      referralCode,
       name: data.name.trim(),
       gamerTag,
       phone: data.phone.trim(),
       normalizedPhone,
       email: data.email ? data.email.trim().toLowerCase() : undefined,
       avatarUrl: data.avatarUrl || undefined,
+      dateOfBirth: data.dateOfBirth,
       favoriteGame: data.favoriteGame || 'EA Sports FC 25',
       favoritePlatform: data.favoritePlatform || 'ps5',
       membershipTier: data.membershipTier || 'standard',
       status: 'active',
+      identityVerificationStatus: data.identityVerificationStatus || 'verified',
       notes: initialNotes,
       reminders: initialReminders,
       tags: data.tags || ['New Player'],
@@ -1940,6 +2380,9 @@ class DatabaseService {
         lastVisitDate: nowIso.slice(0, 10),
         ...data.stats,
       },
+      referralCount: 0,
+      successfulReferralCount: 0,
+      referredBy: data.referredBy ? data.referredBy.trim().toUpperCase() : undefined,
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -1950,6 +2393,71 @@ class DatabaseService {
       this.filePlayers.push(player);
       this.savePlayersToFile();
     }
+
+    // Process referral linkage if referredBy was provided
+    if (player.referredBy) {
+      try {
+        const refCode = player.referredBy;
+        const referrer = (await this.getPlayerByReferralCode(refCode)) || (await this.getPlayerByGioId(refCode));
+        if (referrer && referrer.id !== player.id) {
+          const referralRecord: Referral = {
+            id: `ref-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+            referrerPlayerId: referrer.id,
+            referrerGioId: referrer.gioId,
+            referrerName: referrer.name,
+            referredPlayerId: player.id,
+            referredGioId: player.gioId,
+            referredName: player.name,
+            referralCode: refCode,
+            status: 'pending',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          };
+
+          if (this.isMongoConnected && this.db) {
+            await this.db.collection<Referral>('referrals').insertOne(referralRecord);
+          } else {
+            this.fileReferrals.push(referralRecord);
+            this.saveReferralsToFile();
+          }
+
+          // Increment referrer's pending referral count
+          await this.updatePlayer(referrer.id, {
+            referralCount: (referrer.referralCount || 0) + 1,
+          } as any);
+
+          // If welcome bonus is configured for referred players
+          const rules = await this.getLoyaltyRules();
+          if (rules.rulesEnabled.referredWelcome && rules.referredWelcomeBonus > 0) {
+            await this.adjustPlayerLoyalty(
+              player.id,
+              rules.referredWelcomeBonus,
+              'bonus',
+              `Welcome Bonus (Referred by ${referrer.name})`,
+              referralRecord.id,
+              `referred_welcome_${player.id}`
+            );
+          }
+        }
+      } catch (refErr) {
+        console.warn('Error processing referral link for new player:', refErr);
+      }
+    }
+
+    // Record registration automation event
+    await this.recordAutomationEvent({
+      eventType: 'player.registered',
+      entityId: player.id,
+      entityType: 'player',
+      payload: {
+        gioId: player.gioId,
+        referralCode: player.referralCode,
+        name: player.name,
+        gamerTag: player.gamerTag,
+        phone: player.phone,
+      },
+      idempotencyKey: `auto_player_registered_${player.id}`,
+    });
 
     return player;
   }
@@ -1978,14 +2486,19 @@ class DatabaseService {
       normalizedPhone,
       email: updates.email !== undefined ? (updates.email ? updates.email.trim().toLowerCase() : undefined) : existing.email,
       avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : existing.avatarUrl,
+      dateOfBirth: updates.dateOfBirth !== undefined ? updates.dateOfBirth : existing.dateOfBirth,
       favoriteGame: updates.favoriteGame !== undefined ? updates.favoriteGame : existing.favoriteGame,
       favoritePlatform: updates.favoritePlatform !== undefined ? updates.favoritePlatform : existing.favoritePlatform,
       membershipTier: updates.membershipTier !== undefined ? updates.membershipTier : existing.membershipTier,
       status: updates.status !== undefined ? updates.status : existing.status,
+      identityVerificationStatus: updates.identityVerificationStatus !== undefined ? updates.identityVerificationStatus : existing.identityVerificationStatus,
       tags: updates.tags !== undefined ? updates.tags : existing.tags,
       consent: updates.consent ? { ...existing.consent, ...updates.consent } : existing.consent,
       stats: updates.stats ? { ...existing.stats, ...updates.stats } : existing.stats,
       loyalty: updates.loyalty ? { ...existing.loyalty, ...updates.loyalty } : existing.loyalty,
+      referralCount: updates.referralCount !== undefined ? updates.referralCount : existing.referralCount,
+      successfulReferralCount: updates.successfulReferralCount !== undefined ? updates.successfulReferralCount : existing.successfulReferralCount,
+      referredBy: updates.referredBy !== undefined ? updates.referredBy : existing.referredBy,
       notes: updates.notes !== undefined ? (Array.isArray(updates.notes) ? updates.notes : existing.notes) : existing.notes,
       reminders: updates.reminders !== undefined ? (Array.isArray(updates.reminders) ? updates.reminders : existing.reminders) : existing.reminders,
       updatedAt: new Date().toISOString(),
@@ -1995,6 +2508,8 @@ class DatabaseService {
       ...existing,
       ...safeUpdates,
       id: existing.id,
+      gioId: existing.gioId,
+      referralCode: existing.referralCode,
       createdAt: existing.createdAt,
     };
 
@@ -2089,10 +2604,22 @@ class DatabaseService {
     points: number,
     type: 'earn' | 'redeem' | 'adjustment' | 'bonus',
     reason: string,
-    referenceId?: string
+    referenceId?: string,
+    idempotencyKey?: string
   ): Promise<{ player: Player; ledgerEntry: LoyaltyLedgerEntry }> {
     const player = await this.getPlayerById(id);
     if (!player) throw new Error('Player not found.');
+
+    // Idempotency check: if key already processed, return existing record
+    if (idempotencyKey) {
+      const existingEntry = this.isMongoConnected && this.db
+        ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey })
+        : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === idempotencyKey);
+
+      if (existingEntry) {
+        return { player, ledgerEntry: existingEntry };
+      }
+    }
 
     const newBalance = Math.max(0, player.loyalty.pointsBalance + points);
     const newLifetime = points > 0 ? player.loyalty.lifetimePoints + points : player.loyalty.lifetimePoints;
@@ -2105,6 +2632,7 @@ class DatabaseService {
       type,
       reason: reason.trim() || 'Manual Staff Adjustment',
       referenceId,
+      idempotencyKey,
       createdAt: new Date().toISOString(),
     };
 
@@ -2333,6 +2861,19 @@ class DatabaseService {
       });
     }
 
+    // Add communication logs
+    const commLogs = await this.getCommunicationLogs(player.id);
+    for (const comm of commLogs) {
+      activityTimeline.push({
+        id: `act-comm-${comm.id}`,
+        type: 'communication',
+        title: `Outreach: ${comm.channel.toUpperCase()} (${comm.templateId || 'Direct'})`,
+        description: `${comm.messagePreview} • Status: ${comm.status === 'prepared' ? 'WhatsApp link opened by staff' : comm.status}`,
+        date: comm.createdAt || new Date().toISOString(),
+        badge: comm.channel.toUpperCase(),
+      });
+    }
+
     // Sort timeline descending by date safely
     activityTimeline.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
@@ -2464,24 +3005,6 @@ class DatabaseService {
       if (updated) player = updated;
     }
 
-    // Award loyalty points: 1 point per ₹10 spent if paid
-    if (player && booking.paymentStatus === 'paid' && booking.totalAmount >= 50) {
-      const pointsToAward = Math.floor(booking.totalAmount / 10);
-      if (pointsToAward > 0) {
-        try {
-          await this.adjustPlayerLoyalty(
-            player.id,
-            pointsToAward,
-            'earn',
-            `Gaming Session #${booking.id} (${booking.resourceName})`,
-            booking.id
-          );
-        } catch (e) {
-          console.warn('Failed to award loyalty points for booking:', e);
-        }
-      }
-    }
-
     // Attach playerId to booking
     if (player) {
       booking.playerId = player.id;
@@ -2497,6 +3020,625 @@ class DatabaseService {
     }
 
     return player;
+  }
+
+  // ======================== LOYALTY RULES & POINTS ENGINE ========================
+
+  async getLoyaltyRules(): Promise<LoyaltyRules> {
+    if (this.isMongoConnected && this.db) {
+      const doc = await this.db.collection<LoyaltyRules>('loyalty_rules').findOne({});
+      if (doc) return doc;
+    }
+    return { ...this.fileLoyaltyRules };
+  }
+
+  async updateLoyaltyRules(updates: Partial<LoyaltyRules>, updatedBy = 'Staff Admin'): Promise<LoyaltyRules> {
+    const existing = await this.getLoyaltyRules();
+    const merged: LoyaltyRules = {
+      ...existing,
+      ...updates,
+      rulesEnabled: {
+        ...existing.rulesEnabled,
+        ...(updates.rulesEnabled || {}),
+      },
+      tournamentPlacementBonus: {
+        ...existing.tournamentPlacementBonus,
+        ...(updates.tournamentPlacementBonus || {}),
+      },
+      updatedAt: new Date().toISOString(),
+      updatedBy,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = merged as any;
+      await this.db.collection('loyalty_rules').updateOne(
+        {},
+        { $set: fieldsToSet },
+        { upsert: true }
+      );
+    } else {
+      this.fileLoyaltyRules = merged;
+      this.saveLoyaltyRulesToFile();
+    }
+
+    return merged;
+  }
+
+  async processGamingSessionCompleted(booking: Booking): Promise<void> {
+    if (!booking) return;
+    const rules = await this.getLoyaltyRules();
+    if (!rules.rulesEnabled.gamingSession) return;
+
+    let player: Player | null = null;
+    if (booking.playerId) {
+      player = await this.getPlayerById(booking.playerId);
+    }
+    if (!player) {
+      const norm = this.normalizePhone(booking.phone);
+      if (norm) player = await this.getPlayerByPhone(norm);
+    }
+    if (!player) return;
+
+    const points = rules.gamingSessionPoints;
+    if (points > 0) {
+      const idempotencyKey = `gaming_session_${booking.id}`;
+      await this.adjustPlayerLoyalty(
+        player.id,
+        points,
+        'earn',
+        `Gaming Session #${booking.id} (${booking.resourceName || 'Station'})`,
+        booking.id,
+        idempotencyKey
+      );
+    }
+
+    // Qualify referral if player has pending referral
+    await this.qualifyReferral(player.id);
+
+    // Record automation event
+    await this.recordAutomationEvent({
+      eventType: 'booking.completed',
+      entityId: booking.id,
+      entityType: 'booking',
+      payload: {
+        bookingId: booking.id,
+        playerId: player.id,
+        gioId: player.gioId,
+        pointsAwarded: points,
+      },
+      idempotencyKey: `auto_booking_completed_${booking.id}`,
+    });
+  }
+
+  async processTournamentParticipation(registration: TournamentRegistration): Promise<void> {
+    if (!registration) return;
+    const rules = await this.getLoyaltyRules();
+    if (!rules.rulesEnabled.tournamentParticipation) return;
+
+    let player: Player | null = null;
+    if (registration.playerId) {
+      player = await this.getPlayerById(registration.playerId);
+    }
+    if (!player) {
+      const norm = this.normalizePhone(registration.phone);
+      if (norm) player = await this.getPlayerByPhone(norm);
+    }
+    if (!player) return;
+
+    const points = rules.tournamentParticipationPoints;
+    if (points > 0) {
+      const idempotencyKey = `tournament_participation_${registration.id}`;
+      await this.adjustPlayerLoyalty(
+        player.id,
+        points,
+        'earn',
+        `Tournament Check-In (${registration.tournamentSlug || 'GioCasa Arena'})`,
+        registration.id,
+        idempotencyKey
+      );
+    }
+
+    // Qualify referral
+    await this.qualifyReferral(player.id);
+
+    // Record automation event
+    await this.recordAutomationEvent({
+      eventType: 'tournament.checked_in',
+      entityId: registration.id,
+      entityType: 'registration',
+      payload: {
+        registrationId: registration.id,
+        playerId: player.id,
+        gioId: player.gioId,
+        tournamentSlug: registration.tournamentSlug,
+        pointsAwarded: points,
+      },
+      idempotencyKey: `auto_tourn_checkin_${registration.id}`,
+    });
+  }
+
+  async processTournamentResultsFinalized(result: TournamentResult): Promise<void> {
+    if (!result || !result.standings || !result.standings.length) return;
+    const rules = await this.getLoyaltyRules();
+    if (!rules.rulesEnabled.tournamentPlacement) return;
+
+    const allPlayers = this.isMongoConnected && this.db
+      ? await this.db.collection<Player>('players').find({}).toArray()
+      : this.filePlayers;
+
+    for (const standing of result.standings) {
+      let bonus = 0;
+      if (standing.rank === 1) bonus = rules.tournamentPlacementBonus.first;
+      else if (standing.rank === 2) bonus = rules.tournamentPlacementBonus.second;
+      else if (standing.rank === 3) bonus = rules.tournamentPlacementBonus.third;
+
+      if (bonus <= 0) continue;
+
+      let player: Player | null = null;
+      if (standing.playerId) {
+        player = await this.getPlayerById(standing.playerId);
+      }
+      if (!player && standing.participantName) {
+        const regs = await this.getTournamentRegistrations(result.tournamentId);
+        const matchReg = regs.find(
+          (r) =>
+            r.participantName.toLowerCase() === standing.participantName.toLowerCase() ||
+            (standing.inGameId && r.inGameId && r.inGameId.toLowerCase() === standing.inGameId.toLowerCase())
+        );
+        if (matchReg && matchReg.playerId) {
+          player = await this.getPlayerById(matchReg.playerId);
+        }
+      }
+      if (!player && standing.participantName) {
+        player = allPlayers.find((p) =>
+          p.gamerTag.toLowerCase() === standing.participantName.toLowerCase() ||
+          p.name.toLowerCase() === standing.participantName.toLowerCase() ||
+          (standing.inGameId && p.gamerTag.toLowerCase() === standing.inGameId.toLowerCase())
+        ) || null;
+      }
+
+      if (player) {
+        const idempotencyKey = `tournament_placement_${result.tournamentId}_rank_${standing.rank}_${player.id}`;
+        await this.adjustPlayerLoyalty(
+          player.id,
+          bonus,
+          'bonus',
+          `Tournament Rank #${standing.rank} Placement (${standing.awardLabel || 'Prize'})`,
+          result.tournamentId,
+          idempotencyKey
+        );
+      }
+    }
+
+    await this.recordAutomationEvent({
+      eventType: 'tournament.results_finalized',
+      entityId: result.tournamentId,
+      entityType: 'tournament',
+      payload: {
+        tournamentId: result.tournamentId,
+        tournamentSlug: result.tournamentSlug,
+        standingsCount: result.standings.length,
+      },
+      idempotencyKey: `auto_tourn_results_${result.tournamentId}`,
+    });
+  }
+
+  async processBookingCancelledOrRefunded(booking: Booking): Promise<void> {
+    if (!booking) return;
+    const origKey = `gaming_session_${booking.id}`;
+    const reversalKey = `reversal_gaming_session_${booking.id}`;
+
+    const origLedger = this.isMongoConnected && this.db
+      ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: origKey })
+      : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === origKey);
+
+    if (origLedger && origLedger.points > 0) {
+      const existingReversal = this.isMongoConnected && this.db
+        ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: reversalKey })
+        : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === reversalKey);
+
+      if (!existingReversal) {
+        await this.adjustPlayerLoyalty(
+          origLedger.playerId,
+          -origLedger.points,
+          'adjustment',
+          `Reversal: Gaming Session #${booking.id} cancelled/refunded`,
+          booking.id,
+          reversalKey
+        );
+      }
+    }
+
+    await this.recordAutomationEvent({
+      eventType: 'booking.cancelled',
+      entityId: booking.id,
+      entityType: 'booking',
+      payload: {
+        bookingId: booking.id,
+      },
+      idempotencyKey: `auto_booking_cancelled_${booking.id}`,
+    });
+  }
+
+  // ======================== REFERRALS ========================
+
+  async qualifyReferral(referredPlayerId: string): Promise<Referral | null> {
+    if (!referredPlayerId) return null;
+
+    let pendingReferral: Referral | null = null;
+    if (this.isMongoConnected && this.db) {
+      pendingReferral = await this.db.collection<Referral>('referrals').findOne({
+        referredPlayerId,
+        status: 'pending',
+      });
+    } else {
+      pendingReferral = this.fileReferrals.find(
+        (r) => r.referredPlayerId === referredPlayerId && r.status === 'pending'
+      ) || null;
+    }
+
+    if (!pendingReferral) return null;
+
+    const rules = await this.getLoyaltyRules();
+    const nowIso = new Date().toISOString();
+
+    const updatedReferral: Referral = {
+      ...pendingReferral,
+      status: 'qualified',
+      qualifiedAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updatedReferral as any;
+      await this.db.collection<Referral>('referrals').updateOne(
+        { id: pendingReferral.id },
+        { $set: fieldsToSet }
+      );
+    } else {
+      const idx = this.fileReferrals.findIndex((r) => r.id === pendingReferral.id);
+      if (idx !== -1) {
+        this.fileReferrals[idx] = updatedReferral;
+        this.saveReferralsToFile();
+      }
+    }
+
+    // Award referrer bonus points if enabled
+    if (rules.rulesEnabled.referral && rules.referralPoints > 0) {
+      const referrerKey = `referral_reward_referrer_${pendingReferral.id}`;
+      await this.adjustPlayerLoyalty(
+        pendingReferral.referrerPlayerId,
+        rules.referralPoints,
+        'bonus',
+        `Referral Reward (Player @${pendingReferral.referredGioId} completed 1st activity)`,
+        pendingReferral.id,
+        referrerKey
+      );
+    }
+
+    // Update referrer's successfulReferralCount
+    const referrer = await this.getPlayerById(pendingReferral.referrerPlayerId);
+    if (referrer) {
+      await this.updatePlayer(referrer.id, {
+        successfulReferralCount: (referrer.successfulReferralCount || 0) + 1,
+      } as any);
+    }
+
+    // Record automation event
+    await this.recordAutomationEvent({
+      eventType: 'referral.qualified',
+      entityId: pendingReferral.id,
+      entityType: 'referral',
+      payload: {
+        referralId: pendingReferral.id,
+        referrerId: pendingReferral.referrerPlayerId,
+        referredId: pendingReferral.referredPlayerId,
+        referrerGioId: pendingReferral.referrerGioId,
+        referredGioId: pendingReferral.referredGioId,
+      },
+      idempotencyKey: `auto_ref_qual_${pendingReferral.id}`,
+    });
+
+    return updatedReferral;
+  }
+
+  async getReferrals(params: { referrerPlayerId?: string; referredPlayerId?: string; status?: string; limit?: number } = {}): Promise<Referral[]> {
+    let list: Referral[] = [];
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (params.referrerPlayerId) query.referrerPlayerId = params.referrerPlayerId;
+      if (params.referredPlayerId) query.referredPlayerId = params.referredPlayerId;
+      if (params.status && params.status !== 'all') query.status = params.status;
+      list = await this.db.collection<Referral>('referrals').find(query).sort({ createdAt: -1 }).limit(params.limit || 100).toArray();
+    } else {
+      list = [...this.fileReferrals];
+      if (params.referrerPlayerId) list = list.filter((r) => r.referrerPlayerId === params.referrerPlayerId);
+      if (params.referredPlayerId) list = list.filter((r) => r.referredPlayerId === params.referredPlayerId);
+      if (params.status && params.status !== 'all') list = list.filter((r) => r.status === params.status);
+      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      if (params.limit) list = list.slice(0, params.limit);
+    }
+    return list;
+  }
+
+  async getReferralLeaderboard(limit = 10): Promise<Array<{
+    playerId: string;
+    gioId: string;
+    name: string;
+    gamerTag: string;
+    totalReferrals: number;
+    successfulReferrals: number;
+    pointsEarned: number;
+  }>> {
+    const allReferrals = await this.getReferrals({ limit: 10000 });
+    const rules = await this.getLoyaltyRules();
+    const statsByReferrer = new Map<string, { total: number; qualified: number }>();
+
+    for (const r of allReferrals) {
+      const existing = statsByReferrer.get(r.referrerPlayerId) || { total: 0, qualified: 0 };
+      existing.total++;
+      if (r.status === 'qualified') existing.qualified++;
+      statsByReferrer.set(r.referrerPlayerId, existing);
+    }
+
+    const leaderboard: Array<{
+      playerId: string;
+      gioId: string;
+      name: string;
+      gamerTag: string;
+      totalReferrals: number;
+      successfulReferrals: number;
+      pointsEarned: number;
+    }> = [];
+
+    for (const [playerId, s] of statsByReferrer.entries()) {
+      const player = await this.getPlayerById(playerId);
+      if (player) {
+        leaderboard.push({
+          playerId: player.id,
+          gioId: player.gioId,
+          name: player.name,
+          gamerTag: player.gamerTag,
+          totalReferrals: s.total,
+          successfulReferrals: s.qualified,
+          pointsEarned: s.qualified * rules.referralPoints,
+        });
+      }
+    }
+
+    leaderboard.sort((a, b) => b.successfulReferrals - a.successfulReferrals || b.totalReferrals - a.totalReferrals);
+    return leaderboard.slice(0, limit);
+  }
+
+  async updateReferralStatus(id: string, status: any, notes?: string): Promise<Referral | null> {
+    const existing = (this.isMongoConnected && this.db)
+      ? await this.db.collection<Referral>('referrals').findOne({ id })
+      : this.fileReferrals.find((r) => r.id === id);
+
+    if (!existing) return null;
+
+    const updated: Referral = {
+      ...existing,
+      status,
+      notes: notes || existing.notes,
+      qualifiedAt: status === 'qualified' ? (existing.qualifiedAt || new Date().toISOString()) : existing.qualifiedAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updated as any;
+      await this.db.collection<Referral>('referrals').updateOne({ id }, { $set: fieldsToSet });
+    } else {
+      const idx = this.fileReferrals.findIndex((r) => r.id === id);
+      if (idx !== -1) {
+        this.fileReferrals[idx] = updated;
+        this.saveReferralsToFile();
+      }
+    }
+
+    return updated;
+  }
+
+  // ======================== AUTOMATION EVENTS ========================
+
+  async recordAutomationEvent(data: Partial<AutomationEvent> & { idempotencyKey?: string }): Promise<AutomationEvent> {
+    const nowIso = new Date().toISOString();
+
+    if (data.idempotencyKey) {
+      const existing = (this.isMongoConnected && this.db)
+        ? await this.db.collection<AutomationEvent>('automation_events').findOne({ idempotencyKey: data.idempotencyKey })
+        : this.fileAutomationEvents.find((e) => e.idempotencyKey === data.idempotencyKey);
+
+      if (existing) return existing;
+    }
+
+    const event: AutomationEvent = {
+      id: `evt-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      eventType: data.eventType || 'unknown',
+      entityId: data.entityId || '',
+      entityType: data.entityType || 'system',
+      payload: data.payload || {},
+      status: data.status || 'processed',
+      retryCount: 0,
+      idempotencyKey: data.idempotencyKey,
+      errorMessage: data.errorMessage,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<AutomationEvent>('automation_events').insertOne(event);
+    } else {
+      this.fileAutomationEvents.unshift(event);
+      this.saveAutomationEventsToFile();
+    }
+
+    return event;
+  }
+
+  async getAutomationEvents(params: { status?: string; limit?: number } = {}): Promise<AutomationEvent[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (params.status && params.status !== 'all') query.status = params.status;
+      return this.db.collection<AutomationEvent>('automation_events').find(query).sort({ createdAt: -1 }).limit(params.limit || 50).toArray();
+    }
+    let list = [...this.fileAutomationEvents];
+    if (params.status && params.status !== 'all') list = list.filter((e) => e.status === params.status);
+    return list.slice(0, params.limit || 50);
+  }
+
+  async retryAutomationEvent(id: string): Promise<AutomationEvent | null> {
+    const existing = (this.isMongoConnected && this.db)
+      ? await this.db.collection<AutomationEvent>('automation_events').findOne({ id })
+      : this.fileAutomationEvents.find((e) => e.id === id);
+
+    if (!existing) return null;
+
+    const updated: AutomationEvent = {
+      ...existing,
+      status: 'processed',
+      retryCount: (existing.retryCount || 0) + 1,
+      errorMessage: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updated as any;
+      await this.db.collection<AutomationEvent>('automation_events').updateOne({ id }, { $set: fieldsToSet });
+    } else {
+      const idx = this.fileAutomationEvents.findIndex((e) => e.id === id);
+      if (idx !== -1) {
+        this.fileAutomationEvents[idx] = updated;
+        this.saveAutomationEventsToFile();
+      }
+    }
+
+    return updated;
+  }
+
+  // ======================== ADMIN REMINDERS ========================
+
+  async getAdminReminders(params: { status?: string; playerId?: string } = {}): Promise<AdminReminder[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (params.status && params.status !== 'all') query.status = params.status;
+      if (params.playerId) query.playerId = params.playerId;
+      return this.db.collection<AdminReminder>('crm_reminders').find(query).sort({ dueDate: 1 }).toArray();
+    }
+    let list = [...this.fileCrmReminders];
+    if (params.status && params.status !== 'all') list = list.filter((r) => r.status === params.status);
+    if (params.playerId) list = list.filter((r) => r.playerId === params.playerId);
+    return list.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  }
+
+  async createAdminReminder(data: Partial<AdminReminder>): Promise<AdminReminder> {
+    const nowIso = new Date().toISOString();
+    const reminder: AdminReminder = {
+      id: `rem-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      playerId: data.playerId || '',
+      playerName: data.playerName || 'Customer',
+      playerPhone: data.playerPhone || '',
+      title: data.title || 'Follow up',
+      description: data.description,
+      dueDate: data.dueDate || nowIso.slice(0, 10),
+      priority: data.priority || 'medium',
+      status: 'pending',
+      assignedTo: data.assignedTo || 'Staff Admin',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<AdminReminder>('crm_reminders').insertOne(reminder);
+    } else {
+      this.fileCrmReminders.unshift(reminder);
+      this.saveCrmRemindersToFile();
+    }
+
+    return reminder;
+  }
+
+  async updateAdminReminder(id: string, updates: Partial<AdminReminder>): Promise<AdminReminder | null> {
+    const existing = (this.isMongoConnected && this.db)
+      ? await this.db.collection<AdminReminder>('crm_reminders').findOne({ id })
+      : this.fileCrmReminders.find((r) => r.id === id);
+
+    if (!existing) return null;
+
+    const updated: AdminReminder = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updated as any;
+      await this.db.collection<AdminReminder>('crm_reminders').updateOne({ id }, { $set: fieldsToSet });
+    } else {
+      const idx = this.fileCrmReminders.findIndex((r) => r.id === id);
+      if (idx !== -1) {
+        this.fileCrmReminders[idx] = updated;
+        this.saveCrmRemindersToFile();
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteAdminReminder(id: string): Promise<boolean> {
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection('crm_reminders').deleteOne({ id });
+      return (res.deletedCount || 0) > 0;
+    }
+    const init = this.fileCrmReminders.length;
+    this.fileCrmReminders = this.fileCrmReminders.filter((r) => r.id !== id);
+    if (this.fileCrmReminders.length !== init) {
+      this.saveCrmRemindersToFile();
+      return true;
+    }
+    return false;
+  }
+
+  // ======================== COMMUNICATION LOGS ========================
+
+  async logCommunication(data: Omit<CommunicationLog, 'id' | 'createdAt'>): Promise<CommunicationLog> {
+    const nowIso = new Date().toISOString();
+    const log: CommunicationLog = {
+      id: `comm-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      ...data,
+      createdAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<CommunicationLog>('communication_logs').insertOne(log);
+    } else {
+      this.fileCommunicationLogs.unshift(log);
+      this.saveCommunicationLogsToFile();
+    }
+
+    await this.recordAutomationEvent({
+      eventType: 'communication.prepared',
+      entityId: log.id,
+      entityType: 'communication',
+      payload: {
+        channel: log.channel,
+        playerId: log.playerId,
+        templateName: log.templateName,
+      },
+    });
+
+    return log;
+  }
+
+  async getCommunicationLogs(playerId?: string, limit = 50): Promise<CommunicationLog[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (playerId) query.playerId = playerId;
+      return this.db.collection<CommunicationLog>('communication_logs').find(query).sort({ createdAt: -1 }).limit(limit).toArray();
+    }
+    let list = [...this.fileCommunicationLogs];
+    if (playerId) list = list.filter((c) => c.playerId === playerId);
+    return list.slice(0, limit);
   }
 
   async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {
@@ -2557,10 +3699,34 @@ class DatabaseService {
       }
     }
 
-    // Save updated registrations/bookings if on file mode
+    // 3. Ensure all players have gioId and referralCode
+    const allPlayers = this.isMongoConnected && this.db
+      ? await this.db.collection<Player>('players').find({}).toArray()
+      : this.filePlayers;
+
+    for (const p of allPlayers) {
+      let needsSave = false;
+      const updates: any = {};
+      if (!p.gioId) {
+        updates.gioId = await this.generateUniqueGioId();
+        p.gioId = updates.gioId;
+        needsSave = true;
+      }
+      if (!p.referralCode) {
+        updates.referralCode = await this.generateUniqueReferralCode();
+        p.referralCode = updates.referralCode;
+        needsSave = true;
+      }
+      if (needsSave && this.isMongoConnected && this.db) {
+        await this.db.collection('players').updateOne({ id: p.id }, { $set: updates });
+      }
+    }
+
+    // Save updated registrations/bookings/players if on file mode
     if (!this.isMongoConnected) {
       this.saveRegistrationsToFile();
       this.saveBookingsToFile();
+      this.savePlayersToFile();
     }
 
     console.log(`✅ Player CRM historical backfill complete. Synced ${synced} new player profiles.`);

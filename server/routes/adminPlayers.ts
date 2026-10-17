@@ -142,6 +142,147 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// 3b. Loyalty Rules endpoints
+router.get('/loyalty/rules', async (_req: Request, res: Response) => {
+  try {
+    const rules = await dbService.getLoyaltyRules();
+    return res.json({ success: true, data: rules });
+  } catch (err: any) {
+    console.error('Error fetching loyalty rules:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch loyalty rules.' });
+  }
+});
+
+router.put('/loyalty/rules', async (req: Request, res: Response) => {
+  try {
+    const rules = await dbService.updateLoyaltyRules(req.body, 'Staff Admin');
+    return res.json({ success: true, message: 'Loyalty rules updated successfully.', data: rules });
+  } catch (err: any) {
+    console.error('Error updating loyalty rules:', err);
+    return res.status(400).json({ success: false, error: 'Failed to update loyalty rules.' });
+  }
+});
+
+// 3c. Referrals endpoints
+router.get('/referrals', async (req: Request, res: Response) => {
+  try {
+    const { referrerPlayerId, status, limit } = req.query;
+    const referrals = await dbService.getReferrals({
+      referrerPlayerId: typeof referrerPlayerId === 'string' ? referrerPlayerId : undefined,
+      status: typeof status === 'string' ? status : undefined,
+      limit: limit ? parseInt(String(limit), 10) : 100,
+    });
+    return res.json({ success: true, data: referrals });
+  } catch (err: any) {
+    console.error('Error fetching referrals:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch referrals.' });
+  }
+});
+
+router.get('/referrals/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 10;
+    const leaderboard = await dbService.getReferralLeaderboard(limit);
+    return res.json({ success: true, data: leaderboard });
+  } catch (err: any) {
+    console.error('Error fetching referral leaderboard:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch referral leaderboard.' });
+  }
+});
+
+router.patch('/referrals/:id', async (req: Request, res: Response) => {
+  try {
+    const { status, notes } = req.body;
+    const referral = await dbService.updateReferralStatus(req.params.id, status, notes);
+    if (!referral) {
+      return res.status(404).json({ success: false, error: 'Referral not found.' });
+    }
+    return res.json({ success: true, message: 'Referral updated.', data: referral });
+  } catch (err: any) {
+    console.error('Error updating referral:', err);
+    return res.status(400).json({ success: false, error: 'Failed to update referral.' });
+  }
+});
+
+// 3d. Reminders management endpoints (global list)
+router.get('/reminders', async (req: Request, res: Response) => {
+  try {
+    const { status, playerId } = req.query;
+    const reminders = await dbService.getAdminReminders({
+      status: typeof status === 'string' ? status : undefined,
+      playerId: typeof playerId === 'string' ? playerId : undefined,
+    });
+    return res.json({ success: true, data: reminders });
+  } catch (err: any) {
+    console.error('Error fetching admin reminders:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch reminders.' });
+  }
+});
+
+router.post('/reminders', async (req: Request, res: Response) => {
+  try {
+    const reminder = await dbService.createAdminReminder(req.body);
+    return res.status(201).json({ success: true, message: 'Reminder created.', data: reminder });
+  } catch (err: any) {
+    console.error('Error creating admin reminder:', err);
+    return res.status(400).json({ success: false, error: 'Failed to create reminder.' });
+  }
+});
+
+router.patch('/reminders/:reminderId', async (req: Request, res: Response) => {
+  try {
+    const reminder = await dbService.updateAdminReminder(req.params.reminderId, req.body);
+    if (!reminder) {
+      return res.status(404).json({ success: false, error: 'Reminder not found.' });
+    }
+    return res.json({ success: true, message: 'Reminder updated.', data: reminder });
+  } catch (err: any) {
+    console.error('Error updating admin reminder:', err);
+    return res.status(400).json({ success: false, error: 'Failed to update reminder.' });
+  }
+});
+
+router.delete('/reminders/:reminderId', async (req: Request, res: Response) => {
+  try {
+    const success = await dbService.deleteAdminReminder(req.params.reminderId);
+    if (!success) {
+      return res.status(404).json({ success: false, error: 'Reminder not found.' });
+    }
+    return res.json({ success: true, message: 'Reminder deleted.' });
+  } catch (err: any) {
+    console.error('Error deleting admin reminder:', err);
+    return res.status(500).json({ success: false, error: 'Failed to delete reminder.' });
+  }
+});
+
+// 3e. Automation Events endpoints
+router.get('/automation-events', async (req: Request, res: Response) => {
+  try {
+    const { status, limit } = req.query;
+    const events = await dbService.getAutomationEvents({
+      status: typeof status === 'string' ? status : undefined,
+      limit: limit ? parseInt(String(limit), 10) : 50,
+    });
+    return res.json({ success: true, data: events });
+  } catch (err: any) {
+    console.error('Error fetching automation events:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch automation events.' });
+  }
+});
+
+router.post('/automation-events/:id/retry', async (req: Request, res: Response) => {
+  try {
+    const event = await dbService.retryAutomationEvent(req.params.id);
+    if (!event) {
+      return res.status(404).json({ success: false, error: 'Automation event not found.' });
+    }
+    return res.json({ success: true, message: 'Automation event queued for retry.', data: event });
+  } catch (err: any) {
+    console.error('Error retrying automation event:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retry automation event.' });
+  }
+});
+
 // 5. GET /api/admin/players/:id - Full individual profile with timeline
 router.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -380,8 +521,46 @@ router.post('/:id/loyalty', async (req: Request, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    console.error('Error adjusting loyalty points:', err);
-    return res.status(400).json({ success: false, error: err.message || 'Failed to adjust loyalty.' });
+    console.error('Error adjusting loyalty:', err);
+    return res.status(500).json({ success: false, error: 'Failed to adjust loyalty points.' });
+  }
+});
+
+// 15. POST /api/admin/players/:id/communication - Log communication (e.g. WhatsApp opened)
+router.post('/:id/communication', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { channel, templateName, messagePreview, sentBy } = req.body;
+
+    const log = await dbService.logCommunication({
+      playerId: id,
+      channel: channel || 'whatsapp',
+      templateName: templateName || 'Custom Message',
+      messagePreview: messagePreview || '',
+      sentBy: sentBy || 'Staff Admin',
+      status: 'opened',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Communication event logged.',
+      data: log,
+    });
+  } catch (err: any) {
+    console.error('Error logging communication:', err);
+    return res.status(500).json({ success: false, error: 'Failed to log communication.' });
+  }
+});
+
+// 16. GET /api/admin/players/:id/communication - Get communication history
+router.get('/:id/communication', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const logs = await dbService.getCommunicationLogs(id);
+    return res.json({ success: true, data: logs });
+  } catch (err: any) {
+    console.error('Error fetching communication logs:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch communication logs.' });
   }
 });
 

@@ -37,7 +37,7 @@ interface AdminPageProps {
   onNavigate: (page: PageRoute, params?: RouteParams) => void;
   adminTab?: string;
   adminTournamentId?: string;
-  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty';
+  adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminPlayerId?: string;
 }
 

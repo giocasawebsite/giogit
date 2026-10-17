@@ -11,6 +11,7 @@ import tournamentsRouter from './routes/tournaments';
 import hallOfFameRouter from './routes/hallOfFame';
 import adminTournamentsRouter from './routes/adminTournaments';
 import adminPlayersRouter from './routes/adminPlayers';
+import playersRouter from './routes/players';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,7 @@ app.use('/api/hall-of-fame', hallOfFameRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin', adminTournamentsRouter);
 app.use('/api/admin/players', adminPlayersRouter);
+app.use('/api/players', playersRouter);
 
 // 404 handler for unknown API routes
 app.use((req, res, next) => {

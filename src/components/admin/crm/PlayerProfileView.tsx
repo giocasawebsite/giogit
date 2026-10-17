@@ -25,6 +25,8 @@ import {
   Send,
   AlertCircle,
   RefreshCw,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface PlayerProfileViewProps {
@@ -157,12 +159,34 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
     }
   };
 
-  const openWhatsAppUrl = () => {
+  const [copiedGioId, setCopiedGioId] = useState(false);
+
+  const handleCopyGioId = () => {
+    if (!player.gioId) return;
+    navigator.clipboard.writeText(player.gioId);
+    setCopiedGioId(true);
+    setTimeout(() => setCopiedGioId(false), 2000);
+  };
+
+  const openWhatsAppUrl = async () => {
     const msg = selectedTemplate === 'custom' ? customWhatsAppMsg : templates[selectedTemplate];
     const encoded = encodeURIComponent(msg);
     const url = `https://wa.me/91${player.normalizedPhone}?text=${encoded}`;
     window.open(url, '_blank');
     setShowWhatsAppModal(false);
+
+    try {
+      await playerCrmApi.logCommunication(passcode, player.id, {
+        channel: 'whatsapp',
+        templateId: selectedTemplate,
+        messagePreview: msg,
+        status: 'prepared',
+        metadata: { recipient: player.phone, templateName: selectedTemplate },
+      });
+      onRefresh();
+    } catch {
+      // ignore logging failure on outreach trigger
+    }
   };
 
   return (
@@ -212,6 +236,26 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                 <span className="font-mono text-sm px-2.5 py-0.5 rounded-full bg-brand-pink/20 text-brand-pink border border-brand-pink/40 font-bold">
                   @{player.gamerTag}
                 </span>
+                {player.gioId && (
+                  <button
+                    type="button"
+                    onClick={handleCopyGioId}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-brand-blue/20 text-brand-blue border border-brand-blue/40 hover:border-brand-pink transition-all"
+                    title="Click to copy GioCasa Player ID"
+                  >
+                    <span>{player.gioId}</span>
+                    {copiedGioId ? (
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 opacity-70" />
+                    )}
+                  </button>
+                )}
+                {player.referralCode && (
+                  <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-brand-orange/20 text-brand-orange border border-brand-orange/40 font-semibold" title="Player's unique referral code">
+                    REF: {player.referralCode}
+                  </span>
+                )}
                 <span className="uppercase text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-surface border border-brand-border text-brand-subtle">
                   {player.status}
                 </span>
@@ -437,6 +481,8 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                           ? 'bg-emerald-400 ring-4 ring-emerald-400/20'
                           : item.type === 'loyalty'
                           ? 'bg-brand-pink ring-4 ring-brand-pink/20'
+                          : item.type === 'communication'
+                          ? 'bg-emerald-500 ring-4 ring-emerald-500/20'
                           : 'bg-brand-subtle'
                       }`}
                     />

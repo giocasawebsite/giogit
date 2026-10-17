@@ -234,6 +234,247 @@ class PlayerCrmApiClient {
     if (params.sortOrder) sp.set('sortOrder', params.sortOrder);
     return `${API_BASE}/export/csv?${sp.toString()}`;
   }
+
+  // ======================== PUBLIC CUSTOMER LOOKUP & VERIFICATION ========================
+
+  async publicLookupPlayer(gioId: string) {
+    const res = await fetch('/api/players/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gioId }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Player ID lookup failed.');
+    }
+    return json.data;
+  }
+
+  async publicVerifyPlayer(gioId: string, phoneLast4: string, fullPhone?: string) {
+    const res = await fetch('/api/players/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gioId, phoneLast4, fullPhone }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Verification failed.');
+    }
+    return json.data;
+  }
+
+  async publicRegisterPlayer(data: any) {
+    const res = await fetch('/api/players/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Registration failed.');
+    }
+    return json.data;
+  }
+
+  async publicRecoverPlayerId(phone: string) {
+    const res = await fetch('/api/players/recover-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Recovery failed.');
+    }
+    return json.data;
+  }
+
+  // ======================== ADMIN LOYALTY RULES ========================
+
+  async getLoyaltyRules(passcode: string) {
+    const res = await fetch(`${API_BASE}/loyalty/rules`, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch loyalty rules.');
+    }
+    return json.data;
+  }
+
+  async updateLoyaltyRules(passcode: string, updates: any) {
+    const res = await fetch(`${API_BASE}/loyalty/rules`, {
+      method: 'PUT',
+      headers: this.getHeaders(passcode),
+      body: JSON.stringify(updates),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to update loyalty rules.');
+    }
+    return json.data;
+  }
+
+  // ======================== ADMIN REFERRALS ========================
+
+  async getReferrals(passcode: string, params: { referrerPlayerId?: string; status?: string; limit?: number } = {}) {
+    const sp = new URLSearchParams();
+    if (params.referrerPlayerId) sp.set('referrerPlayerId', params.referrerPlayerId);
+    if (params.status && params.status !== 'all') sp.set('status', params.status);
+    if (params.limit) sp.set('limit', String(params.limit));
+
+    const qs = sp.toString();
+    const url = qs ? `${API_BASE}/referrals?${qs}` : `${API_BASE}/referrals`;
+
+    const res = await fetch(url, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch referrals.');
+    }
+    return json.data;
+  }
+
+  async getReferralLeaderboard(passcode: string, limit = 10) {
+    const res = await fetch(`${API_BASE}/referrals/leaderboard?limit=${limit}`, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch referral leaderboard.');
+    }
+    return json.data;
+  }
+
+  async updateReferralStatus(passcode: string, id: string, status: string, notes?: string) {
+    const res = await fetch(`${API_BASE}/referrals/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(passcode),
+      body: JSON.stringify({ status, notes }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to update referral.');
+    }
+    return json.data;
+  }
+
+  // ======================== ADMIN REMINDERS ========================
+
+  async getAdminReminders(passcode: string, params: { status?: string; playerId?: string } = {}) {
+    const sp = new URLSearchParams();
+    if (params.status && params.status !== 'all') sp.set('status', params.status);
+    if (params.playerId) sp.set('playerId', params.playerId);
+
+    const qs = sp.toString();
+    const url = qs ? `${API_BASE}/reminders?${qs}` : `${API_BASE}/reminders`;
+
+    const res = await fetch(url, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch reminders.');
+    }
+    return json.data;
+  }
+
+  async createAdminReminder(passcode: string, data: any) {
+    const res = await fetch(`${API_BASE}/reminders`, {
+      method: 'POST',
+      headers: this.getHeaders(passcode),
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to create reminder.');
+    }
+    return json.data;
+  }
+
+  async updateAdminReminder(passcode: string, reminderId: string, updates: any) {
+    const res = await fetch(`${API_BASE}/reminders/${encodeURIComponent(reminderId)}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(passcode),
+      body: JSON.stringify(updates),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to update reminder.');
+    }
+    return json.data;
+  }
+
+  async deleteAdminReminder(passcode: string, reminderId: string) {
+    const res = await fetch(`${API_BASE}/reminders/${encodeURIComponent(reminderId)}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to delete reminder.');
+    }
+    return json.success;
+  }
+
+  // ======================== AUTOMATION EVENTS ========================
+
+  async getAutomationEvents(passcode: string, params: { status?: string; limit?: number } = {}) {
+    const sp = new URLSearchParams();
+    if (params.status && params.status !== 'all') sp.set('status', params.status);
+    if (params.limit) sp.set('limit', String(params.limit));
+
+    const qs = sp.toString();
+    const url = qs ? `${API_BASE}/automation-events?${qs}` : `${API_BASE}/automation-events`;
+
+    const res = await fetch(url, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch automation events.');
+    }
+    return json.data;
+  }
+
+  async retryAutomationEvent(passcode: string, id: string) {
+    const res = await fetch(`${API_BASE}/automation-events/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to retry automation event.');
+    }
+    return json.data;
+  }
+
+  // ======================== COMMUNICATION ========================
+
+  async logCommunication(passcode: string, playerId: string, data: any) {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(playerId)}/communication`, {
+      method: 'POST',
+      headers: this.getHeaders(passcode),
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to log communication.');
+    }
+    return json.data;
+  }
+
+  async getCommunicationLogs(passcode: string, playerId: string) {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(playerId)}/communication`, {
+      headers: this.getHeaders(passcode),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to fetch communication logs.');
+    }
+    return json.data;
+  }
 }
 
 export const playerCrmApi = new PlayerCrmApiClient();

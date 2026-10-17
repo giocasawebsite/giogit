@@ -23,6 +23,8 @@ import {
   Sparkles,
   ShieldAlert,
   Award,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface PlayerDirectoryTableProps {
@@ -79,6 +81,13 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
   onTriggerBackfill,
 }) => {
   const [activeMenuPlayerId, setActiveMenuPlayerId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyGioId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
 
   const segments: { id: PlayerSegment; label: string; count: number }[] = [
     { id: 'all', label: 'All Players', count: segmentsSummary.all || 0 },
@@ -360,9 +369,34 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                             >
                               {p.name}
                             </button>
-                            <span className="font-mono text-[11px] text-brand-pink block leading-none mt-0.5">
-                              @{p.gamerTag}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono text-[11px] text-brand-pink block leading-none">
+                                @{p.gamerTag}
+                              </span>
+                              {p.gioId && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyGioId(p.gioId);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-brand-surfaceElevated border border-brand-blue/40 text-brand-blue hover:border-brand-pink hover:text-white transition-colors"
+                                  title={`Click to copy Player ID (${p.gioId})`}
+                                >
+                                  {copiedId === p.gioId ? (
+                                    <>
+                                      <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                      <span className="text-emerald-400">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>{p.gioId}</span>
+                                      <Copy className="w-2.5 h-2.5 opacity-60" />
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>

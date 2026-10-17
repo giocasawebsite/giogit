@@ -6,12 +6,15 @@ import { PlayerProfileView } from './crm/PlayerProfileView';
 import { PlayerModal } from './crm/PlayerModal';
 import { PlayerSegmentsView } from './crm/PlayerSegmentsView';
 import { PlayerLoyaltyView } from './crm/PlayerLoyaltyView';
-import { Users, PieChart, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { PlayerReferralsView } from './crm/PlayerReferralsView';
+import { AdminRemindersView } from './crm/AdminRemindersView';
+import { LoyaltyRulesModal } from './crm/LoyaltyRulesModal';
+import { Users, PieChart, Sparkles, RefreshCw, AlertCircle, Gift, Clock, Sliders } from 'lucide-react';
 
 interface AdminPlayerCRMProps {
   passcode: string;
   onNavigate: (page: PageRoute, params?: RouteParams) => void;
-  subTab?: 'directory' | 'profile' | 'segments' | 'loyalty';
+  subTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   playerId?: string;
 }
 
@@ -22,8 +25,9 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
   playerId,
 }) => {
   // Navigation Sub Tab
-  const [currentSubTab, setCurrentSubTab] = useState<'directory' | 'profile' | 'segments' | 'loyalty'>(subTab);
+  const [currentSubTab, setCurrentSubTab] = useState<'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders'>(subTab);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(playerId || null);
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
 
   // Directory Data
   const [players, setPlayers] = useState<Player[]>([]);
@@ -193,50 +197,91 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
     <div className="space-y-8 animate-fade-in">
       {/* Sub-navigation tabs (only when not in individual profile view) */}
       {currentSubTab !== 'profile' && (
-        <div className="flex border-b border-brand-border/60 gap-4 overflow-x-auto pb-1 text-xs font-mono uppercase tracking-wider">
-          <button
-            onClick={() => {
-              setCurrentSubTab('directory');
-              onNavigate('admin', { adminTab: 'players', adminSubTab: 'directory' });
-            }}
-            className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
-              currentSubTab === 'directory'
-                ? 'border-brand-pink text-brand-pink font-bold'
-                : 'border-transparent text-brand-subtle hover:text-white'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Player Directory</span>
-          </button>
+        <div className="flex flex-wrap items-center justify-between border-b border-brand-border/60 pb-1 gap-2">
+          <div className="flex gap-2 sm:gap-4 overflow-x-auto text-xs font-mono uppercase tracking-wider">
+            <button
+              onClick={() => {
+                setCurrentSubTab('directory');
+                onNavigate('admin', { adminTab: 'players', adminSubTab: 'directory' });
+              }}
+              className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+                currentSubTab === 'directory'
+                  ? 'border-brand-pink text-brand-pink font-bold'
+                  : 'border-transparent text-brand-subtle hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Player Directory</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentSubTab('segments');
+                onNavigate('admin', { adminTab: 'players', adminSubTab: 'segments' });
+              }}
+              className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+                currentSubTab === 'segments'
+                  ? 'border-brand-pink text-brand-pink font-bold'
+                  : 'border-transparent text-brand-subtle hover:text-white'
+              }`}
+            >
+              <PieChart className="w-4 h-4" />
+              <span>Segments</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentSubTab('loyalty');
+                onNavigate('admin', { adminTab: 'players', adminSubTab: 'loyalty' });
+              }}
+              className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+                currentSubTab === 'loyalty'
+                  ? 'border-brand-pink text-brand-pink font-bold'
+                  : 'border-transparent text-brand-subtle hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Loyalty & Tiers</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentSubTab('referrals');
+                onNavigate('admin', { adminTab: 'players', adminSubTab: 'referrals' });
+              }}
+              className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+                currentSubTab === 'referrals'
+                  ? 'border-brand-pink text-brand-pink font-bold'
+                  : 'border-transparent text-brand-subtle hover:text-white'
+              }`}
+            >
+              <Gift className="w-4 h-4" />
+              <span>Referrals</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentSubTab('reminders');
+                onNavigate('admin', { adminTab: 'players', adminSubTab: 'reminders' });
+              }}
+              className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+                currentSubTab === 'reminders'
+                  ? 'border-brand-pink text-brand-pink font-bold'
+                  : 'border-transparent text-brand-subtle hover:text-white'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Reminders</span>
+            </button>
+          </div>
 
           <button
-            onClick={() => {
-              setCurrentSubTab('segments');
-              onNavigate('admin', { adminTab: 'players', adminSubTab: 'segments' });
-            }}
-            className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
-              currentSubTab === 'segments'
-                ? 'border-brand-pink text-brand-pink font-bold'
-                : 'border-transparent text-brand-subtle hover:text-white'
-            }`}
+            type="button"
+            onClick={() => setRulesModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-border hover:border-brand-pink text-xs font-mono text-brand-subtle hover:text-white transition"
           >
-            <PieChart className="w-4 h-4" />
-            <span>Customer Segments</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentSubTab('loyalty');
-              onNavigate('admin', { adminTab: 'players', adminSubTab: 'loyalty' });
-            }}
-            className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
-              currentSubTab === 'loyalty'
-                ? 'border-brand-pink text-brand-pink font-bold'
-                : 'border-transparent text-brand-subtle hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Loyalty & Tiers</span>
+            <Sliders className="w-3.5 h-3.5 text-brand-pink" />
+            <span>Loyalty Rules Engine</span>
           </button>
         </div>
       )}
@@ -337,6 +382,16 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
         <PlayerLoyaltyView passcode={passcode} />
       )}
 
+      {/* Sub-view 5: Referrals Pipeline & Leaderboard */}
+      {currentSubTab === 'referrals' && (
+        <PlayerReferralsView passcode={passcode} onViewPlayer={handleViewProfile} />
+      )}
+
+      {/* Sub-view 6: Admin Follow-Up Reminders */}
+      {currentSubTab === 'reminders' && (
+        <AdminRemindersView passcode={passcode} onViewPlayer={handleViewProfile} />
+      )}
+
       {/* Create Player Modal */}
       <PlayerModal
         isOpen={createModalOpen}
@@ -355,6 +410,13 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
         onSubmit={handleEditPlayer}
         initialData={playerToEdit}
         mode="edit"
+      />
+
+      {/* Loyalty Rules Modal */}
+      <LoyaltyRulesModal
+        isOpen={rulesModalOpen}
+        passcode={passcode}
+        onClose={() => setRulesModalOpen(false)}
       />
     </div>
   );
