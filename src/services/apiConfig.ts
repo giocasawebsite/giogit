@@ -13,11 +13,14 @@
  *   - Preserves all query parameters and path segments in downstream calls
  */
 export function getApiBaseUrl(): string {
-  const envUrl = (
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    ''
-  ).trim();
+  let envUrl = '';
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      envUrl = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').trim();
+    }
+  } catch {
+    // fallback if import.meta is not supported
+  }
 
   if (!envUrl) {
     return '/api';
