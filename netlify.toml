@@ -5,7 +5,7 @@
 # Proxy API requests directly to Render backend (Zero CORS issues)
 [[redirects]]
   from = "/api/*"
-  to = "https://giocasa.onrender.com/api/:splat"
+  to = "https://giogit.onrender.com/api/:splat"
   status = 200
   force = true
 

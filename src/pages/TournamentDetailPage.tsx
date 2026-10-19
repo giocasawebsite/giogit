@@ -53,7 +53,7 @@ export const TournamentDetailPage: React.FC<TournamentDetailPageProps> = ({ slug
   // Generate shareable link
   const currentUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/#/tournaments/${slug}`
-    : `https://giocasa.onrender.com/#/tournaments/${slug}`;
+    : `https://giocasa1.netlify.app/#/tournaments/${slug}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(currentUrl).then(() => {

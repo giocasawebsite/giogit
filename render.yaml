@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: giocasa
+    name: giogit
     runtime: node
     plan: free
     region: singapore
