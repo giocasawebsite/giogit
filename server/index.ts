@@ -19,7 +19,21 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Middlewares
-app.use(cors({ origin: config.corsOrigin }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, server-to-server, curl)
+    if (!origin) return callback(null, true);
+    if (config.corsOrigin && config.corsOrigin !== '*') {
+      const allowed = config.corsOrigin.split(',').map((o) => o.trim());
+      if (allowed.includes(origin)) return callback(null, true);
+    }
+    // Reflect request origin for Netlify domains, previews, and localhost
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-passcode'],
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Static serving for user-uploaded tournament and champion images
@@ -51,14 +65,14 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// API Routes
+// API Routes (More specific sub-routers mounted first)
 app.use('/api/booking', bookingsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/hall-of-fame', hallOfFameRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/admin', adminTournamentsRouter);
 app.use('/api/admin/players', adminPlayersRouter);
+app.use('/api/admin', adminTournamentsRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/players', playersRouter);
 
 // 404 handler for unknown API routes

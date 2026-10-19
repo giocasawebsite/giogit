@@ -5,9 +5,11 @@ import {
   StaffNote,
   FollowUpReminder,
   LoyaltyLedgerEntry,
+  HistoricalReconciliationReport,
 } from '../types';
+import { getApiBaseUrl } from './apiConfig';
 
-const API_BASE = '/api/admin/players';
+const API_BASE = `${getApiBaseUrl()}/admin/players`;
 
 class PlayerCrmApiClient {
   private getHeaders(passcode: string): HeadersInit {
@@ -223,6 +225,19 @@ class PlayerCrmApiClient {
     return json.data;
   }
 
+  async reconcileHistoricalData(passcode: string): Promise<HistoricalReconciliationReport> {
+    const res = await fetch(`${API_BASE}/reconcile`, {
+      method: 'POST',
+      headers: this.getHeaders(passcode),
+    });
+
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Failed to run historical reconciliation.');
+    }
+    return json.data;
+  }
+
   getExportCsvUrl(passcode: string, params: PlayerQueryParams = {}): string {
     const sp = new URLSearchParams();
     sp.set('passcode', passcode);
@@ -238,7 +253,7 @@ class PlayerCrmApiClient {
   // ======================== PUBLIC CUSTOMER LOOKUP & VERIFICATION ========================
 
   async publicLookupPlayer(gioId: string) {
-    const res = await fetch('/api/players/lookup', {
+    const res = await fetch(`${getApiBaseUrl()}/players/lookup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gioId }),
@@ -251,7 +266,7 @@ class PlayerCrmApiClient {
   }
 
   async publicVerifyPlayer(gioId: string, phoneLast4: string, fullPhone?: string) {
-    const res = await fetch('/api/players/verify', {
+    const res = await fetch(`${getApiBaseUrl()}/players/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gioId, phoneLast4, fullPhone }),
@@ -264,7 +279,7 @@ class PlayerCrmApiClient {
   }
 
   async publicRegisterPlayer(data: any) {
-    const res = await fetch('/api/players/register', {
+    const res = await fetch(`${getApiBaseUrl()}/players/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -276,13 +291,38 @@ class PlayerCrmApiClient {
     return json.data;
   }
 
-  async publicRecoverPlayerId(phone: string) {
-    const res = await fetch('/api/players/recover-id', {
+  async publicRecoverPlayerId(payloadOrIdentifier: string | {
+    identifier?: string;
+    phone?: string;
+    email?: string;
+    verificationName?: string;
+    sessionToken?: string;
+  }): Promise<{
+    found?: boolean;
+    requiresVerification?: boolean;
+    verified?: boolean;
+    sessionToken?: string;
+    maskedContact?: string;
+    challengePrompt?: string;
+    gioId?: string;
+    name?: string;
+    gamerTag?: string;
+    token?: string;
+    player?: any;
+    message?: string;
+    error?: string;
+  }> {
+    const body = typeof payloadOrIdentifier === 'string'
+      ? { identifier: payloadOrIdentifier }
+      : payloadOrIdentifier;
+
+    const res = await fetch(`${getApiBaseUrl()}/players/recover-id`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify(body),
     });
-    const json = await res.json();
+
+    const json = await res.json().catch(() => ({ success: false, error: 'Network error communicating with server.' }));
     if (!res.ok || !json.success) {
       throw new Error(json.error || 'Recovery failed.');
     }

@@ -90,15 +90,64 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
   };
 
   const segments: { id: PlayerSegment; label: string; count: number }[] = [
-    { id: 'all', label: 'All Players', count: segmentsSummary.all || 0 },
-    { id: 'new', label: 'New', count: segmentsSummary.new || 0 },
-    { id: 'frequent', label: 'Frequent Visitors', count: segmentsSummary.frequent || 0 },
-    { id: 'tournament_regulars', label: 'Tournaments', count: segmentsSummary.tournament_regulars || 0 },
-    { id: 'winners', label: 'Champions & Winners', count: segmentsSummary.winners || 0 },
-    { id: 'vip', label: 'VIP Members', count: segmentsSummary.vip || 0 },
+    { id: 'all', label: 'All Customers', count: segmentsSummary.all || 0 },
+    { id: 'gaming_booking', label: 'Gaming Bookings', count: segmentsSummary.gaming_booking || 0 },
+    { id: 'tournament_registration', label: 'Tournament Registrations', count: segmentsSummary.tournament_registration || 0 },
+    { id: 'player_registration', label: 'Player Registrations', count: segmentsSummary.player_registration || 0 },
     { id: 'upcoming_bookings', label: 'Upcoming Bookings', count: segmentsSummary.upcoming_bookings || 0 },
+    { id: 'tournament_participants', label: 'Tournament Participants', count: segmentsSummary.tournament_participants || 0 },
+    { id: 'frequent', label: 'Frequent Visitors', count: segmentsSummary.frequent || 0 },
+    { id: 'vip', label: 'VIP Members', count: segmentsSummary.vip || 0 },
     { id: 'inactive', label: 'Inactive / Lapsed', count: segmentsSummary.inactive || 0 },
   ];
+
+  const getSourceBadges = (player: Player) => {
+    const rawSources = player.sources && player.sources.length > 0
+      ? player.sources
+      : player.source
+        ? [player.source]
+        : ['player_registration'];
+
+    const uniqueSources = Array.from(new Set(rawSources));
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {uniqueSources.map((src) => {
+          if (src === 'gaming_booking') {
+            return (
+              <span
+                key={src}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-[10px] font-mono font-medium text-blue-400"
+                title="Acquired via Gaming Booking"
+              >
+                <span>🎮 Booking</span>
+              </span>
+            );
+          }
+          if (src === 'tournament_registration') {
+            return (
+              <span
+                key={src}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-mono font-medium text-orange-400"
+                title="Acquired via Tournament Registration"
+              >
+                <span>🏆 Tournament</span>
+              </span>
+            );
+          }
+          return (
+            <span
+              key={src}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-[10px] font-mono font-medium text-pink-400"
+              title="Acquired via Player Registration"
+            >
+              <span>👤 Direct Signup</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const getTierBadge = (tier: MembershipTier) => {
     switch (tier) {
@@ -308,14 +357,14 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
           <table className="w-full text-left text-xs">
             <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle font-mono uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="py-3.5 px-4">Player</th>
-                <th className="py-3.5 px-4">Contact</th>
-                <th className="py-3.5 px-4">Game / Platform</th>
-                <th className="py-3.5 px-4">Tier & Points</th>
-                <th className="py-3.5 px-4">Arena Record</th>
-                <th className="py-3.5 px-4">Activity</th>
-                <th className="py-3.5 px-4">Verified Spend</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Player ID</th>
+                <th className="py-3.5 px-4">Customer Name</th>
+                <th className="py-3.5 px-4">Contact Number</th>
+                <th className="py-3.5 px-4">Email Address</th>
+                <th className="py-3.5 px-4">Acquisition Source</th>
+                <th className="py-3.5 px-4">Gaming Bookings</th>
+                <th className="py-3.5 px-4">Tournaments</th>
+                <th className="py-3.5 px-4">Last Activity</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -356,10 +405,33 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                       key={p.id}
                       className="hover:bg-brand-surfaceElevated/50 transition-colors group"
                     >
-                      {/* 1. Player Info */}
+                      {/* 1. GioCasa Player ID */}
+                      <td className="py-3.5 px-4 font-mono text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-brand-blue">{p.gioId}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyGioId(p.gioId);
+                            }}
+                            className="p-1 rounded bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-white transition-colors"
+                            title={`Copy ${p.gioId}`}
+                          >
+                            {copiedId === p.gioId ? (
+                              <Check className="w-2.5 h-2.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-2.5 h-2.5 opacity-60" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-brand-muted block mt-0.5">{p.id}</span>
+                      </td>
+
+                      {/* 2. Customer Name */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-orange/20 to-brand-pink/20 border border-brand-pink/40 flex items-center justify-center text-brand-pink font-bold shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-orange/20 to-brand-pink/20 border border-brand-pink/40 flex items-center justify-center text-brand-pink font-bold text-xs shrink-0">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -369,129 +441,79 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                             >
                               {p.name}
                             </button>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-[11px] text-brand-pink block leading-none">
-                                @{p.gamerTag}
-                              </span>
-                              {p.gioId && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCopyGioId(p.gioId);
-                                  }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-brand-surfaceElevated border border-brand-blue/40 text-brand-blue hover:border-brand-pink hover:text-white transition-colors"
-                                  title={`Click to copy Player ID (${p.gioId})`}
-                                >
-                                  {copiedId === p.gioId ? (
-                                    <>
-                                      <Check className="w-2.5 h-2.5 text-emerald-400" />
-                                      <span className="text-emerald-400">Copied</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>{p.gioId}</span>
-                                      <Copy className="w-2.5 h-2.5 opacity-60" />
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
+                            <span className="font-mono text-[11px] text-brand-pink block leading-none mt-0.5">
+                              @{p.gamerTag}
+                            </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* 2. Contact */}
+                      {/* 3. Contact Number */}
                       <td className="py-3.5 px-4">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5 font-mono text-xs">
-                            <Phone className="w-3 h-3 text-brand-subtle" />
-                            <span>{p.phone}</span>
-                            <a
-                              href={whatsappHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
-                              title="Message on WhatsApp"
-                            >
-                              <MessageCircle className="w-3 h-3" />
-                            </a>
-                          </div>
-                          {p.email && (
-                            <div className="flex items-center gap-1.5 text-brand-subtle text-[11px] truncate max-w-[150px]">
-                              <Mail className="w-3 h-3 shrink-0" />
-                              <span className="truncate">{p.email}</span>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-white">
+                          <Phone className="w-3 h-3 text-brand-subtle" />
+                          <span>{p.phone}</span>
+                          <a
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                            title="Message on WhatsApp"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                          </a>
                         </div>
                       </td>
 
-                      {/* 3. Game & Platform */}
+                      {/* 4. Email Address */}
                       <td className="py-3.5 px-4">
-                        <div>
-                          <span className="font-medium text-white block truncate max-w-[140px]">
-                            {p.favoriteGame || 'General Gaming'}
-                          </span>
-                          <span className="text-[10px] uppercase font-mono text-brand-blue tracking-wider block">
-                            {p.favoritePlatform || 'PS5'}
-                          </span>
+                        {p.email ? (
+                          <div className="flex items-center gap-1.5 text-brand-subtle text-xs truncate max-w-[170px]" title={p.email}>
+                            <Mail className="w-3 h-3 shrink-0" />
+                            <span className="truncate text-white">{p.email}</span>
+                          </div>
+                        ) : (
+                          <span className="text-brand-muted text-xs italic">Not provided</span>
+                        )}
+                      </td>
+
+                      {/* 5. Acquisition Source */}
+                      <td className="py-3.5 px-4">
+                        {getSourceBadges(p)}
+                      </td>
+
+                      {/* 6. Gaming Bookings */}
+                      <td className="py-3.5 px-4 font-mono text-xs">
+                        <div className="font-bold text-white">
+                          {p.stats.bookingsCount || 0}
+                        </div>
+                        <div className="text-[10px] text-brand-subtle">
+                          {p.stats.completedBookingsCount ?? 0} completed
                         </div>
                       </td>
 
-                      {/* 4. Tier & Points */}
-                      <td className="py-3.5 px-4">
-                        <div className="space-y-1">
-                          {getTierBadge(p.membershipTier)}
-                          <div className="font-mono text-[11px] text-brand-subtle">
-                            Points: <strong className="text-white">{p.loyalty?.pointsBalance || 0}</strong>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 5. Arena Record */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="px-2 py-1 rounded-lg bg-brand-surfaceElevated border border-brand-border text-center">
-                            <span className="text-[9px] font-mono text-brand-subtle uppercase block">Entries</span>
-                            <span className="font-mono font-bold text-white text-xs">{p.stats.tournamentCount || 0}</span>
-                          </div>
+                      {/* 7. Tournament Registrations */}
+                      <td className="py-3.5 px-4 font-mono text-xs">
+                        <div className="font-bold text-white flex items-center gap-1">
+                          <span>{p.stats.tournamentCount || 0}</span>
                           {(p.stats.tournamentWins || 0) > 0 && (
-                            <div className="px-2 py-1 rounded-lg bg-brand-orange/15 border border-brand-orange/40 text-center">
-                              <span className="text-[9px] font-mono text-brand-orange uppercase block">Wins</span>
-                              <span className="font-mono font-bold text-brand-orange text-xs flex items-center justify-center gap-0.5">
-                                <Trophy className="w-3 h-3 fill-current" />
-                                {p.stats.tournamentWins}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-brand-orange/20 text-brand-orange text-[9px] font-bold">
+                              <Trophy className="w-2.5 h-2.5" />
+                              {p.stats.tournamentWins}
+                            </span>
                           )}
                         </div>
                       </td>
 
-                      {/* 6. Activity */}
-                      <td className="py-3.5 px-4">
-                        <div className="space-y-0.5 font-mono text-[11px]">
-                          <div className="text-brand-subtle">
-                            Bookings: <strong className="text-white">{p.stats.bookingsCount || 0}</strong>
-                          </div>
-                          <div className="text-[10px] text-brand-muted">
-                            Last: {p.stats.lastVisitDate || 'Never'}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 7. Total Spend */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono text-sm font-bold text-emerald-400">
-                          ₹{(p.stats.totalSpend || 0).toLocaleString('en-IN')}
-                        </div>
-                        <span className="text-[9px] font-mono text-brand-subtle block">
-                          {(p.stats.totalHoursPlayed || 0).toFixed(1)} hrs played
-                        </span>
-                      </td>
-
-                      {/* 8. Status */}
-                      <td className="py-3.5 px-4">
-                        {getStatusBadge(p.status)}
+                      {/* 8. Last Activity */}
+                      <td className="py-3.5 px-4 font-mono text-xs text-brand-subtle">
+                        {p.stats.lastActivityDate
+                          ? new Date(p.stats.lastActivityDate).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : p.stats.lastVisitDate || 'Not recorded'}
                       </td>
 
                       {/* 9. Actions */}
@@ -499,13 +521,13 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => onViewProfile(p.id)}
-                            className="px-2.5 py-1 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border hover:border-brand-pink text-white text-[11px] font-mono transition-colors"
+                            className="px-3 py-1 rounded-xl bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-semibold uppercase tracking-wider transition-all shadow-sm"
                           >
-                            Profile
+                            View Profile
                           </button>
                           <button
                             onClick={() => onEditPlayer(p)}
-                            className="p-1 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-subtle hover:text-white transition-colors"
+                            className="p-1.5 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-subtle hover:text-white transition-colors"
                             title="Edit Player"
                           >
                             <Edit className="w-3.5 h-3.5" />
@@ -513,7 +535,7 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                           {p.status === 'archived' ? (
                             <button
                               onClick={() => onRestorePlayer(p)}
-                              className="p-1 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-emerald-400 hover:text-emerald-300 transition-colors"
+                              className="p-1.5 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-emerald-400 hover:text-emerald-300 transition-colors"
                               title="Restore Player"
                             >
                               <RefreshCw className="w-3.5 h-3.5" />
@@ -521,7 +543,7 @@ export const PlayerDirectoryTable: React.FC<PlayerDirectoryTableProps> = ({
                           ) : (
                             <button
                               onClick={() => onArchivePlayer(p)}
-                              className="p-1 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-subtle hover:text-red-400 transition-colors"
+                              className="p-1.5 rounded-lg bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-subtle hover:text-red-400 transition-colors"
                               title="Archive Player"
                             >
                               <Archive className="w-3.5 h-3.5" />

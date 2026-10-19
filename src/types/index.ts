@@ -160,10 +160,37 @@ export interface HallOfFameEntry {
 
 export type ReservationType = 'dining' | 'gaming' | 'combo' | 'event';
 
+export type MenuCategory = 
+  | 'chinese'
+  | 'tea'
+  | 'hot-coffee'
+  | 'cold-coffee'
+  | 'smoothies-shakes'
+  | 'mocktails'
+  | 'sides-extras'
+  | 'wraps'
+  | 'pizza'
+  | 'sandwiches'
+  | 'burgers'
+  | 'pasta'
+  | 'combos'
+  | 'shakes'
+  | 'sides';
+
+export interface MenuItemSize {
+  size: '8-inch' | '10-inch' | '12-inch' | string;
+  price: number;
+}
+
+export interface MenuItemVariant {
+  name: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
-  category: 'tea' | 'hot-coffee' | 'cold-coffee' | 'shakes' | 'mocktails' | 'sides' | 'burgers' | 'pizza' | 'pasta' | 'combos';
+  category: MenuCategory | string;
   price: number | 'MRP';
   description?: string;
   ingredients?: string[];
@@ -172,6 +199,13 @@ export interface MenuItem {
   isSignature?: boolean;
   isWoodFired?: boolean;
   spicyLevel?: 0 | 1 | 2 | 3;
+  spiceLabel?: string;
+  servingNote?: string;
+  sizes?: MenuItemSize[];
+  flavors?: MenuItemVariant[];
+  portions?: MenuItemVariant[];
+  flaggedForVerification?: boolean;
+  verificationNote?: string;
   image?: string;
   prepTime?: string;
 }
@@ -362,11 +396,19 @@ export interface PlayerStats {
   tournamentCount: number;
   tournamentWins: number;
   bookingsCount: number;
+  completedBookingsCount?: number;
   totalHoursPlayed: number;
   totalSpend: number; // Verified INR
   firstVisitDate?: string;
   lastVisitDate?: string;
+  lastActivityDate?: string;
 }
+
+export type PlayerAcquisitionSource =
+  | 'player_registration'
+  | 'gaming_booking'
+  | 'tournament_registration'
+  | 'admin';
 
 export interface Player {
   id: string; // 'ply-xxx'
@@ -387,6 +429,8 @@ export interface Player {
   favoritePlatform?: ResourceCategory | 'other';
   membershipTier: MembershipTier;
   status: PlayerStatus;
+  source?: PlayerAcquisitionSource;
+  sources?: PlayerAcquisitionSource[];
   notes: StaffNote[];
   reminders: FollowUpReminder[];
   tags: string[];
@@ -407,13 +451,36 @@ export interface Player {
 
 export type PlayerSegment =
   | 'all'
+  | 'gaming_booking'
+  | 'tournament_registration'
+  | 'player_registration'
+  | 'upcoming_bookings'
+  | 'tournament_participants'
   | 'new'
   | 'frequent'
   | 'tournament_regulars'
   | 'winners'
   | 'vip'
-  | 'inactive'
-  | 'upcoming_bookings';
+  | 'inactive';
+
+export interface HistoricalReconciliationReport {
+  bookingsProcessed: number;
+  bookingsLinked: number;
+  bookingsCreatedProfiles: number;
+  bookingsSkipped: number;
+  tournamentsProcessed: number;
+  tournamentsLinked: number;
+  tournamentsCreatedProfiles: number;
+  tournamentsSkipped: number;
+  ambiguousRecordsFlagged: Array<{
+    type: 'booking' | 'tournament_registration';
+    id: string;
+    name: string;
+    phone: string;
+    reason: string;
+  }>;
+  totalSyncedPlayers: number;
+}
 
 export interface PlayerQueryParams {
   search?: string;

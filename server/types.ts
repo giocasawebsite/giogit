@@ -364,11 +364,19 @@ export interface PlayerStats {
   tournamentCount: number;
   tournamentWins: number;
   bookingsCount: number;
+  completedBookingsCount?: number;
   totalHoursPlayed: number;
   totalSpend: number; // Verified INR
   firstVisitDate?: string;
   lastVisitDate?: string;
+  lastActivityDate?: string;
 }
+
+export type PlayerAcquisitionSource =
+  | 'player_registration'
+  | 'gaming_booking'
+  | 'tournament_registration'
+  | 'admin';
 
 export interface Player {
   id: string; // 'ply-xxx'
@@ -389,6 +397,8 @@ export interface Player {
   favoritePlatform?: ResourceCategory | 'other';
   membershipTier: MembershipTier;
   status: PlayerStatus;
+  source?: PlayerAcquisitionSource;
+  sources?: PlayerAcquisitionSource[];
   notes: StaffNote[];
   reminders: FollowUpReminder[];
   tags: string[];
@@ -409,13 +419,36 @@ export interface Player {
 
 export type PlayerSegment =
   | 'all'
+  | 'gaming_booking'
+  | 'tournament_registration'
+  | 'player_registration'
+  | 'upcoming_bookings'
+  | 'tournament_participants'
   | 'new'
   | 'frequent'
   | 'tournament_regulars'
   | 'winners'
   | 'vip'
-  | 'inactive'
-  | 'upcoming_bookings';
+  | 'inactive';
+
+export interface HistoricalReconciliationReport {
+  bookingsProcessed: number;
+  bookingsLinked: number;
+  bookingsCreatedProfiles: number;
+  bookingsSkipped: number;
+  tournamentsProcessed: number;
+  tournamentsLinked: number;
+  tournamentsCreatedProfiles: number;
+  tournamentsSkipped: number;
+  ambiguousRecordsFlagged: Array<{
+    type: 'booking' | 'tournament_registration';
+    id: string;
+    name: string;
+    phone: string;
+    reason: string;
+  }>;
+  totalSyncedPlayers: number;
+}
 
 export interface PlayerQueryParams {
   search?: string;

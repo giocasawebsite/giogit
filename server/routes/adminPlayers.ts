@@ -28,23 +28,25 @@ router.get('/export/csv', async (req: Request, res: Response) => {
 
     // CSV header row
     const headers = [
+      'Gio ID',
       'Player ID',
       'Name',
       'Gamer Tag',
       'Phone',
       'Email',
-      'Favorite Game',
-      'Platform',
+      'Acquisition Sources',
       'Membership Tier',
       'Status',
       'Tournaments Played',
       'Tournament Wins',
-      'Gaming Bookings',
+      'Total Bookings',
+      'Completed Bookings',
       'Total Hours Played',
       'Total Spend (INR)',
       'Loyalty Points',
       'First Visit',
       'Last Visit',
+      'Last Activity',
       'Tags',
       'Created At',
     ];
@@ -56,23 +58,25 @@ router.get('/export/csv', async (req: Request, res: Response) => {
     };
 
     const rows = players.map((p) => [
+      escapeCsv(p.gioId || ''),
       escapeCsv(p.id),
       escapeCsv(p.name),
       escapeCsv(p.gamerTag),
       escapeCsv(p.phone),
-      escapeCsv(p.email || ''),
-      escapeCsv(p.favoriteGame || ''),
-      escapeCsv(p.favoritePlatform || ''),
+      escapeCsv(p.email || 'Not provided'),
+      escapeCsv(p.sources && p.sources.length > 0 ? p.sources.join('; ') : p.source || 'player_registration'),
       escapeCsv(p.membershipTier.toUpperCase()),
       escapeCsv(p.status.toUpperCase()),
       p.stats.tournamentCount || 0,
       p.stats.tournamentWins || 0,
       p.stats.bookingsCount || 0,
+      p.stats.completedBookingsCount || 0,
       p.stats.totalHoursPlayed || 0,
       p.stats.totalSpend || 0,
       p.loyalty.pointsBalance || 0,
       escapeCsv(p.stats.firstVisitDate || ''),
       escapeCsv(p.stats.lastVisitDate || ''),
+      escapeCsv(p.stats.lastActivityDate || ''),
       escapeCsv(p.tags.join('; ')),
       escapeCsv(p.createdAt),
     ]);
@@ -92,15 +96,30 @@ router.get('/export/csv', async (req: Request, res: Response) => {
 // 2. POST /api/admin/players/sync-backfill - Trigger historical data scan
 router.post('/sync-backfill', async (_req: Request, res: Response) => {
   try {
-    const result = await dbService.backfillHistoricalData();
+    const report = await dbService.reconcileHistoricalData();
     return res.json({
       success: true,
-      message: `Historical backfill completed. Synced ${result.syncedPlayersCount} player profile(s).`,
-      data: result,
+      message: `Historical backfill completed. Synced ${report.totalSyncedPlayers} player profile(s).`,
+      data: { syncedPlayersCount: report.totalSyncedPlayers, report },
     });
   } catch (err: any) {
     console.error('Error running historical backfill:', err);
     return res.status(500).json({ success: false, error: 'Failed to complete historical backfill.' });
+  }
+});
+
+// 2b. POST /api/admin/players/reconcile - Comprehensive safe historical reconciliation
+router.post('/reconcile', async (_req: Request, res: Response) => {
+  try {
+    const report = await dbService.reconcileHistoricalData();
+    return res.json({
+      success: true,
+      message: `Historical reconciliation complete. Processed ${report.bookingsProcessed} bookings and ${report.tournamentsProcessed} tournament registrations. Synced ${report.totalSyncedPlayers} player profile(s).`,
+      data: report,
+    });
+  } catch (err: any) {
+    console.error('Error running historical reconciliation:', err);
+    return res.status(500).json({ success: false, error: 'Failed to complete historical reconciliation.' });
   }
 });
 

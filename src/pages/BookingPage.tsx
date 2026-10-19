@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageRoute } from '../types';
 import { bookingApi, GamingResource, TimeSlot } from '../services/bookingApi';
 import { useOrderCart } from '../context/OrderCartContext';
@@ -44,6 +44,67 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
   // Multi-step State (1: Experience, 2: Date, 3: Duration, 4: Time, 5: Details, 6: Summary)
   const [step, setStep] = useState<number>(1);
+  const stepContainerRef = useRef<HTMLDivElement>(null);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up any pending auto-advance timer on unmount
+  useEffect(() => {
+    return () => {
+      if (advanceTimerRef.current) {
+        clearTimeout(advanceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Safe navigation between steps that keeps the booking card visually anchored
+  // and NEVER forces window.scrollTo(0, 0)
+  const goToStep = (newStep: number) => {
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+
+    setStep(newStep);
+
+    // Subtle, targeted scroll check: Keep the booking form visually anchored.
+    // NEVER call window.scrollTo(0, 0) or jump to the website header.
+    requestAnimationFrame(() => {
+      if (!stepContainerRef.current) return;
+      const rect = stepContainerRef.current.getBoundingClientRect();
+      const topNavbarOffset = 90; // Fixed navbar height (~80px) + 10px breathing room
+
+      // Only adjust scroll if the step container is scrolled above the navbar (out of view)
+      // or positioned awkwardly far below the viewport. If already in a comfortable viewing range,
+      // leave the scroll position completely untouched.
+      if (rect.top < topNavbarOffset - 20 || rect.top > 240) {
+        const targetScrollY = window.pageYOffset + rect.top - topNavbarOffset;
+        window.scrollTo({
+          top: Math.max(0, targetScrollY),
+          behavior: 'smooth',
+        });
+      }
+    });
+  };
+
+  // Auto-advance handler after equipment selection
+  const handleSelectResource = (res: GamingResource) => {
+    if (res.isMaintenance) return; // Never select or auto-advance on maintenance/unavailable
+
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+
+    // Immediately update selection and highlight card
+    setSelectedResource(res);
+
+    // Provide a brief tactile highlight (280ms) so user perceives the selection,
+    // then smoothly auto-advance to Step 2 (Schedule)
+    advanceTimerRef.current = setTimeout(() => {
+      goToStep(2);
+      advanceTimerRef.current = null;
+    }, 280);
+  };
 
   // Resources state
   const [resources, setResources] = useState<GamingResource[]>([]);
@@ -205,14 +266,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
     if (!customerName.trim() || customerName.trim().length < 2) {
       setSubmissionError('Please enter your full name.');
-      setStep(3);
+      goToStep(3);
       return;
     }
 
     const cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       setSubmissionError('Please enter a valid 10-digit mobile number.');
-      setStep(3);
+      goToStep(3);
       return;
     }
 
@@ -342,6 +403,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
           {/* Primary View Switcher: Book vs Lookup */}
           <div className="inline-flex p-1 rounded-2xl bg-brand-surface border border-brand-border shadow-xl mt-4">
             <button
+              type="button"
               onClick={() => {
                 setActiveTab('booking');
                 setConfirmedBooking(null);
@@ -357,6 +419,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('lookup')}
               className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
                 activeTab === 'lookup'
@@ -374,7 +437,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
         {/* TAB 1: 3-STEP STREAMLINED BOOKING FLOW */}
         {/* ========================================================================= */}
         {activeTab === 'booking' && !confirmedBooking && (
-          <div className="space-y-8">
+          <div ref={stepContainerRef} className="space-y-8 scroll-mt-24">
             {/* Step Progress Bar */}
             <div className="bg-brand-surface/60 border border-brand-border/60 rounded-2xl p-4 max-w-xl mx-auto shadow-xl">
               <div className="grid grid-cols-3 gap-2 sm:gap-6 text-center">
@@ -385,8 +448,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                 ].map((s) => (
                   <button
                     key={s.num}
+                    type="button"
                     onClick={() => {
-                      if (s.num < step) setStep(s.num);
+                      if (s.num < step) goToStep(s.num);
                     }}
                     disabled={s.num > step}
                     className={`flex flex-col items-center gap-1 transition-all ${
@@ -417,7 +481,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
             </div>
 
             {/* Step Content Card */}
-            <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 sm:p-8 md:p-10 max-w-4xl mx-auto shadow-2xl relative overflow-hidden">
+            <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 sm:p-8 md:p-10 max-w-4xl mx-auto shadow-2xl relative overflow-hidden min-h-[580px]">
               {/* STEP 1: CHOOSE EXPERIENCE & STATION */}
               {step === 1 && (
                 <div className="space-y-6 animate-fade-in">
@@ -440,6 +504,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       ].map((cat) => (
                         <button
                           key={cat.id}
+                          type="button"
                           onClick={() => setSelectedCategory(cat.id)}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wider transition-all ${
                             selectedCategory === cat.id
@@ -462,10 +527,18 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       return (
                         <div
                           key={res.id}
-                          onClick={() => {
-                            if (!isMaint) setSelectedResource(res);
+                          role="button"
+                          tabIndex={isMaint ? -1 : 0}
+                          aria-pressed={isSelected}
+                          aria-disabled={isMaint}
+                          onClick={() => handleSelectResource(res)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSelectResource(res);
+                            }
                           }}
-                          className={`rounded-2xl border transition-all p-5 flex flex-col justify-between relative cursor-pointer ${
+                          className={`rounded-2xl border transition-all p-5 flex flex-col justify-between relative cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-pink ${
                             isMaint
                               ? 'opacity-60 bg-brand-surfaceElevated/50 border-red-900/40 cursor-not-allowed'
                               : isSelected
@@ -523,7 +596,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                               Min: {res.minDurationMinutes}m • Max: {res.maxDurationMinutes / 60}h
                             </span>
                             <span
-                              className={`text-xs font-semibold uppercase tracking-wider ${
+                              className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
                                 isMaint
                                   ? 'text-red-400'
                                   : isSelected
@@ -531,7 +604,19 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                                   : 'text-white'
                               }`}
                             >
-                              {isMaint ? 'Unavailable' : isSelected ? 'Station Chosen' : 'Select'}
+                              {isMaint ? (
+                                'Unavailable'
+                              ) : isSelected ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Station Chosen</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Select Station</span>
+                                  <ArrowRight className="w-3.5 h-3.5 text-brand-blue" />
+                                </>
+                              )}
                             </span>
                           </div>
                         </div>
@@ -541,7 +626,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                   <div className="pt-6 flex justify-end">
                     <button
-                      onClick={() => setStep(2)}
+                      type="button"
+                      onClick={() => goToStep(2)}
                       disabled={!selectedResource || selectedResource.isMaintenance}
                       className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -800,7 +886,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   <div className="pt-4 flex items-center justify-between border-t border-brand-border/40">
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
+                      onClick={() => goToStep(1)}
                       className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-white text-xs uppercase tracking-wider font-semibold flex items-center gap-2 hover:bg-brand-surface transition-colors"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -809,7 +895,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                     <button
                       type="button"
-                      onClick={() => setStep(3)}
+                      onClick={() => goToStep(3)}
                       disabled={!selectedSlot}
                       className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
                     >
@@ -1013,7 +1099,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                       <button
                         type="button"
-                        onClick={() => setStep(2)}
+                        onClick={() => goToStep(2)}
                         className="w-full text-center text-xs text-brand-muted hover:text-white transition-colors pt-1"
                       >
                         ← Change Schedule
@@ -1057,6 +1143,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   </span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => copyBookingId(confirmedBooking.id)}
                   className="px-3.5 py-1.5 rounded-lg bg-brand-surfaceElevated border border-brand-border text-xs font-mono text-white hover:text-brand-pink transition-colors flex items-center gap-1.5"
                 >
@@ -1105,6 +1192,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
+                    type="button"
                     onClick={openDrawer}
                     className="py-2.5 px-4 rounded-xl bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-orange/40 text-brand-orange font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
@@ -1129,9 +1217,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               {/* Confirmation Actions */}
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-brand-border/40">
                 <button
+                  type="button"
                   onClick={() => {
                     setConfirmedBooking(null);
-                    setStep(1);
+                    goToStep(1);
                   }}
                   className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-surfaceElevated border border-brand-border text-white font-semibold text-xs uppercase tracking-wider hover:bg-brand-surface transition-colors"
                 >
@@ -1139,6 +1228,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onNavigate('home')}
                   className="w-full sm:w-1/2 py-3.5 rounded-full bg-brand-pink text-white font-semibold text-xs uppercase tracking-wider shadow-luxury-pink hover:bg-brand-pinkHover transition-colors"
                 >

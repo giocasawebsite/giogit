@@ -59,10 +59,23 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
   const [phoneLast4, setPhoneLast4] = useState('');
   const [verifiedPlayer, setVerifiedPlayer] = useState<VerifiedPlayerData | null>(null);
 
-  // Recovery Mode
+  // Recovery Mode State
   const [recoveryMode, setRecoveryMode] = useState(false);
-  const [recoveryPhone, setRecoveryPhone] = useState('');
-  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
+  const [recoveryIdentifier, setRecoveryIdentifier] = useState('');
+  const [recoveryChallenge, setRecoveryChallenge] = useState<{
+    sessionToken: string;
+    maskedContact: string;
+    challengePrompt: string;
+  } | null>(null);
+  const [verificationName, setVerificationName] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState<{
+    gioId: string;
+    name: string;
+    gamerTag?: string;
+    message?: string;
+    player?: VerifiedPlayerData;
+    token?: string;
+  } | null>(null);
 
   // Check sessionStorage for cached verified player on mount
   useEffect(() => {
@@ -167,26 +180,127 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
     if (onClear) onClear();
   };
 
-  const handleRecover = async (e: React.FormEvent) => {
+  const resetRecovery = () => {
+    setRecoveryMode(false);
+    setRecoveryIdentifier('');
+    setRecoveryChallenge(null);
+    setVerificationName('');
+    setRecoverySuccess(null);
+    setError(null);
+  };
+
+  const handleRecoverInitiate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoveryPhone || recoveryPhone.trim().length < 10) {
-      setError('Please enter your 10-digit mobile number.');
+    const cleanInput = recoveryIdentifier.trim();
+    if (!cleanInput) {
+      setError('Please enter your registered mobile number or email address.');
+      return;
+    }
+
+    const isEmail = cleanInput.includes('@');
+    if (!isEmail && cleanInput.replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid 10-digit mobile number or email address.');
       return;
     }
 
     setRecoverLoading(true);
     setError(null);
     setRecoverySuccess(null);
+    setRecoveryChallenge(null);
+
     try {
-      const res = await playerCrmApi.publicRecoverPlayerId(recoveryPhone.trim());
-      setRecoverySuccess(res.message || `Your Player ID is ${res.gioId}`);
-      if (res.gioId) {
+      const res = await playerCrmApi.publicRecoverPlayerId({ identifier: cleanInput });
+      if (res.requiresVerification && res.sessionToken) {
+        setRecoveryChallenge({
+          sessionToken: res.sessionToken,
+          maskedContact: res.maskedContact || cleanInput,
+          challengePrompt: res.challengePrompt || 'Please enter your registered Full Name or Gamer Tag to confirm your identity.',
+        });
+      } else if (res.verified && res.gioId) {
+        setRecoverySuccess({
+          gioId: res.gioId,
+          name: res.name || 'Player',
+          gamerTag: res.gamerTag,
+          message: res.message,
+          player: res.player,
+          token: res.token,
+        });
         setGioIdInput(res.gioId);
+      } else {
+        setError(res.error || 'Player profile could not be recovered. Please check your details or register below.');
       }
     } catch (err: any) {
-      setError(err.message || 'No Player ID found for this number.');
+      setError(err.message || 'Recovery failed. Please try again.');
     } finally {
       setRecoverLoading(false);
+    }
+  };
+
+  const handleRecoverChallengeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryChallenge?.sessionToken) return;
+    if (!verificationName.trim()) {
+      setError('Please enter your registered Full Name or Gamer Tag.');
+      return;
+    }
+
+    setRecoverLoading(true);
+    setError(null);
+
+    try {
+      const res = await playerCrmApi.publicRecoverPlayerId({
+        sessionToken: recoveryChallenge.sessionToken,
+        verificationName: verificationName.trim(),
+      });
+
+      if (res.verified && res.gioId) {
+        setRecoverySuccess({
+          gioId: res.gioId,
+          name: res.name || verificationName.trim(),
+          gamerTag: res.gamerTag,
+          message: res.message,
+          player: res.player,
+          token: res.token,
+        });
+        setRecoveryChallenge(null);
+        setGioIdInput(res.gioId);
+      } else {
+        setError(res.error || 'The name or gamer tag entered does not match this account.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Verification failed. Please check your spelling and try again.');
+    } finally {
+      setRecoverLoading(false);
+    }
+  };
+
+  const handleApplyRecoveredPlayer = () => {
+    if (!recoverySuccess) return;
+
+    if (recoverySuccess.player) {
+      setVerifiedPlayer(recoverySuccess.player);
+      try {
+        sessionStorage.setItem('giocasa_verified_player', JSON.stringify(recoverySuccess.player));
+        if (recoverySuccess.token) {
+          sessionStorage.setItem('giocasa_verify_token', recoverySuccess.token);
+        }
+      } catch {
+        // ignore
+      }
+      onVerified(recoverySuccess.player);
+      resetRecovery();
+    } else {
+      setGioIdInput(recoverySuccess.gioId);
+      const targetId = recoverySuccess.gioId;
+      resetRecovery();
+      setTimeout(async () => {
+        try {
+          const data = await playerCrmApi.publicLookupPlayer(targetId);
+          setLookupResult(data);
+        } catch {
+          // ignore
+        }
+      }, 50);
     }
   };
 
@@ -294,58 +408,129 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
   // State 3: Recovery Mode
   if (recoveryMode) {
     return (
-      <div className={`rounded-2xl p-4 border bg-neutral-50 dark:bg-[#343233]/70 border-neutral-200 dark:border-neutral-800 ${className}`}>
-        <div className="flex items-center justify-between mb-2">
+      <div className={`rounded-2xl p-4 border bg-neutral-50 dark:bg-[#343233]/70 border-neutral-200 dark:border-neutral-800 shadow-sm ${className}`}>
+        <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
             <PhoneCall className="w-3.5 h-3.5 text-[#F9A20B]" /> Recover GioCasa Player ID
           </span>
           <button
             type="button"
-            onClick={() => {
-              setRecoveryMode(false);
-              setError(null);
-              setRecoverySuccess(null);
-            }}
+            onClick={resetRecovery}
             className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
           >
             Back to ID lookup
           </button>
         </div>
 
+        {/* Sub-State A: Recovery Success */}
         {recoverySuccess ? (
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800/50 rounded-xl space-y-2">
-            <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">{recoverySuccess}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setRecoveryMode(false);
-                handleLookup();
-              }}
-              className="text-xs font-bold px-3 py-1.5 bg-[#ED249B] text-white rounded-lg shadow-sm"
-            >
-              Verify & Auto-Fill Now
-            </button>
+          <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl space-y-2.5">
+            <div className="flex items-start gap-2.5 text-emerald-800 dark:text-emerald-300">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold">
+                  {recoverySuccess.message || `Player ID Recovered: ${recoverySuccess.gioId}`}
+                </p>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  Profile: <strong>{recoverySuccess.name}</strong> {recoverySuccess.gamerTag ? `(@${recoverySuccess.gamerTag})` : ''} • ID: <strong className="font-mono text-xs">{recoverySuccess.gioId}</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleApplyRecoveredPlayer}
+                className="text-xs font-bold px-3.5 py-1.5 bg-gradient-to-r from-[#ED249B] to-[#F9A20B] hover:opacity-90 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Verify & Auto-Fill Now</span>
+              </button>
+              <button
+                type="button"
+                onClick={resetRecovery}
+                className="text-xs font-medium px-2.5 py-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+              >
+                Done
+              </button>
+            </div>
           </div>
-        ) : (
-          <form onSubmit={handleRecover} className="space-y-2">
+        ) : recoveryChallenge ? (
+          /* Sub-State B: Identity Verification Challenge */
+          <form onSubmit={handleRecoverChallengeSubmit} className="space-y-3">
+            <div className="p-2.5 rounded-xl bg-[#5AA9E6]/10 border border-[#5AA9E6]/20 text-[11px] text-neutral-700 dark:text-neutral-300 flex items-start gap-2">
+              <KeyRound className="w-4 h-4 text-[#5AA9E6] shrink-0 mt-0.5" />
+              <span>{recoveryChallenge.challengePrompt}</span>
+            </div>
+
             <div className="flex gap-2">
               <input
-                type="tel"
-                placeholder="Enter registered mobile number"
-                value={recoveryPhone}
-                onChange={(e) => setRecoveryPhone(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
+                type="text"
+                placeholder="Enter registered Full Name or Gamer Tag"
+                value={verificationName}
+                onChange={(e) => {
+                  setVerificationName(e.target.value);
+                  setError(null);
+                }}
+                className="flex-1 px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5AA9E6]"
+                autoFocus
               />
               <button
                 type="submit"
-                disabled={recoverLoading}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-[#4B494A] hover:bg-neutral-800 rounded-xl transition"
+                disabled={recoverLoading || !verificationName.trim()}
+                className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-[#ED249B] to-[#F9A20B] hover:opacity-90 disabled:opacity-50 rounded-xl transition shadow-sm shrink-0"
               >
-                {recoverLoading ? 'Finding...' : 'Find ID'}
+                {recoverLoading ? 'Verifying...' : 'Reveal ID'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryChallenge(null);
+                  setError(null);
+                }}
+                className="text-[11px] text-neutral-500 hover:underline"
+              >
+                ← Use different contact
+              </button>
+              {error && (
+                <p className="text-[11px] text-red-500 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
+                </p>
+              )}
+            </div>
+          </form>
+        ) : (
+          /* Sub-State C: Enter Mobile or Email */
+          <form onSubmit={handleRecoverInitiate} className="space-y-2.5">
+            <p className="text-[11px] text-neutral-600 dark:text-neutral-400">
+              Enter your registered mobile number or email. We'll verify your identity and restore your Player ID.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Enter mobile number (+91) or email"
+                value={recoveryIdentifier}
+                onChange={(e) => {
+                  setRecoveryIdentifier(e.target.value);
+                  setError(null);
+                }}
+                className="flex-1 px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ED249B]"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={recoverLoading || !recoveryIdentifier.trim()}
+                className="px-4 py-2 text-xs font-bold text-white bg-[#4B494A] hover:bg-neutral-800 disabled:opacity-50 rounded-xl transition shrink-0"
+              >
+                {recoverLoading ? 'Searching...' : 'Find ID'}
               </button>
             </div>
             {error && (
-              <p className="text-xs text-red-500 font-medium">{error}</p>
+              <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
+              </p>
             )}
           </form>
         )}

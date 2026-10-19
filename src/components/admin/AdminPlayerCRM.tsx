@@ -185,11 +185,17 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
 
   const handleTriggerBackfill = async () => {
     try {
-      const res = await playerCrmApi.triggerBackfill(passcode);
-      alert(`Sync backfill complete. Successfully processed and synced ${res.syncedPlayersCount} player profile(s).`);
+      const report = await playerCrmApi.reconcileHistoricalData(passcode);
+      alert(
+        `Historical reconciliation complete!\n\n` +
+        `• Bookings Processed: ${report.bookingsProcessed} (${report.bookingsLinked} linked, ${report.bookingsCreatedProfiles} new profiles)\n` +
+        `• Tournaments Processed: ${report.tournamentsProcessed} (${report.tournamentsLinked} linked, ${report.tournamentsCreatedProfiles} new profiles)\n` +
+        `• Synced Player Profiles: ${report.totalSyncedPlayers}\n` +
+        `• Ambiguous Records Flagged: ${report.ambiguousRecordsFlagged.length}`
+      );
       loadDirectory();
     } catch (err: any) {
-      alert(err.message || 'Failed to complete backfill.');
+      alert(err.message || 'Failed to complete reconciliation.');
     }
   };
 

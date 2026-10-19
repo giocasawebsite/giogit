@@ -1103,10 +1103,6 @@ class DatabaseService {
       .replace(/^-+|-+$/g, '');
   }
 
-  private normalizePhone(phone: string): string {
-    return phone.replace(/[^\d+]/g, '');
-  }
-
   async getTournaments(filter?: {
     status?: string;
     gameCategory?: string;
@@ -1944,13 +1940,17 @@ class DatabaseService {
 
     const segmentsSummary: Record<string, number> = {
       all: activePool.length,
+      gaming_booking: activePool.filter((p) => (p.sources && p.sources.includes('gaming_booking')) || (p.stats.bookingsCount || 0) > 0).length,
+      tournament_registration: activePool.filter((p) => (p.sources && p.sources.includes('tournament_registration')) || (p.stats.tournamentCount || 0) > 0).length,
+      player_registration: activePool.filter((p) => (p.sources && p.sources.includes('player_registration')) || p.source === 'player_registration').length,
+      upcoming_bookings: activePool.filter((p) => upcomingBookingsMap.has(p.normalizedPhone)).length,
+      tournament_participants: activePool.filter((p) => (p.stats.tournamentCount || 0) > 0).length,
       new: activePool.filter((p) => (p.createdAt && p.createdAt.slice(0, 10) >= fourteenDaysAgo) || ((p.stats.bookingsCount || 0) <= 1 && (p.stats.tournamentCount || 0) <= 1)).length,
       frequent: activePool.filter((p) => (p.stats.bookingsCount || 0) >= 3 || (p.stats.totalHoursPlayed || 0) >= 5).length,
       tournament_regulars: activePool.filter((p) => (p.stats.tournamentCount || 0) >= 2).length,
       winners: activePool.filter((p) => (p.stats.tournamentWins || 0) > 0).length,
       vip: activePool.filter((p) => p.membershipTier === 'vip' || (p.stats.totalSpend || 0) >= 2000).length,
       inactive: activePool.filter((p) => p.status === 'inactive' || (p.stats.lastVisitDate && p.stats.lastVisitDate < thirtyDaysAgo)).length,
-      upcoming_bookings: activePool.filter((p) => upcomingBookingsMap.has(p.normalizedPhone)).length,
     };
 
     // Filter pipeline
@@ -1972,6 +1972,21 @@ class DatabaseService {
     // Segment filter
     if (params.segment && params.segment !== 'all') {
       switch (params.segment) {
+        case 'gaming_booking':
+          filtered = filtered.filter((p) => (p.sources && p.sources.includes('gaming_booking')) || (p.stats.bookingsCount || 0) > 0);
+          break;
+        case 'tournament_registration':
+          filtered = filtered.filter((p) => (p.sources && p.sources.includes('tournament_registration')) || (p.stats.tournamentCount || 0) > 0);
+          break;
+        case 'player_registration':
+          filtered = filtered.filter((p) => (p.sources && p.sources.includes('player_registration')) || p.source === 'player_registration');
+          break;
+        case 'upcoming_bookings':
+          filtered = filtered.filter((p) => upcomingBookingsMap.has(p.normalizedPhone));
+          break;
+        case 'tournament_participants':
+          filtered = filtered.filter((p) => (p.stats.tournamentCount || 0) > 0);
+          break;
         case 'new':
           filtered = filtered.filter((p) => (p.createdAt && p.createdAt.slice(0, 10) >= fourteenDaysAgo) || ((p.stats.bookingsCount || 0) <= 1 && (p.stats.tournamentCount || 0) <= 1));
           break;
@@ -1989,9 +2004,6 @@ class DatabaseService {
           break;
         case 'inactive':
           filtered = filtered.filter((p) => p.status === 'inactive' || (p.stats.lastVisitDate && p.stats.lastVisitDate < thirtyDaysAgo));
-          break;
-        case 'upcoming_bookings':
-          filtered = filtered.filter((p) => upcomingBookingsMap.has(p.normalizedPhone));
           break;
       }
     }
@@ -2126,6 +2138,17 @@ class DatabaseService {
     return this.filePlayers.find((p) => p.normalizedPhone === norm) || null;
   }
 
+  async getPlayerByEmail(email: string): Promise<Player | null> {
+    if (!email || !email.includes('@')) return null;
+    const clean = email.trim().toLowerCase();
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Player>('players').findOne({
+        email: { $regex: new RegExp(`^${clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      });
+    }
+    return this.filePlayers.find((p) => p.email && p.email.toLowerCase() === clean) || null;
+  }
+
   async lookupPlayerPublic(gioId: string): Promise<{
     found: boolean;
     player?: {
@@ -2258,30 +2281,226 @@ class DatabaseService {
     };
   }
 
-  async recoverPlayerId(phone: string): Promise<{
+  createRecoverySessionToken(playerId: string, isDummy: boolean, maskedContact: string): string {
+    const payload = {
+      playerId,
+      isDummy,
+      maskedContact,
+      iat: Date.now(),
+      exp: Date.now() + 15 * 60 * 1000, // 15 minutes validity
+    };
+    const secret = config.adminPasscode || 'giocasa-secret';
+    const payloadStr = JSON.stringify(payload);
+    const sig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
+    return `gio_rec_${Buffer.from(payloadStr).toString('base64url')}.${sig.slice(0, 24)}`;
+  }
+
+  verifyRecoverySessionToken(token: string): {
+    valid: boolean;
+    playerId?: string;
+    isDummy?: boolean;
+    maskedContact?: string;
+    error?: string;
+  } {
+    if (!token || !token.startsWith('gio_rec_')) {
+      return { valid: false, error: 'Invalid recovery session token format.' };
+    }
+
+    try {
+      const parts = token.slice('gio_rec_'.length).split('.');
+      if (parts.length !== 2) {
+        return { valid: false, error: 'Malformed recovery token.' };
+      }
+
+      const [encodedPayload, receivedSig] = parts;
+      const payloadStr = Buffer.from(encodedPayload, 'base64url').toString('utf8');
+      const payload = JSON.parse(payloadStr);
+
+      const secret = config.adminPasscode || 'giocasa-secret';
+      const expectedSig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex').slice(0, 24);
+
+      if (receivedSig !== expectedSig) {
+        return { valid: false, error: 'Tampered or forged recovery session token.' };
+      }
+
+      if (payload.exp && Date.now() > payload.exp) {
+        return { valid: false, error: 'Recovery session has expired. Please initiate recovery again.' };
+      }
+
+      return {
+        valid: true,
+        playerId: payload.playerId,
+        isDummy: !!payload.isDummy,
+        maskedContact: payload.maskedContact,
+      };
+    } catch (err) {
+      return { valid: false, error: 'Failed to verify recovery session token.' };
+    }
+  }
+
+  async recoverPlayerId(payloadOrPhone: {
+    identifier?: string;
+    phone?: string;
+    email?: string;
+    verificationName?: string;
+    sessionToken?: string;
+  } | string): Promise<{
     found: boolean;
+    requiresVerification?: boolean;
+    verified?: boolean;
+    sessionToken?: string;
+    maskedContact?: string;
+    challengePrompt?: string;
     gioId?: string;
     name?: string;
     gamerTag?: string;
+    token?: string;
+    player?: any;
     message?: string;
     error?: string;
   }> {
-    if (!phone || !phone.trim()) {
-      return { found: false, error: 'Mobile number is required to recover your Player ID.' };
+    const payload = typeof payloadOrPhone === 'string' ? { phone: payloadOrPhone } : payloadOrPhone;
+    const rawIdentifier = payload.identifier || payload.phone || payload.email || '';
+    const verificationName = payload.verificationName?.trim();
+    const sessionToken = payload.sessionToken?.trim();
+
+    // Case 1: Verification step using existing session token
+    if (sessionToken) {
+      const sessionResult = this.verifyRecoverySessionToken(sessionToken);
+      if (!sessionResult.valid) {
+        return { found: false, error: sessionResult.error || 'Recovery session expired or invalid.' };
+      }
+
+      if (!verificationName) {
+        return {
+          found: true,
+          requiresVerification: true,
+          sessionToken,
+          maskedContact: sessionResult.maskedContact,
+          challengePrompt: 'Please enter your registered Full Name or Gamer Tag to complete verification.',
+          error: 'Please enter your Full Name or Gamer Tag to confirm your identity.',
+        };
+      }
+
+      // If it was a dummy session for non-existent contact (User Enumeration Protection)
+      if (sessionResult.isDummy || !sessionResult.playerId || sessionResult.playerId === 'dummy') {
+        return {
+          found: false,
+          verified: false,
+          error: 'The verification details entered do not match our records. If you do not have an ID yet, you can register anytime.',
+        };
+      }
+
+      const player = await this.getPlayerById(sessionResult.playerId);
+      if (!player || player.status === 'archived') {
+        return {
+          found: false,
+          verified: false,
+          error: 'The verification details entered do not match an active player profile.',
+        };
+      }
+
+      return this.verifyAndReturnRecoveredPlayer(player, verificationName);
     }
 
-    const norm = this.normalizePhone(phone);
-    if (norm.length < 10) {
-      return { found: false, error: 'Please enter a valid 10-digit mobile number.' };
+    // Case 2: Direct lookup or initiating recovery with identifier
+    if (!rawIdentifier || !rawIdentifier.trim()) {
+      return { found: false, error: 'Mobile number or email address is required to recover your Player ID.' };
     }
 
-    const player = await this.getPlayerByPhone(norm);
-    if (!player || player.status === 'archived') {
+    const cleanInput = rawIdentifier.trim();
+    const isEmail = cleanInput.includes('@');
+    let normPhone = '';
+
+    if (isEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanInput)) {
+        return { found: false, error: 'Please enter a valid email address.' };
+      }
+    } else {
+      normPhone = this.normalizePhone(cleanInput);
+      if (!normPhone || normPhone.length !== 10) {
+        return { found: false, error: 'Please enter a valid 10-digit mobile number.' };
+      }
+    }
+
+    // Search player
+    const player = isEmail ? await this.getPlayerByEmail(cleanInput) : await this.getPlayerByPhone(normPhone);
+
+    // Compute masked contact string
+    let maskedContact = '';
+    if (isEmail) {
+      const [local, dom] = cleanInput.toLowerCase().split('@');
+      maskedContact = `${local[0]}***${local.length > 2 ? local.slice(-1) : ''}@${dom}`;
+    } else {
+      maskedContact = `+91 ••••• ••${normPhone.slice(-4)}`;
+    }
+
+    // If verification name was supplied in the initial request (Single-step recovery)
+    if (verificationName) {
+      if (!player || player.status === 'archived') {
+        return {
+          found: false,
+          verified: false,
+          error: 'The verification details entered do not match our records. If you do not have an ID yet, you can register anytime.',
+        };
+      }
+      return this.verifyAndReturnRecoveredPlayer(player, verificationName);
+    }
+
+    // Two-step recovery initiation: Return challenge (Uniform response whether player exists or not for privacy)
+    if (player && player.status !== 'archived') {
+      const token = this.createRecoverySessionToken(player.id, false, maskedContact);
       return {
-        found: false,
-        error: 'No active GioCasa profile found with this mobile number. You can register for a new Player ID instantly.',
+        found: true,
+        requiresVerification: true,
+        sessionToken: token,
+        maskedContact,
+        challengePrompt: `To protect your identity, please enter your registered Full Name or Gamer Tag associated with ${maskedContact}.`,
+      };
+    } else {
+      // Dummy session token for unknown contact
+      const token = this.createRecoverySessionToken('dummy', true, maskedContact);
+      return {
+        found: true,
+        requiresVerification: true,
+        sessionToken: token,
+        maskedContact,
+        challengePrompt: `To protect your identity, please enter your registered Full Name or Gamer Tag associated with ${maskedContact}.`,
       };
     }
+  }
+
+  private async verifyAndReturnRecoveredPlayer(player: Player, verificationName: string) {
+    const cleanVerification = verificationName.trim().toLowerCase();
+    const verificationWithoutAt = cleanVerification.replace(/^@/, '');
+    const cleanName = player.name.trim().toLowerCase();
+    const cleanGamerTag = (player.gamerTag || '').trim().toLowerCase();
+    const gamerTagWithoutAt = cleanGamerTag.replace(/^@/, '');
+
+    const nameParts = cleanName.split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts[nameParts.length - 1] || '';
+
+    const isMatch =
+      cleanVerification === cleanName ||
+      verificationWithoutAt === cleanName ||
+      verificationWithoutAt === gamerTagWithoutAt ||
+      cleanVerification === cleanGamerTag ||
+      (verificationWithoutAt.length >= 2 && verificationWithoutAt === firstName) ||
+      (verificationWithoutAt.length >= 3 && verificationWithoutAt === lastName) ||
+      (verificationWithoutAt.length >= 3 && cleanName.includes(verificationWithoutAt));
+
+    if (!isMatch) {
+      return {
+        found: true,
+        verified: false,
+        error: 'The name or gamer tag entered does not match the profile on record. Please check your spelling.',
+      };
+    }
+
+    // Identity verified! Generate authorization token
+    const verifyResult = await this.verifyPlayerIdentity(player.gioId, player.phone.slice(-4));
 
     await this.recordAutomationEvent({
       eventType: 'player.id_recovered',
@@ -2289,17 +2508,21 @@ class DatabaseService {
       entityType: 'player',
       payload: {
         gioId: player.gioId,
-        phone: player.phone,
         name: player.name,
+        verifiedBy: 'name_challenge',
       },
+      idempotencyKey: `recovery_${player.id}_${Date.now()}`,
     });
 
     return {
       found: true,
+      verified: true,
       gioId: player.gioId,
       name: player.name,
       gamerTag: player.gamerTag,
-      message: `Welcome back, ${player.name}! Your GioCasa Player ID is ${player.gioId}.`,
+      token: verifyResult.token,
+      player: verifyResult.player,
+      message: `Identity verified! Welcome back, ${player.name}. Your GioCasa Player ID is ${player.gioId}.`,
     };
   }
 
@@ -2357,6 +2580,8 @@ class DatabaseService {
       favoritePlatform: data.favoritePlatform || 'ps5',
       membershipTier: data.membershipTier || 'standard',
       status: 'active',
+      source: data.source || 'player_registration',
+      sources: data.sources || (data.source ? [data.source] : ['player_registration']),
       identityVerificationStatus: data.identityVerificationStatus || 'verified',
       notes: initialNotes,
       reminders: initialReminders,
@@ -2374,10 +2599,12 @@ class DatabaseService {
         tournamentCount: 0,
         tournamentWins: 0,
         bookingsCount: 0,
+        completedBookingsCount: 0,
         totalHoursPlayed: 0,
         totalSpend: 0,
         firstVisitDate: nowIso.slice(0, 10),
         lastVisitDate: nowIso.slice(0, 10),
+        lastActivityDate: nowIso,
         ...data.stats,
       },
       referralCount: 0,
@@ -2491,6 +2718,8 @@ class DatabaseService {
       favoritePlatform: updates.favoritePlatform !== undefined ? updates.favoritePlatform : existing.favoritePlatform,
       membershipTier: updates.membershipTier !== undefined ? updates.membershipTier : existing.membershipTier,
       status: updates.status !== undefined ? updates.status : existing.status,
+      source: updates.source !== undefined ? updates.source : existing.source,
+      sources: updates.sources !== undefined ? updates.sources : existing.sources,
       identityVerificationStatus: updates.identityVerificationStatus !== undefined ? updates.identityVerificationStatus : existing.identityVerificationStatus,
       tags: updates.tags !== undefined ? updates.tags : existing.tags,
       consent: updates.consent ? { ...existing.consent, ...updates.consent } : existing.consent,
@@ -2887,11 +3116,136 @@ class DatabaseService {
     };
   }
 
+  async recalculatePlayerStats(playerId: string): Promise<Player | null> {
+    const player = await this.getPlayerById(playerId);
+    if (!player) return null;
+
+    const norm = player.normalizedPhone;
+
+    // 1. All bookings for this player
+    let playerBookings: Booking[] = [];
+    if (this.isMongoConnected && this.db) {
+      playerBookings = await this.db.collection<Booking>('bookings').find({
+        $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+      }).toArray();
+    } else {
+      playerBookings = this.fileBookings.filter(
+        (b) => b.playerId === player.id || b.phone === player.phone || (norm && this.normalizePhone(b.phone) === norm)
+      );
+    }
+
+    // 2. All tournament registrations for this player
+    let playerRegistrations: TournamentRegistration[] = [];
+    if (this.isMongoConnected && this.db) {
+      playerRegistrations = await this.db.collection<TournamentRegistration>('tournament_registrations').find({
+        $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+      }).toArray();
+    } else {
+      playerRegistrations = this.fileRegistrations.filter(
+        (r) => r.playerId === player.id || r.phone === player.phone || (norm && this.normalizePhone(r.phone) === norm)
+      );
+    }
+
+    // Deduplicate bookings by ID
+    const uniqueBookingsMap = new Map<string, Booking>();
+    for (const b of playerBookings) {
+      uniqueBookingsMap.set(b.id, b);
+    }
+    const uniqueBookings = Array.from(uniqueBookingsMap.values());
+
+    // Deduplicate registrations by ID
+    const uniqueRegsMap = new Map<string, TournamentRegistration>();
+    for (const r of playerRegistrations) {
+      uniqueRegsMap.set(r.id, r);
+    }
+    const uniqueRegs = Array.from(uniqueRegsMap.values());
+
+    // Compute counts
+    const bookingsCount = uniqueBookings.length;
+    const completedBookingsCount = uniqueBookings.filter((b) => b.status === 'completed').length;
+    const tournamentCount = uniqueRegs.length;
+
+    // Compute spend and hours from non-cancelled bookings
+    const validBookings = uniqueBookings.filter((b) => b.status !== 'cancelled');
+    const totalSpend = validBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    const totalHoursPlayed = Number(
+      validBookings.reduce((sum, b) => sum + (b.durationMinutes || 60) / 60, 0).toFixed(1)
+    );
+
+    // Compute dates
+    const dates: string[] = [];
+    for (const b of uniqueBookings) {
+      if (b.date) dates.push(b.date);
+    }
+    for (const r of uniqueRegs) {
+      if (r.createdAt) dates.push(r.createdAt.slice(0, 10));
+    }
+    if (player.createdAt) dates.push(player.createdAt.slice(0, 10));
+    dates.sort();
+
+    const firstVisitDate = dates[0] || player.createdAt.slice(0, 10);
+    const lastVisitDate = dates[dates.length - 1] || player.createdAt.slice(0, 10);
+
+    // Activity timestamps
+    const activityTimestamps: string[] = [];
+    for (const b of uniqueBookings) {
+      if (b.updatedAt) activityTimestamps.push(b.updatedAt);
+      else if (b.createdAt) activityTimestamps.push(b.createdAt);
+    }
+    for (const r of uniqueRegs) {
+      if (r.updatedAt) activityTimestamps.push(r.updatedAt);
+      else if (r.createdAt) activityTimestamps.push(r.createdAt);
+    }
+    if (player.updatedAt) activityTimestamps.push(player.updatedAt);
+    activityTimestamps.sort();
+    const lastActivityDate = activityTimestamps[activityTimestamps.length - 1] || player.updatedAt || new Date().toISOString();
+
+    // Determine sources
+    const sourcesSet = new Set<PlayerAcquisitionSource>(
+      player.sources || (player.source ? [player.source] : ['player_registration'])
+    );
+    if (bookingsCount > 0) sourcesSet.add('gaming_booking');
+    if (tournamentCount > 0) sourcesSet.add('tournament_registration');
+    const sources = Array.from(sourcesSet);
+
+    // Update tags
+    const tagsSet = new Set<string>(player.tags || []);
+    if (bookingsCount >= 3) tagsSet.add('Frequent Visitor');
+    if (bookingsCount > 0) tagsSet.add('Station Guest');
+    if (tournamentCount >= 2) tagsSet.add('Tournament Regular');
+    else if (tournamentCount > 0) tagsSet.add('Tournament Registrant');
+    const tags = Array.from(tagsSet);
+
+    const updated = await this.updatePlayer(player.id, {
+      stats: {
+        ...player.stats,
+        bookingsCount,
+        completedBookingsCount,
+        tournamentCount,
+        totalHoursPlayed,
+        totalSpend,
+        firstVisitDate,
+        lastVisitDate,
+        lastActivityDate,
+      },
+      sources,
+      tags,
+    } as any);
+
+    return updated;
+  }
+
   async linkPlayerToRegistration(registration: TournamentRegistration): Promise<Player> {
     const norm = this.normalizePhone(registration.phone);
     if (!norm) return null as any;
 
-    let player = await this.getPlayerByPhone(norm);
+    let player: Player | null = null;
+    if (registration.playerId) {
+      player = await this.getPlayerById(registration.playerId);
+    }
+    if (!player) {
+      player = await this.getPlayerByPhone(norm);
+    }
 
     const nowIso = new Date().toISOString();
     const eventDate = registration.createdAt ? registration.createdAt.slice(0, 10) : nowIso.slice(0, 10);
@@ -2899,10 +3253,12 @@ class DatabaseService {
     if (!player) {
       // Create new player profile automatically
       player = await this.createPlayer({
-        name: registration.participantName,
-        gamerTag: registration.inGameId || registration.participantName.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
-        phone: registration.phone,
-        email: registration.email,
+        name: registration.participantName.trim(),
+        gamerTag: registration.inGameId?.trim() || registration.participantName.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
+        phone: registration.phone.trim(),
+        email: registration.email ? registration.email.trim().toLowerCase() : undefined,
+        source: 'tournament_registration',
+        sources: ['tournament_registration'],
         favoriteGame: 'EA Sports FC 25',
         favoritePlatform: 'ps5',
         membershipTier: 'standard',
@@ -2911,28 +3267,28 @@ class DatabaseService {
           tournamentCount: 1,
           tournamentWins: 0,
           bookingsCount: 0,
+          completedBookingsCount: 0,
           totalHoursPlayed: 0,
           totalSpend: 0,
           firstVisitDate: eventDate,
           lastVisitDate: eventDate,
+          lastActivityDate: nowIso,
         },
       });
     } else {
-      // Update existing player stats
-      const newCount = (player.stats.tournamentCount || 0) + 1;
-      const lastVisit = !player.stats.lastVisitDate || eventDate > player.stats.lastVisitDate ? eventDate : player.stats.lastVisitDate;
-      const tags = Array.from(new Set([...player.tags, 'Tournament Regular']));
+      const sourcesSet = new Set(player.sources || (player.source ? [player.source] : ['player_registration']));
+      sourcesSet.add('tournament_registration');
 
-      const updated = await this.updatePlayer(player.id, {
-        stats: {
-          ...player.stats,
-          tournamentCount: newCount,
-          lastVisitDate: lastVisit,
-        },
-        tags,
-      } as any);
-
-      if (updated) player = updated;
+      const updatePayload: any = {
+        sources: Array.from(sourcesSet),
+      };
+      if (!player.email && registration.email) {
+        updatePayload.email = registration.email.trim().toLowerCase();
+      }
+      if (registration.inGameId && (!player.gamerTag || player.gamerTag.includes('_'))) {
+        updatePayload.gamerTag = registration.inGameId.trim();
+      }
+      await this.updatePlayer(player.id, updatePayload);
     }
 
     // Attach playerId to registration
@@ -2946,9 +3302,66 @@ class DatabaseService {
         const idx = this.fileRegistrations.findIndex((r) => r.id === registration.id);
         if (idx !== -1) {
           this.fileRegistrations[idx].playerId = player.id;
+        } else {
+          this.fileRegistrations.push(registration);
+        }
+        this.saveRegistrationsToFile();
+      }
+
+      // Handle team registration teammates
+      if (registration.teammates && registration.teammates.length > 0) {
+        for (const tm of registration.teammates) {
+          if (tm.phone) {
+            const tmNorm = this.normalizePhone(tm.phone);
+            if (tmNorm && tmNorm.length >= 10) {
+              try {
+                let tmPlayer = await this.getPlayerByPhone(tmNorm);
+                if (!tmPlayer) {
+                  tmPlayer = await this.createPlayer({
+                    name: tm.name.trim(),
+                    gamerTag: tm.inGameId?.trim() || tm.name.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
+                    phone: tm.phone.trim(),
+                    source: 'tournament_registration',
+                    sources: ['tournament_registration'],
+                    tags: ['Tournament Teammate'],
+                    stats: {
+                      tournamentCount: 1,
+                      tournamentWins: 0,
+                      bookingsCount: 0,
+                      completedBookingsCount: 0,
+                      totalHoursPlayed: 0,
+                      totalSpend: 0,
+                      firstVisitDate: eventDate,
+                      lastVisitDate: eventDate,
+                      lastActivityDate: nowIso,
+                    },
+                  });
+                } else {
+                  const tmSources = new Set(tmPlayer.sources || (tmPlayer.source ? [tmPlayer.source] : ['player_registration']));
+                  tmSources.add('tournament_registration');
+                  await this.updatePlayer(tmPlayer.id, { sources: Array.from(tmSources) } as any);
+                }
+                (tm as any).playerId = tmPlayer.id;
+                await this.recalculatePlayerStats(tmPlayer.id);
+              } catch (tmErr) {
+                console.warn('Could not auto-link teammate:', tm.name, tmErr);
+              }
+            }
+          }
+        }
+        if (this.isMongoConnected && this.db) {
+          await this.db.collection('tournament_registrations').updateOne(
+            { id: registration.id },
+            { $set: { teammates: registration.teammates } }
+          );
+        } else {
           this.saveRegistrationsToFile();
         }
       }
+
+      // Recalculate stats idempotently
+      const recalculated = await this.recalculatePlayerStats(player.id);
+      if (recalculated) player = recalculated;
     }
 
     return player;
@@ -2958,18 +3371,26 @@ class DatabaseService {
     const norm = this.normalizePhone(booking.phone);
     if (!norm) return null as any;
 
-    let player = await this.getPlayerByPhone(norm);
+    let player: Player | null = null;
+    if (booking.playerId) {
+      player = await this.getPlayerById(booking.playerId);
+    }
+    if (!player) {
+      player = await this.getPlayerByPhone(norm);
+    }
+
     const nowIso = new Date().toISOString();
     const eventDate = booking.date || nowIso.slice(0, 10);
-
     const spendPaise = booking.status !== 'cancelled' ? booking.totalAmount : 0;
     const hours = (booking.durationMinutes || 60) / 60;
 
     if (!player) {
       player = await this.createPlayer({
-        name: booking.customerName,
-        phone: booking.phone,
-        email: booking.email,
+        name: booking.customerName.trim(),
+        phone: booking.phone.trim(),
+        email: booking.email ? booking.email.trim().toLowerCase() : undefined,
+        source: 'gaming_booking',
+        sources: ['gaming_booking'],
         favoritePlatform: booking.category || 'ps5',
         membershipTier: 'standard',
         tags: ['Gamer', 'Station Guest'],
@@ -2977,32 +3398,25 @@ class DatabaseService {
           tournamentCount: 0,
           tournamentWins: 0,
           bookingsCount: 1,
+          completedBookingsCount: booking.status === 'completed' ? 1 : 0,
           totalHoursPlayed: hours,
           totalSpend: spendPaise,
           firstVisitDate: eventDate,
           lastVisitDate: eventDate,
+          lastActivityDate: nowIso,
         },
       });
     } else {
-      const bookingsCount = (player.stats.bookingsCount || 0) + 1;
-      const totalHoursPlayed = Number(((player.stats.totalHoursPlayed || 0) + hours).toFixed(1));
-      const totalSpend = (player.stats.totalSpend || 0) + spendPaise;
-      const lastVisit = !player.stats.lastVisitDate || eventDate > player.stats.lastVisitDate ? eventDate : player.stats.lastVisitDate;
-      const tags = [...player.tags];
-      if (bookingsCount >= 3 && !tags.includes('Frequent Visitor')) tags.push('Frequent Visitor');
+      const sourcesSet = new Set(player.sources || (player.source ? [player.source] : ['player_registration']));
+      sourcesSet.add('gaming_booking');
 
-      const updated = await this.updatePlayer(player.id, {
-        stats: {
-          ...player.stats,
-          bookingsCount,
-          totalHoursPlayed,
-          totalSpend,
-          lastVisitDate: lastVisit,
-        },
-        tags,
-      } as any);
-
-      if (updated) player = updated;
+      const updatePayload: any = {
+        sources: Array.from(sourcesSet),
+      };
+      if (!player.email && booking.email) {
+        updatePayload.email = booking.email.trim().toLowerCase();
+      }
+      await this.updatePlayer(player.id, updatePayload);
     }
 
     // Attach playerId to booking
@@ -3014,9 +3428,15 @@ class DatabaseService {
         const idx = this.fileBookings.findIndex((b) => b.id === booking.id);
         if (idx !== -1) {
           this.fileBookings[idx].playerId = player.id;
-          this.saveBookingsToFile();
+        } else {
+          this.fileBookings.push(booking);
         }
+        this.saveBookingsToFile();
       }
+
+      // Recalculate stats idempotently
+      const recalculated = await this.recalculatePlayerStats(player.id);
+      if (recalculated) player = recalculated;
     }
 
     return player;
@@ -3641,38 +4061,26 @@ class DatabaseService {
     return list.slice(0, limit);
   }
 
-  async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {
-    console.log('🔄 Performing Player CRM historical backfill check...');
-    let synced = 0;
+  async reconcileHistoricalData(): Promise<HistoricalReconciliationReport> {
+    console.log('🔄 Performing comprehensive safe historical reconciliation of CRM profiles...');
+    const affectedPlayerIds = new Set<string>();
+    const ambiguousRecordsFlagged: Array<{
+      type: 'booking' | 'tournament_registration';
+      id: string;
+      name: string;
+      phone: string;
+      reason: string;
+    }> = [];
 
-    // 1. Process registrations
-    const regs = this.isMongoConnected && this.db
-      ? await this.db.collection<TournamentRegistration>('tournament_registrations').find({}).toArray()
-      : this.fileRegistrations;
+    let bookingsLinked = 0;
+    let bookingsCreatedProfiles = 0;
+    let bookingsSkipped = 0;
 
-    for (const r of regs) {
-      try {
-        const norm = this.normalizePhone(r.phone);
-        if (!norm) continue;
-        const p = await this.getPlayerByPhone(norm);
-        if (!p) {
-          await this.linkPlayerToRegistration(r);
-          synced++;
-        } else if (!r.playerId) {
-          r.playerId = p.id;
-          if (this.isMongoConnected && this.db) {
-            await this.db.collection('tournament_registrations').updateOne({ id: r.id }, { $set: { playerId: p.id } });
-          } else {
-            const idx = this.fileRegistrations.findIndex((item) => item.id === r.id);
-            if (idx !== -1) this.fileRegistrations[idx].playerId = p.id;
-          }
-        }
-      } catch (err) {
-        console.warn('Backfill skipped registration:', r.id, err);
-      }
-    }
+    let tournamentsLinked = 0;
+    let tournamentsCreatedProfiles = 0;
+    let tournamentsSkipped = 0;
 
-    // 2. Process bookings
+    // 1. Process all bookings
     const bks = this.isMongoConnected && this.db
       ? await this.db.collection<Booking>('bookings').find({}).toArray()
       : this.fileBookings;
@@ -3680,57 +4088,287 @@ class DatabaseService {
     for (const b of bks) {
       try {
         const norm = this.normalizePhone(b.phone);
-        if (!norm) continue;
-        const p = await this.getPlayerByPhone(norm);
-        if (!p) {
-          await this.linkPlayerToBooking(b);
-          synced++;
-        } else if (!b.playerId) {
-          b.playerId = p.id;
+        const hasValidName = !!(b.customerName && b.customerName.trim().length > 0);
+        const hasValidPhone = !!(norm && norm.length === 10);
+
+        if (!hasValidName || !hasValidPhone) {
+          ambiguousRecordsFlagged.push({
+            type: 'booking',
+            id: b.id,
+            name: b.customerName || 'Missing Name',
+            phone: b.phone || 'Missing Phone',
+            reason: !hasValidPhone
+              ? 'Invalid or missing 10-digit phone number'
+              : 'Missing customer name',
+          });
+          bookingsSkipped++;
+          continue;
+        }
+
+        // Check if already linked
+        let existingPlayer: Player | null = null;
+        if (b.playerId) {
+          existingPlayer = await this.getPlayerById(b.playerId);
+        }
+        if (!existingPlayer) {
+          existingPlayer = await this.getPlayerByPhone(norm);
+        }
+
+        if (existingPlayer) {
+          if (b.playerId !== existingPlayer.id) {
+            b.playerId = existingPlayer.id;
+            if (this.isMongoConnected && this.db) {
+              await this.db.collection('bookings').updateOne({ id: b.id }, { $set: { playerId: existingPlayer.id } });
+            } else {
+              const idx = this.fileBookings.findIndex((item) => item.id === b.id);
+              if (idx !== -1) this.fileBookings[idx].playerId = existingPlayer.id;
+            }
+          }
+          const sourcesSet = new Set(existingPlayer.sources || (existingPlayer.source ? [existingPlayer.source] : ['player_registration']));
+          sourcesSet.add('gaming_booking');
+          const updatePayload: any = { sources: Array.from(sourcesSet) };
+          if (!existingPlayer.email && b.email) {
+            updatePayload.email = b.email.trim().toLowerCase();
+          }
+          await this.updatePlayer(existingPlayer.id, updatePayload);
+          bookingsLinked++;
+          affectedPlayerIds.add(existingPlayer.id);
+        } else {
+          // Create new player profile
+          const newPlayer = await this.createPlayer({
+            name: b.customerName.trim(),
+            phone: norm,
+            email: b.email ? b.email.trim().toLowerCase() : undefined,
+            source: 'gaming_booking',
+            sources: ['gaming_booking'],
+            favoritePlatform: b.category || 'ps5',
+            membershipTier: 'standard',
+            tags: ['Gamer', 'Station Guest'],
+            stats: {
+              tournamentCount: 0,
+              tournamentWins: 0,
+              bookingsCount: 1,
+              completedBookingsCount: b.status === 'completed' ? 1 : 0,
+              totalHoursPlayed: (b.durationMinutes || 60) / 60,
+              totalSpend: b.status !== 'cancelled' ? (b.totalAmount || 0) : 0,
+              firstVisitDate: b.date || (b.createdAt ? b.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+              lastVisitDate: b.date || (b.createdAt ? b.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+              lastActivityDate: b.updatedAt || b.createdAt || new Date().toISOString(),
+            },
+          });
+          b.playerId = newPlayer.id;
           if (this.isMongoConnected && this.db) {
-            await this.db.collection('bookings').updateOne({ id: b.id }, { $set: { playerId: p.id } });
+            await this.db.collection('bookings').updateOne({ id: b.id }, { $set: { playerId: newPlayer.id } });
           } else {
             const idx = this.fileBookings.findIndex((item) => item.id === b.id);
-            if (idx !== -1) this.fileBookings[idx].playerId = p.id;
+            if (idx !== -1) this.fileBookings[idx].playerId = newPlayer.id;
+          }
+          bookingsCreatedProfiles++;
+          affectedPlayerIds.add(newPlayer.id);
+        }
+      } catch (err) {
+        console.warn('Reconciliation skipped booking:', b.id, err);
+        bookingsSkipped++;
+      }
+    }
+
+    // 2. Process all tournament registrations
+    const regs = this.isMongoConnected && this.db
+      ? await this.db.collection<TournamentRegistration>('tournament_registrations').find({}).toArray()
+      : this.fileRegistrations;
+
+    for (const r of regs) {
+      try {
+        const norm = this.normalizePhone(r.phone);
+        const hasValidName = !!(r.participantName && r.participantName.trim().length > 0);
+        const hasValidPhone = !!(norm && norm.length === 10);
+
+        if (!hasValidName || !hasValidPhone) {
+          ambiguousRecordsFlagged.push({
+            type: 'tournament_registration',
+            id: r.id,
+            name: r.participantName || 'Missing Name',
+            phone: r.phone || 'Missing Phone',
+            reason: !hasValidPhone
+              ? 'Invalid or missing 10-digit phone number'
+              : 'Missing participant name',
+          });
+          tournamentsSkipped++;
+          continue;
+        }
+
+        let existingPlayer: Player | null = null;
+        if (r.playerId) {
+          existingPlayer = await this.getPlayerById(r.playerId);
+        }
+        if (!existingPlayer) {
+          existingPlayer = await this.getPlayerByPhone(norm);
+        }
+
+        if (existingPlayer) {
+          if (r.playerId !== existingPlayer.id) {
+            r.playerId = existingPlayer.id;
+            if (this.isMongoConnected && this.db) {
+              await this.db.collection('tournament_registrations').updateOne({ id: r.id }, { $set: { playerId: existingPlayer.id } });
+            } else {
+              const idx = this.fileRegistrations.findIndex((item) => item.id === r.id);
+              if (idx !== -1) this.fileRegistrations[idx].playerId = existingPlayer.id;
+            }
+          }
+          const sourcesSet = new Set(existingPlayer.sources || (existingPlayer.source ? [existingPlayer.source] : ['player_registration']));
+          sourcesSet.add('tournament_registration');
+          const updatePayload: any = { sources: Array.from(sourcesSet) };
+          if (!existingPlayer.email && r.email) {
+            updatePayload.email = r.email.trim().toLowerCase();
+          }
+          if (r.inGameId && (!existingPlayer.gamerTag || existingPlayer.gamerTag.includes('_'))) {
+            updatePayload.gamerTag = r.inGameId.trim();
+          }
+          await this.updatePlayer(existingPlayer.id, updatePayload);
+          tournamentsLinked++;
+          affectedPlayerIds.add(existingPlayer.id);
+        } else {
+          // Create new player profile
+          const newPlayer = await this.createPlayer({
+            name: r.participantName.trim(),
+            gamerTag: r.inGameId?.trim() || r.participantName.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
+            phone: norm,
+            email: r.email ? r.email.trim().toLowerCase() : undefined,
+            source: 'tournament_registration',
+            sources: ['tournament_registration'],
+            favoriteGame: 'EA Sports FC 25',
+            favoritePlatform: 'ps5',
+            membershipTier: 'standard',
+            tags: ['Tournament Registrant'],
+            stats: {
+              tournamentCount: 1,
+              tournamentWins: 0,
+              bookingsCount: 0,
+              completedBookingsCount: 0,
+              totalHoursPlayed: 0,
+              totalSpend: 0,
+              firstVisitDate: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              lastVisitDate: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              lastActivityDate: r.updatedAt || r.createdAt || new Date().toISOString(),
+            },
+          });
+          r.playerId = newPlayer.id;
+          if (this.isMongoConnected && this.db) {
+            await this.db.collection('tournament_registrations').updateOne({ id: r.id }, { $set: { playerId: newPlayer.id } });
+          } else {
+            const idx = this.fileRegistrations.findIndex((item) => item.id === r.id);
+            if (idx !== -1) this.fileRegistrations[idx].playerId = newPlayer.id;
+          }
+          tournamentsCreatedProfiles++;
+          affectedPlayerIds.add(newPlayer.id);
+        }
+
+        // Also check teammates
+        if (r.teammates && r.teammates.length > 0) {
+          let teammatesChanged = false;
+          for (const tm of r.teammates) {
+            if (tm.phone && tm.name) {
+              const tmNorm = this.normalizePhone(tm.phone);
+              if (tmNorm && tmNorm.length === 10) {
+                let tmPlayer = await this.getPlayerByPhone(tmNorm);
+                if (!tmPlayer) {
+                  tmPlayer = await this.createPlayer({
+                    name: tm.name.trim(),
+                    gamerTag: tm.inGameId?.trim() || tm.name.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900),
+                    phone: tmNorm,
+                    source: 'tournament_registration',
+                    sources: ['tournament_registration'],
+                    tags: ['Tournament Teammate'],
+                    stats: {
+                      tournamentCount: 1,
+                      tournamentWins: 0,
+                      bookingsCount: 0,
+                      completedBookingsCount: 0,
+                      totalHoursPlayed: 0,
+                      totalSpend: 0,
+                      firstVisitDate: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                      lastVisitDate: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                      lastActivityDate: r.updatedAt || r.createdAt || new Date().toISOString(),
+                    },
+                  });
+                } else {
+                  const tmSources = new Set(tmPlayer.sources || (tmPlayer.source ? [tmPlayer.source] : ['player_registration']));
+                  tmSources.add('tournament_registration');
+                  await this.updatePlayer(tmPlayer.id, { sources: Array.from(tmSources) } as any);
+                }
+                (tm as any).playerId = tmPlayer.id;
+                teammatesChanged = true;
+                affectedPlayerIds.add(tmPlayer.id);
+              }
+            }
+          }
+          if (teammatesChanged) {
+            if (this.isMongoConnected && this.db) {
+              await this.db.collection('tournament_registrations').updateOne(
+                { id: r.id },
+                { $set: { teammates: r.teammates } }
+              );
+            } else {
+              this.saveRegistrationsToFile();
+            }
           }
         }
       } catch (err) {
-        console.warn('Backfill skipped booking:', b.id, err);
+        console.warn('Reconciliation skipped registration:', r.id, err);
+        tournamentsSkipped++;
       }
     }
 
-    // 3. Ensure all players have gioId and referralCode
-    const allPlayers = this.isMongoConnected && this.db
-      ? await this.db.collection<Player>('players').find({}).toArray()
-      : this.filePlayers;
-
-    for (const p of allPlayers) {
-      let needsSave = false;
-      const updates: any = {};
-      if (!p.gioId) {
-        updates.gioId = await this.generateUniqueGioId();
-        p.gioId = updates.gioId;
-        needsSave = true;
-      }
-      if (!p.referralCode) {
-        updates.referralCode = await this.generateUniqueReferralCode();
-        p.referralCode = updates.referralCode;
-        needsSave = true;
-      }
-      if (needsSave && this.isMongoConnected && this.db) {
-        await this.db.collection('players').updateOne({ id: p.id }, { $set: updates });
+    // 3. Recalculate stats for all affected players and ensure gioId & referralCode
+    for (const pid of affectedPlayerIds) {
+      await this.recalculatePlayerStats(pid);
+      const p = await this.getPlayerById(pid);
+      if (p) {
+        let needsSave = false;
+        const updates: any = {};
+        if (!p.gioId) {
+          updates.gioId = await this.generateUniqueGioId();
+          p.gioId = updates.gioId;
+          needsSave = true;
+        }
+        if (!p.referralCode) {
+          updates.referralCode = await this.generateUniqueReferralCode();
+          p.referralCode = updates.referralCode;
+          needsSave = true;
+        }
+        if (needsSave) {
+          await this.updatePlayer(p.id, updates);
+        }
       }
     }
 
-    // Save updated registrations/bookings/players if on file mode
     if (!this.isMongoConnected) {
       this.saveRegistrationsToFile();
       this.saveBookingsToFile();
       this.savePlayersToFile();
     }
 
-    console.log(`✅ Player CRM historical backfill complete. Synced ${synced} new player profiles.`);
-    return { syncedPlayersCount: synced };
+    const report: HistoricalReconciliationReport = {
+      bookingsProcessed: bks.length,
+      bookingsLinked,
+      bookingsCreatedProfiles,
+      bookingsSkipped,
+      tournamentsProcessed: regs.length,
+      tournamentsLinked,
+      tournamentsCreatedProfiles,
+      tournamentsSkipped,
+      ambiguousRecordsFlagged,
+      totalSyncedPlayers: affectedPlayerIds.size,
+    };
+
+    console.log(`✅ Historical reconciliation complete:`, report);
+    return report;
+  }
+
+  async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {
+    console.log('🔄 Performing Player CRM historical backfill check...');
+    const report = await this.reconcileHistoricalData();
+    return { syncedPlayersCount: report.totalSyncedPlayers };
   }
 }
 

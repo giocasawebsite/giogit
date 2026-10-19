@@ -266,16 +266,59 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                   <Phone className="w-3.5 h-3.5 text-brand-pink" />
                   {player.phone}
                 </span>
-                {player.email && (
+                {player.email ? (
                   <span className="flex items-center gap-1.5 text-white">
                     <Mail className="w-3.5 h-3.5 text-brand-orange" />
                     {player.email}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-brand-muted italic">
+                    <Mail className="w-3.5 h-3.5 opacity-50" />
+                    Email: Not provided
                   </span>
                 )}
                 <span className="flex items-center gap-1.5 text-brand-blue">
                   <Gamepad2 className="w-3.5 h-3.5" />
                   {player.favoriteGame} {player.favoritePlatform ? `(${player.favoritePlatform.toUpperCase()})` : ''}
                 </span>
+              </div>
+
+              {/* Acquisition Touchpoints & Activity Dates */}
+              <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-brand-subtle text-[11px]">Sources:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.from(new Set(player.sources && player.sources.length > 0 ? player.sources : [player.source || 'player_registration'])).map((src) => {
+                      if (src === 'gaming_booking') {
+                        return (
+                          <span key={src} className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-[10px] text-blue-400 font-medium">
+                            🎮 Booking
+                          </span>
+                        );
+                      }
+                      if (src === 'tournament_registration') {
+                        return (
+                          <span key={src} className="px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] text-orange-400 font-medium">
+                            🏆 Tournament
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={src} className="px-2 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-[10px] text-pink-400 font-medium">
+                          👤 Direct Signup
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+                <span className="text-brand-subtle">•</span>
+                <div className="text-brand-subtle text-[11px]">
+                  First seen: <strong className="text-white">{player.createdAt ? new Date(player.createdAt).toLocaleDateString('en-IN') : 'Not recorded'}</strong>
+                </div>
+                <span className="text-brand-subtle">•</span>
+                <div className="text-brand-subtle text-[11px]">
+                  Last active: <strong className="text-white">{player.stats.lastActivityDate ? new Date(player.stats.lastActivityDate).toLocaleDateString('en-IN') : player.stats.lastVisitDate || 'Not recorded'}</strong>
+                </div>
               </div>
 
               {/* Tags */}
@@ -348,13 +391,14 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
             <span className="font-serif text-3xl font-bold text-white">
               {player.stats.bookingsCount || 0}
             </span>
-            <span className="text-xs font-mono text-brand-blue font-semibold">
-              {(player.stats.totalHoursPlayed || 0).toFixed(1)} hrs
+            <span className="text-xs font-mono text-emerald-400 font-semibold">
+              {player.stats.completedBookingsCount ?? 0} completed
             </span>
           </div>
-          <span className="text-[11px] text-brand-subtle block">
-            Last visit: {player.stats.lastVisitDate || 'Never'}
-          </span>
+          <div className="flex items-center justify-between text-[11px] text-brand-subtle">
+            <span>Hours: <strong className="text-white">{(player.stats.totalHoursPlayed || 0).toFixed(1)} hrs</strong></span>
+            <span>Last: {player.stats.lastVisitDate || 'Never'}</span>
+          </div>
         </div>
 
         {/* Metric 3: Total Spend */}
@@ -587,49 +631,133 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
       )}
 
       {/* Tab 3: Gaming Bookings */}
-      {activeTab === 'bookings' && (
-        <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4">
-          <h3 className="font-serif text-xl font-bold text-white">Gaming Session History</h3>
-          {bookings.length === 0 ? (
-            <div className="py-12 text-center text-brand-subtle font-mono text-xs">
-              No gaming reservations on record for this phone number.
+      {activeTab === 'bookings' && (() => {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const upcomingBookings = bookings.filter(
+          (b) => (b.date ? b.date >= todayIso : true) && b.status !== 'completed' && b.status !== 'cancelled'
+        );
+        const pastBookings = bookings.filter(
+          (b) => (b.date ? b.date < todayIso : false) || b.status === 'completed' || b.status === 'cancelled'
+        );
+
+        return (
+          <div className="space-y-6">
+            {/* Upcoming Bookings */}
+            <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-white">Upcoming Gaming Bookings</h3>
+                  <p className="text-xs text-brand-subtle">
+                    Scheduled reservations confirmed or pending arrival.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 font-mono text-xs font-bold text-blue-400">
+                  {upcomingBookings.length} Upcoming
+                </span>
+              </div>
+
+              {upcomingBookings.length === 0 ? (
+                <div className="py-8 text-center text-brand-subtle font-mono text-xs">
+                  No upcoming gaming slots scheduled.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
+                      <tr>
+                        <th className="py-3 px-3">Booking ID</th>
+                        <th className="py-3 px-3">Station / Resource</th>
+                        <th className="py-3 px-3">Date & Time</th>
+                        <th className="py-3 px-3">Duration</th>
+                        <th className="py-3 px-3">Amount</th>
+                        <th className="py-3 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border/40 text-white">
+                      {upcomingBookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-brand-surfaceElevated/50">
+                          <td className="py-3 px-3 font-bold text-brand-pink">{b.id}</td>
+                          <td className="py-3 px-3 font-sans font-medium">{b.resourceName || b.category?.toUpperCase() || 'Station'}</td>
+                          <td className="py-3 px-3 text-brand-subtle">
+                            {b.date} • {b.startTime}{b.endTime ? ` - ${b.endTime}` : ''}
+                          </td>
+                          <td className="py-3 px-3">{b.durationMinutes} mins</td>
+                          <td className="py-3 px-3 text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/40 text-[10px] text-blue-400 uppercase font-bold">
+                              {b.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
-                  <tr>
-                    <th className="py-3 px-3">Booking ID</th>
-                    <th className="py-3 px-3">Station / Resource</th>
-                    <th className="py-3 px-3">Date & Time</th>
-                    <th className="py-3 px-3">Duration</th>
-                    <th className="py-3 px-3">Amount</th>
-                    <th className="py-3 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-border/40 text-white">
-                  {bookings.map((b) => (
-                    <tr key={b.id} className="hover:bg-brand-surfaceElevated/50">
-                      <td className="py-3 px-3 font-bold text-brand-pink">{b.id}</td>
-                      <td className="py-3 px-3">{b.resourceName}</td>
-                      <td className="py-3 px-3 text-brand-subtle">
-                        {b.date} • {b.startTime} - {b.endTime}
-                      </td>
-                      <td className="py-3 px-3">{b.durationMinutes} mins</td>
-                      <td className="py-3 px-3 text-emerald-400 font-bold">₹{b.totalAmount}</td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded-full bg-brand-surfaceElevated border border-brand-border text-[10px] text-brand-blue uppercase">
-                          {b.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Past & Completed Bookings */}
+            <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-white">Past & Completed Sessions</h3>
+                  <p className="text-xs text-brand-subtle">
+                    Archived play sessions, completed gaming hours, or cancellations.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-brand-surfaceElevated border border-brand-border font-mono text-xs font-bold text-brand-subtle">
+                  {pastBookings.length} Past Records
+                </span>
+              </div>
+
+              {pastBookings.length === 0 ? (
+                <div className="py-8 text-center text-brand-subtle font-mono text-xs">
+                  No past gaming sessions recorded.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
+                      <tr>
+                        <th className="py-3 px-3">Booking ID</th>
+                        <th className="py-3 px-3">Station / Resource</th>
+                        <th className="py-3 px-3">Date & Time</th>
+                        <th className="py-3 px-3">Duration</th>
+                        <th className="py-3 px-3">Amount</th>
+                        <th className="py-3 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border/40 text-white">
+                      {pastBookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-brand-surfaceElevated/50">
+                          <td className="py-3 px-3 font-bold text-brand-pink">{b.id}</td>
+                          <td className="py-3 px-3 font-sans font-medium">{b.resourceName || b.category?.toUpperCase() || 'Station'}</td>
+                          <td className="py-3 px-3 text-brand-subtle">
+                            {b.date} • {b.startTime}{b.endTime ? ` - ${b.endTime}` : ''}
+                          </td>
+                          <td className="py-3 px-3">{b.durationMinutes} mins</td>
+                          <td className="py-3 px-3 text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</td>
+                          <td className="py-3 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
+                              b.status === 'completed'
+                                ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                                : b.status === 'cancelled'
+                                ? 'bg-red-500/15 border border-red-500/40 text-red-400'
+                                : 'bg-brand-surfaceElevated border border-brand-border text-brand-subtle'
+                            }`}>
+                              {b.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Tab 4: Staff Notes & Reminders */}
       {activeTab === 'notes' && (

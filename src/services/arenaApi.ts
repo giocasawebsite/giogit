@@ -5,7 +5,9 @@ import {
   HallOfFameEntry,
 } from '../types';
 
-const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '') + '/api';
+import { getApiBaseUrl } from './apiConfig';
+
+const API_BASE = getApiBaseUrl();
 
 export interface RegisterTournamentPayload {
   participantName: string;
