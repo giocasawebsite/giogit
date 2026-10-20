@@ -9,7 +9,6 @@ export const HeroScrollCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [images, setImages] = useState<HTMLImageElement[]>([]);
-  const [imagesLoaded, setImagesLoaded] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isBlastJerk, setIsBlastJerk] = useState(false);
 
@@ -53,7 +52,6 @@ export const HeroScrollCanvas: React.FC = () => {
         img.decode()
           .then(() => {
             loadedCount++;
-            setImagesLoaded(loadedCount);
             if (loadedCount >= 10 && !isReady) {
               setIsReady(true);
             }
@@ -61,7 +59,6 @@ export const HeroScrollCanvas: React.FC = () => {
           .catch(() => {
             img.onload = () => {
               loadedCount++;
-              setImagesLoaded(loadedCount);
               if (loadedCount >= 10 && !isReady) {
                 setIsReady(true);
               }
@@ -70,7 +67,6 @@ export const HeroScrollCanvas: React.FC = () => {
       } else {
         img.onload = () => {
           loadedCount++;
-          setImagesLoaded(loadedCount);
           if (loadedCount >= 10 && !isReady) {
             setIsReady(true);
           }
@@ -79,7 +75,6 @@ export const HeroScrollCanvas: React.FC = () => {
 
       img.onerror = () => {
         loadedCount++;
-        setImagesLoaded(loadedCount);
       };
 
       loadedImages.push(img);
@@ -235,13 +230,6 @@ export const HeroScrollCanvas: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-brand-dark/40 pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(18,16,14,0.6)_100%)] pointer-events-none" />
 
-        {/* Loading Progress Indicator (only before initial frames load) */}
-        {!isReady && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 bg-brand-dark/95 backdrop-blur-xl border border-brand-border px-6 py-4 rounded-2xl flex items-center gap-3 text-xs font-mono text-brand-gold shadow-2xl">
-            <div className="w-4 h-4 border-2 border-brand-terracotta border-t-transparent rounded-full animate-spin" />
-            <span>Loading 4K Cinema Sequence ({Math.round((imagesLoaded / TOTAL_FRAMES) * 100)}%)...</span>
-          </div>
-        )}
 
         {/* HERO BRANDING ONLY: Sized and aligned precisely inside the TV screen display */}
         <motion.div
