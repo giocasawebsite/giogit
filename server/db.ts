@@ -155,6 +155,8 @@ class DatabaseService {
   private client: MongoClient | null = null;
   private db: Db | null = null;
   private isMongoConnected = false;
+  private isInitializing = true;
+  private initError: string | null = null;
   private mutexLock = new Map<string, Promise<any>>();
 
   // Fallback in-memory and file store
@@ -189,142 +191,243 @@ class DatabaseService {
   private cachedAdminPasscode: string | null = null;
 
   async init(): Promise<void> {
-    // Ensure data directory exists
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    // Load file-backed stores
-    this.loadFileStores();
-
-    // Try connecting to MongoDB Atlas if URI is provided
-    if (config.mongoUri) {
-      try {
-        console.log('🔄 Connecting to MongoDB Atlas...');
-        this.client = new MongoClient(config.mongoUri, {
-          serverSelectionTimeoutMS: 5000,
-        });
-        await this.client.connect();
-        this.db = this.client.db(config.dbName);
-        this.isMongoConnected = true;
-        console.log(`✅ Successfully connected to MongoDB Atlas (DB: ${config.dbName})`);
-
-        // Create indexes
-        const bookingsCol = this.db.collection<Booking>('bookings');
-        await bookingsCol.createIndex({ id: 1 }, { unique: true });
-        await bookingsCol.createIndex({ resourceId: 1, date: 1, startTime: 1, endTime: 1 });
-        await bookingsCol.createIndex({ phone: 1 });
-        await bookingsCol.createIndex({ status: 1 });
-
-        const resourcesCol = this.db.collection<GamingResource>('resources');
-        await resourcesCol.createIndex({ id: 1 }, { unique: true });
-
-        // Seed or sync active resources
-        for (const res of INITIAL_RESOURCES) {
-          await resourcesCol.updateOne(
-            { id: res.id },
-            { $set: res },
-            { upsert: true }
-          );
-        }
-        const validIds = INITIAL_RESOURCES.map((r) => r.id);
-        await resourcesCol.updateMany(
-          { id: { $nin: validIds } },
-          { $set: { active: false } }
-        );
-        console.log(`🌱 Synced ${INITIAL_RESOURCES.length} active gaming resources in MongoDB Atlas.`);
-
-        // Tournaments collection & indexes
-        const tournamentsCol = this.db.collection<Tournament>('tournaments');
-        await tournamentsCol.createIndex({ id: 1 }, { unique: true });
-        await tournamentsCol.createIndex({ slug: 1 }, { unique: true });
-        await tournamentsCol.createIndex({ status: 1 });
-        await tournamentsCol.createIndex({ isFeatured: 1 });
-
-        const countTourn = await tournamentsCol.countDocuments();
-        if (countTourn === 0) {
-          await tournamentsCol.insertMany(INITIAL_TOURNAMENTS);
-          console.log(`🌱 Seeded ${INITIAL_TOURNAMENTS.length} initial tournaments in MongoDB Atlas.`);
-        }
-
-        // Tournament registrations collection & indexes
-        const regCol = this.db.collection<TournamentRegistration>('tournament_registrations');
-        await regCol.createIndex({ id: 1 }, { unique: true });
-        await regCol.createIndex({ registrationReference: 1 }, { unique: true });
-        await regCol.createIndex({ tournamentId: 1 });
-        await regCol.createIndex({ accessToken: 1 });
-        await regCol.createIndex({ tournamentId: 1, phone: 1 });
-
-        // Tournament results collection & indexes
-        const resultsCol = this.db.collection<TournamentResult>('tournament_results');
-        await resultsCol.createIndex({ id: 1 }, { unique: true });
-        await resultsCol.createIndex({ tournamentId: 1 }, { unique: true });
-        await resultsCol.createIndex({ tournamentSlug: 1 });
-
-        const countResults = await resultsCol.countDocuments();
-        if (countResults === 0) {
-          await resultsCol.insertMany(INITIAL_TOURNAMENT_RESULTS);
-          console.log(`🌱 Seeded ${INITIAL_TOURNAMENT_RESULTS.length} tournament results in MongoDB Atlas.`);
-        }
-
-        // Hall of Fame collection & indexes
-        const hofCol = this.db.collection<HallOfFameEntry>('hall_of_fame');
-        await hofCol.createIndex({ id: 1 }, { unique: true });
-        await hofCol.createIndex({ isPublished: 1 });
-        await hofCol.createIndex({ order: 1 });
-
-        const countHof = await hofCol.countDocuments();
-        if (countHof === 0) {
-          await hofCol.insertMany(INITIAL_HALL_OF_FAME);
-          console.log(`🌱 Seeded ${INITIAL_HALL_OF_FAME.length} Hall of Fame champions in MongoDB Atlas.`);
-        }
-
-        // Player CRM collection & indexes
-        const playersCol = this.db.collection<Player>('players');
-        await playersCol.createIndex({ id: 1 }, { unique: true });
-        await playersCol.createIndex({ gioId: 1 }, { unique: true, sparse: true });
-        await playersCol.createIndex({ referralCode: 1 }, { unique: true, sparse: true });
-        await playersCol.createIndex({ normalizedPhone: 1 });
-        await playersCol.createIndex({ status: 1 });
-        await playersCol.createIndex({ membershipTier: 1 });
-        await playersCol.createIndex({ gamerTag: 1 });
-
-        const loyaltyCol = this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger');
-        await loyaltyCol.createIndex({ id: 1 }, { unique: true });
-        await loyaltyCol.createIndex({ playerId: 1, createdAt: -1 });
-        await loyaltyCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
-
-        const referralsCol = this.db.collection<Referral>('referrals');
-        await referralsCol.createIndex({ id: 1 }, { unique: true });
-        await referralsCol.createIndex({ referrerPlayerId: 1 });
-        await referralsCol.createIndex({ referredPlayerId: 1 });
-        await referralsCol.createIndex({ status: 1 });
-
-        const remindersCol = this.db.collection<AdminReminder>('crm_reminders');
-        await remindersCol.createIndex({ id: 1 }, { unique: true });
-        await remindersCol.createIndex({ status: 1, dueDate: 1 });
-
-        const eventsCol = this.db.collection<AutomationEvent>('automation_events');
-        await eventsCol.createIndex({ id: 1 }, { unique: true });
-        await eventsCol.createIndex({ status: 1 });
-        await eventsCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
-
-        const commsCol = this.db.collection<CommunicationLog>('communication_logs');
-        await commsCol.createIndex({ id: 1 }, { unique: true });
-        await commsCol.createIndex({ playerId: 1, createdAt: -1 });
-      } catch (err) {
-        console.warn('⚠️ MongoDB Atlas connection failed or timed out. Falling back to persistent disk store.', err);
-        this.isMongoConnected = false;
-      }
-    } else {
-      console.log('ℹ️ MONGODB_URI not provided. Operating in robust local persistent file-store mode.');
-    }
-
-    // Auto-backfill existing registrations and bookings into player profiles
+    this.isInitializing = true;
     try {
-      await this.backfillHistoricalData();
-    } catch (bfErr) {
-      console.warn('Warning during startup player backfill:', bfErr);
+      // Ensure data directory exists
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+
+      // Load file-backed stores synchronously
+      this.loadFileStores();
+
+      // Try connecting to MongoDB Atlas if URI is provided
+      if (config.mongoUri) {
+        try {
+          console.log('🔄 Connecting to MongoDB Atlas...');
+          this.client = new MongoClient(config.mongoUri, {
+            serverSelectionTimeoutMS: 5000,
+            connectTimeoutMS: 5000,
+            socketTimeoutMS: 10000,
+          });
+
+          this.client.on('close', () => {
+            console.warn('⚠️ MongoDB connection closed.');
+            this.isMongoConnected = false;
+          });
+          this.client.on('error', (err) => {
+            console.error('⚠️ MongoDB client error:', err);
+            this.isMongoConnected = false;
+          });
+
+          await this.client.connect();
+          this.db = this.client.db(config.dbName);
+          this.isMongoConnected = true;
+          this.initError = null;
+          console.log(`✅ Successfully connected to MongoDB Atlas (DB: ${config.dbName})`);
+
+          // Run indexing and initial seed in background so HTTP port and health check are ready immediately
+          this.ensureIndexesAndSeed().catch((idxErr) => {
+            console.warn('Warning during background index/seed sync:', idxErr);
+          });
+        } catch (err: any) {
+          console.warn('⚠️ MongoDB Atlas connection failed or timed out. Operating in persistent disk store mode.', err);
+          this.isMongoConnected = false;
+          this.initError = err?.message || 'MongoDB connection failed';
+        }
+      } else {
+        console.log('ℹ️ MONGODB_URI not provided. Operating in robust local persistent file-store mode.');
+      }
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  /**
+   * Health and readiness inspector for Uptime monitors, Docker, and Render deployment manager
+   */
+  async getHealthStatus(): Promise<{
+    healthy: boolean;
+    status: 'ok' | 'initializing' | 'error';
+    database: 'connected' | 'connecting' | 'fallback_disk' | 'disconnected';
+    error?: string;
+    details?: {
+      mongoConnected: boolean;
+      dbName: string;
+      pingMs?: number;
+    };
+  }> {
+    if (this.isInitializing) {
+      return {
+        healthy: false,
+        status: 'initializing',
+        database: 'connecting',
+      };
+    }
+
+    if (config.mongoUri) {
+      if (!this.isMongoConnected || !this.db) {
+        return {
+          healthy: false,
+          status: 'error',
+          database: 'disconnected',
+          error: this.initError || 'MongoDB Atlas is not connected',
+        };
+      }
+
+      try {
+        const start = Date.now();
+        await this.db.command({ ping: 1 });
+        const pingMs = Date.now() - start;
+        return {
+          healthy: true,
+          status: 'ok',
+          database: 'connected',
+          details: {
+            mongoConnected: true,
+            dbName: config.dbName,
+            pingMs,
+          },
+        };
+      } catch (err: any) {
+        this.isMongoConnected = false;
+        return {
+          healthy: false,
+          status: 'error',
+          database: 'disconnected',
+          error: err?.message || 'MongoDB ping command failed',
+        };
+      }
+    }
+
+    return {
+      healthy: true,
+      status: 'ok',
+      database: 'fallback_disk',
+    };
+  }
+
+  async close(): Promise<void> {
+    if (this.client) {
+      try {
+        await this.client.close();
+      } catch (err) {
+        console.warn('Error closing MongoDB client:', err);
+      }
+      this.isMongoConnected = false;
+    }
+  }
+
+  private async ensureIndexesAndSeed(): Promise<void> {
+    if (!this.isMongoConnected || !this.db) return;
+    try {
+      const db = this.db;
+      // Parallelize index creations across collections for minimal startup lag
+      await Promise.allSettled([
+        (async () => {
+          const bookingsCol = db.collection<Booking>('bookings');
+          await bookingsCol.createIndex({ id: 1 }, { unique: true });
+          await bookingsCol.createIndex({ resourceId: 1, date: 1, startTime: 1, endTime: 1 });
+          await bookingsCol.createIndex({ phone: 1 });
+          await bookingsCol.createIndex({ status: 1 });
+        })(),
+        (async () => {
+          const resourcesCol = db.collection<GamingResource>('resources');
+          await resourcesCol.createIndex({ id: 1 }, { unique: true });
+          for (const res of INITIAL_RESOURCES) {
+            await resourcesCol.updateOne({ id: res.id }, { $set: res }, { upsert: true });
+          }
+          const validIds = INITIAL_RESOURCES.map((r) => r.id);
+          await resourcesCol.updateMany({ id: { $nin: validIds } }, { $set: { active: false } });
+        })(),
+        (async () => {
+          const tournamentsCol = db.collection<Tournament>('tournaments');
+          await tournamentsCol.createIndex({ id: 1 }, { unique: true });
+          await tournamentsCol.createIndex({ slug: 1 }, { unique: true });
+          await tournamentsCol.createIndex({ status: 1 });
+          await tournamentsCol.createIndex({ isFeatured: 1 });
+          const countTourn = await tournamentsCol.countDocuments();
+          if (countTourn === 0) {
+            await tournamentsCol.insertMany(INITIAL_TOURNAMENTS);
+          }
+        })(),
+        (async () => {
+          const regCol = db.collection<TournamentRegistration>('tournament_registrations');
+          await regCol.createIndex({ id: 1 }, { unique: true });
+          await regCol.createIndex({ registrationReference: 1 }, { unique: true });
+          await regCol.createIndex({ tournamentId: 1 });
+          await regCol.createIndex({ accessToken: 1 });
+          await regCol.createIndex({ tournamentId: 1, phone: 1 });
+        })(),
+        (async () => {
+          const resultsCol = db.collection<TournamentResult>('tournament_results');
+          await resultsCol.createIndex({ id: 1 }, { unique: true });
+          await resultsCol.createIndex({ tournamentId: 1 }, { unique: true });
+          await resultsCol.createIndex({ tournamentSlug: 1 });
+          const countResults = await resultsCol.countDocuments();
+          if (countResults === 0) {
+            await resultsCol.insertMany(INITIAL_TOURNAMENT_RESULTS);
+          }
+        })(),
+        (async () => {
+          const hofCol = db.collection<HallOfFameEntry>('hall_of_fame');
+          await hofCol.createIndex({ id: 1 }, { unique: true });
+          await hofCol.createIndex({ isPublished: 1 });
+          await hofCol.createIndex({ order: 1 });
+          const countHof = await hofCol.countDocuments();
+          if (countHof === 0) {
+            await hofCol.insertMany(INITIAL_HALL_OF_FAME);
+          }
+        })(),
+        (async () => {
+          const playersCol = db.collection<Player>('players');
+          await playersCol.createIndex({ id: 1 }, { unique: true });
+          await playersCol.createIndex({ gioId: 1 }, { unique: true, sparse: true });
+          await playersCol.createIndex({ referralCode: 1 }, { unique: true, sparse: true });
+          await playersCol.createIndex({ normalizedPhone: 1 });
+          await playersCol.createIndex({ status: 1 });
+          await playersCol.createIndex({ membershipTier: 1 });
+          await playersCol.createIndex({ gamerTag: 1 });
+        })(),
+        (async () => {
+          const loyaltyCol = db.collection<LoyaltyLedgerEntry>('loyalty_ledger');
+          await loyaltyCol.createIndex({ id: 1 }, { unique: true });
+          await loyaltyCol.createIndex({ playerId: 1, createdAt: -1 });
+          await loyaltyCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
+        })(),
+        (async () => {
+          const referralsCol = db.collection<Referral>('referrals');
+          await referralsCol.createIndex({ id: 1 }, { unique: true });
+          await referralsCol.createIndex({ referrerPlayerId: 1 });
+          await referralsCol.createIndex({ referredPlayerId: 1 });
+          await referralsCol.createIndex({ status: 1 });
+        })(),
+        (async () => {
+          const remindersCol = db.collection<AdminReminder>('crm_reminders');
+          await remindersCol.createIndex({ id: 1 }, { unique: true });
+          await remindersCol.createIndex({ status: 1, dueDate: 1 });
+        })(),
+        (async () => {
+          const eventsCol = db.collection<AutomationEvent>('automation_events');
+          await eventsCol.createIndex({ id: 1 }, { unique: true });
+          await eventsCol.createIndex({ status: 1 });
+          await eventsCol.createIndex({ idempotencyKey: 1 }, { unique: true, sparse: true });
+        })(),
+        (async () => {
+          const commsCol = db.collection<CommunicationLog>('communication_logs');
+          await commsCol.createIndex({ id: 1 }, { unique: true });
+          await commsCol.createIndex({ playerId: 1, createdAt: -1 });
+        })(),
+      ]);
+
+      // Auto-backfill existing registrations and bookings into player profiles
+      try {
+        await this.backfillHistoricalData();
+      } catch (bfErr) {
+        console.warn('Warning during startup player backfill:', bfErr);
+      }
+    } catch (err) {
+      console.warn('Warning during ensureIndexesAndSeed:', err);
     }
   }
 

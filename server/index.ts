@@ -55,15 +55,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'giocasa-gaming-booking',
-    timezone: config.timezone,
-    timestamp: new Date().toISOString(),
-  });
+// Process crash prevention guards
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception in server process:', err);
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled Rejection in server process at:', promise, 'reason:', reason);
+});
+
+// Health check endpoint (Available at both /api/health and /health)
+const healthHandler = async (_req: express.Request, res: express.Response) => {
+  try {
+    const health = await dbService.getHealthStatus();
+    const payload = {
+      status: health.status,
+      service: 'giocasa-gaming-booking',
+      database: health.database,
+      timezone: config.timezone,
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+      details: health.details,
+    };
+
+    if (health.healthy) {
+      return res.status(200).json(payload);
+    } else {
+      return res.status(503).json({
+        ...payload,
+        error: health.error || 'Service is initializing or database is unreachable',
+      });
+    }
+  } catch (err: any) {
+    return res.status(503).json({
+      status: 'error',
+      service: 'giocasa-gaming-booking',
+      database: 'disconnected',
+      error: err?.message || 'Health check error',
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+    });
+  }
+};
+
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // API Routes (More specific sub-routers mounted first)
 app.use('/api/booking', bookingsRouter);
@@ -102,22 +138,32 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
-// Start Server
-async function startServer() {
-  await dbService.init();
-
-  app.listen(config.port, () => {
-    console.log(`\n======================================================`);
-    console.log(`🎮 GioCasa Gaming Booking API running on port ${config.port}`);
-    console.log(`🌏 Timezone: ${config.timezone} (India Standard Time)`);
-    console.log(`🌐 API Base: http://localhost:${config.port}/api`);
-    console.log(`======================================================\n`);
-  });
-}
-
-startServer().catch((err) => {
-  console.error('Fatal Server Boot Error:', err);
-  process.exit(1);
+// Start Server - Bind immediately to process.env.PORT on 0.0.0.0 for instant gateway readiness
+const server = app.listen(config.port, '0.0.0.0', () => {
+  console.log(`\n======================================================`);
+  console.log(`🎮 GioCasa Gaming Booking API running on port ${config.port}`);
+  console.log(`🌏 Timezone: ${config.timezone} (India Standard Time)`);
+  console.log(`🌐 API Base: http://0.0.0.0:${config.port}/api`);
+  console.log(`❤️ Health:   http://0.0.0.0:${config.port}/api/health`);
+  console.log(`======================================================\n`);
 });
+
+// Initialize database immediately upon startup without blocking port listening
+dbService.init().catch((err) => {
+  console.error('Database Initialization Warning:', err);
+});
+
+// Graceful termination for Render / Linux deployments
+const shutdown = () => {
+  console.log('🛑 Received shutdown signal, closing server gracefully...');
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    await dbService.close();
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 export default app;
