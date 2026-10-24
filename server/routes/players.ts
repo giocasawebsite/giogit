@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { dbService } from '../db';
+import { playerRegistrationLimiter, publicLookupLimiter } from '../middleware/security';
 
 const router = Router();
 
 // 1. POST /api/players/lookup - Public lookup for GioCasa Player ID
-router.post('/lookup', async (req: Request, res: Response) => {
+router.post('/lookup', publicLookupLimiter, async (req: Request, res: Response) => {
   try {
     const { gioId } = req.body;
     if (!gioId || typeof gioId !== 'string') {
@@ -27,7 +28,7 @@ router.post('/lookup', async (req: Request, res: Response) => {
 });
 
 // 2. GET /api/players/lookup/:gioId - Public lookup GET convenience
-router.get('/lookup/:gioId', async (req: Request, res: Response) => {
+router.get('/lookup/:gioId', publicLookupLimiter, async (req: Request, res: Response) => {
   try {
     const { gioId } = req.params;
     const result = await dbService.lookupPlayerPublic(gioId);
@@ -46,7 +47,7 @@ router.get('/lookup/:gioId', async (req: Request, res: Response) => {
 });
 
 // 3. POST /api/players/verify - Verify identity with phone last 4 digits for autofill
-router.post('/verify', async (req: Request, res: Response) => {
+router.post('/verify', publicLookupLimiter, async (req: Request, res: Response) => {
   try {
     const { gioId, phoneLast4, fullPhone } = req.body;
     if (!gioId) {
@@ -72,8 +73,8 @@ router.post('/verify', async (req: Request, res: Response) => {
   }
 });
 
-// 4. POST /api/players/register - Public customer self-registration / one-time signup
-router.post('/register', async (req: Request, res: Response) => {
+// 4. POST /api/players/register - Public customer self-registration / one-time signup with rate limiting
+router.post('/register', playerRegistrationLimiter, async (req: Request, res: Response) => {
   try {
     const {
       name,

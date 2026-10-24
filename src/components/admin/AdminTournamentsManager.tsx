@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAdminLiveSync } from '../../hooks/useAdminLiveSync';
 import { Tournament, TournamentRegistration, TournamentResult, TournamentStatus, TournamentRegistrationStatus } from '../../types';
 import { arenaApi } from '../../services/arenaApi';
 import {
@@ -136,6 +137,37 @@ export const AdminTournamentsManager: React.FC<AdminTournamentsManagerProps> = (
       setLoading(false);
     }
   };
+
+  // 3-Second Live Auto-Sync for Tournaments List, Registrations & Results
+  const silentSyncTournaments = useCallback(async () => {
+    if (!passcode) return;
+    // Skip auto-sync when actively editing or creating a tournament to prevent form loss
+    if (view === 'new' || view === 'edit') return;
+
+    if (view === 'list') {
+      const res = await arenaApi.getAdminTournaments(passcode);
+      setTournaments(res.tournaments);
+      setMetrics(res.metrics);
+    } else if (view === 'registrations' && selectedTournamentId) {
+      const res = await arenaApi.getAdminRegistrations(passcode, selectedTournamentId, {
+        status: regStatusFilter,
+        search: regSearch,
+      });
+      setRegistrations(res.registrations);
+      setRegTournament(res.tournament);
+    } else if (view === 'results' && selectedTournamentId) {
+      const res = await arenaApi.getAdminResults(passcode, selectedTournamentId);
+      setResultsTournament(res.tournament);
+      setResultsData(res.results);
+    }
+  }, [passcode, view, selectedTournamentId, regStatusFilter, regSearch]);
+
+  useAdminLiveSync({
+    enabled: !!passcode,
+    intervalMs: 3000,
+    pauseWhenHidden: true,
+    onSync: silentSyncTournaments,
+  });
 
   useEffect(() => {
     loadTournaments();

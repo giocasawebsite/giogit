@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -445,7 +445,7 @@ router.delete('/hall-of-fame/:id', async (req: Request, res: Response) => {
 // ==========================================
 
 // POST /api/admin/uploads - Upload banner or winner portrait (base64 data URI or raw JSON)
-router.post('/uploads', async (req: Request, res: Response) => {
+router.post('/uploads', express.json({ limit: '6mb' }), async (req: Request, res: Response) => {
   try {
     const { imageBase64, filename } = req.body;
     if (!imageBase64 || typeof imageBase64 !== 'string') {

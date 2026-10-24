@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAdminLiveSync } from '../../../hooks/useAdminLiveSync';
 import { LoyaltyLedgerEntry } from '../../../types';
 import { playerCrmApi } from '../../../services/playerCrmApi';
 import { Sparkles, Award, ShieldCheck, RefreshCw, Clock, ArrowRight } from 'lucide-react';

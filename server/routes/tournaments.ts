@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { dbService } from '../db';
 import { getNowInKolkata } from '../utils/timezone';
 import { Tournament } from '../types';
+import { tournamentRegistrationLimiter } from '../middleware/security';
 
 const router = Router();
 
@@ -167,8 +168,8 @@ router.get('/:slug', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/tournaments/:slug/register - Submit tournament registration
-router.post('/:slug/register', async (req: Request, res: Response) => {
+// POST /api/tournaments/:slug/register - Submit tournament registration with rate limiting
+router.post('/:slug/register', tournamentRegistrationLimiter, async (req: Request, res: Response) => {
   try {
     const slug = req.params.slug;
     const { participantName, phone, email, inGameId, teamName, teammates, notes, rulesAccepted } = req.body;

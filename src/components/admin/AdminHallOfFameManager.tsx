@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAdminLiveSync } from '../../hooks/useAdminLiveSync';
 import { HallOfFameEntry } from '../../types';
 import { arenaApi } from '../../services/arenaApi';
 import {

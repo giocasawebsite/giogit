@@ -176,6 +176,34 @@ export const bookingApi = {
     return json.data;
   },
 
+  // Admin Authentication & Session APIs
+  async adminLogin(passcode: string): Promise<{ token: string; expiresAt: string }> {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Authentication failed');
+    return json.data;
+  },
+
+  async adminLogout(token: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/admin/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-passcode': token,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token }),
+      });
+    } catch {
+      // Ignore network errors on logout
+    }
+  },
+
   // Admin APIs (require passcode header)
   async getAdminOverview(passcode: string): Promise<AdminOverviewData> {
     const res = await fetch(`${API_BASE}/admin/overview`, {

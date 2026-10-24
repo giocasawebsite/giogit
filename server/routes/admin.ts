@@ -4,45 +4,192 @@ import { config } from '../config';
 import { getNowInKolkata, timeToMinutes, generateBookingId, minutesToTime, getOperatingHours } from '../utils/timezone';
 import { Booking, BookingStatus, PaymentStatus } from '../types';
 import { calculateBookingPrice } from '../utils/pricing';
+import {
+  adminLoginLimiter,
+  createAdminSession,
+  validateAdminSession,
+  invalidateAdminSession,
+  logSecurityEvent,
+  getSecurityAuditLogs,
+} from '../middleware/security';
 
 const router = Router();
 
-// Middleware: Verify Admin Passcode header
+// =========================================================================
+// PUBLIC ADMIN AUTHENTICATION ENDPOINTS (With Brute-force Rate Limiting)
+// =========================================================================
+
+// POST /api/admin/login - Authenticate admin with rate limiting & issue session token
+router.post('/login', adminLoginLimiter.middleware, async (req: Request, res: Response) => {
+  try {
+    const { passcode } = req.body || {};
+    const candidate = passcode || req.headers['x-admin-passcode'];
+
+    if (!candidate || typeof candidate !== 'string') {
+      return res.status(400).json({ success: false, error: 'Admin passcode is required.' });
+    }
+
+    const isValid = await dbService.verifyAdminPasscode(candidate);
+    if (!isValid) {
+      adminLoginLimiter.recordFailure(req);
+      logSecurityEvent('AUTH_FAILURE', req, 'Failed admin login attempt');
+      return res.status(401).json({ success: false, error: 'Invalid Admin Passcode.' });
+    }
+
+    adminLoginLimiter.reset(req);
+    const session = createAdminSession(req);
+    return res.json({
+      success: true,
+      message: 'Admin authentication successful.',
+      data: {
+        token: session.token,
+        expiresAt: session.expiresAt,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error in admin login:', err);
+    return res.status(500).json({ success: false, error: 'Login failed due to an internal error.' });
+  }
+});
+
+// POST /api/admin/verify - Verify admin session or raw passcode
+router.post('/verify', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const tokenOrPasscode = (
+      req.body?.passcode ||
+      bearerToken ||
+      req.headers['x-admin-token'] ||
+      req.headers['x-admin-passcode'] ||
+      req.query.passcode
+    ) as string;
+
+    if (!tokenOrPasscode) {
+      return res.status(401).json({ success: false, error: 'Admin credentials required.' });
+    }
+
+    // 1. Check if token is already an active session
+    if (validateAdminSession(tokenOrPasscode)) {
+      return res.json({ success: true, message: 'Passcode verified.' });
+    }
+
+    // 2. Check if it matches active passcode
+    const isValid = await dbService.verifyAdminPasscode(tokenOrPasscode);
+    if (isValid) {
+      adminLoginLimiter.reset(req);
+      const session = createAdminSession(req);
+      return res.json({
+        success: true,
+        message: 'Passcode verified.',
+        data: {
+          token: session.token,
+          expiresAt: session.expiresAt,
+        },
+      });
+    }
+
+    adminLoginLimiter.recordFailure(req);
+    logSecurityEvent('AUTH_FAILURE', req, 'Verification failed');
+    return res.status(401).json({ success: false, error: 'Invalid Admin Passcode.' });
+  } catch (err: any) {
+    console.error('Error in /api/admin/verify:', err);
+    return res.status(500).json({ success: false, error: 'Verification failed.' });
+  }
+});
+
+// POST /api/admin/logout - Revoke active admin session
+router.post('/logout', (req: Request, res: Response) => {
+  const authHeader = req.headers['authorization'];
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  const token = (
+    bearerToken ||
+    req.headers['x-admin-token'] ||
+    req.headers['x-admin-passcode'] ||
+    req.body?.token
+  ) as string;
+
+  if (token) {
+    invalidateAdminSession(token, req);
+  }
+  return res.json({ success: true, message: 'Admin logged out successfully.' });
+});
+
+// =========================================================================
+// AUTHENTICATION MIDDLEWARE FOR PROTECTED ADMIN ROUTES
+// =========================================================================
 export const requireAdminAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const passcode = req.headers['x-admin-passcode'] || req.query.passcode;
-    const currentPasscode = await dbService.getAdminPasscode();
-    if (!passcode || passcode !== currentPasscode) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: Invalid Admin Passcode.' });
+    const authHeader = req.headers['authorization'];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const passcode = (
+      bearerToken ||
+      req.headers['x-admin-token'] ||
+      req.headers['x-admin-passcode'] ||
+      req.query.passcode
+    ) as string;
+
+    if (!passcode) {
+      logSecurityEvent('AUTH_FAILURE', req, 'Missing admin credentials');
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin authentication required.' });
     }
-    next();
-  } catch (err) {
+
+    // 1. Check if token is an active session
+    if (validateAdminSession(passcode)) {
+      return next();
+    }
+
+    // 2. Check if tokenOrPasscode matches raw admin passcode
+    const isPasscodeValid = await dbService.verifyAdminPasscode(passcode);
+    if (isPasscodeValid) {
+      adminLoginLimiter.reset(req);
+      return next();
+    }
+
+    adminLoginLimiter.recordFailure(req);
+    logSecurityEvent('AUTH_FAILURE', req, 'Invalid passcode or expired session token');
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Invalid Admin Passcode or session expired.',
+      code: 'AUTH_INVALID',
+    });
+  } catch (err: any) {
+    console.error('Error in requireAdminAuth middleware:', err?.message || err);
     return res.status(500).json({ success: false, error: 'Internal authentication error.' });
   }
 };
 
 router.use(requireAdminAuth);
 
-// POST /api/admin/verify - Verify admin session
-router.post('/verify', (_req: Request, res: Response) => {
-  return res.json({ success: true, message: 'Passcode verified.' });
+// GET /api/admin/security-audit - Admin audit trail of recent security events
+router.get('/security-audit', (_req: Request, res: Response) => {
+  return res.json({
+    success: true,
+    data: getSecurityAuditLogs(),
+  });
 });
 
 // POST /api/admin/change-passcode - Update admin passcode
 router.post('/change-passcode', async (req: Request, res: Response) => {
   try {
-    const { currentPasscode, newPasscode } = req.body;
-    const activePasscode = await dbService.getAdminPasscode();
+    const { currentPasscode, newPasscode } = req.body || {};
 
-    if (!currentPasscode || currentPasscode !== activePasscode) {
+    if (!currentPasscode || typeof currentPasscode !== 'string') {
+      return res.status(400).json({ success: false, error: 'Current passcode is required.' });
+    }
+
+    const isCurrentValid = await dbService.verifyAdminPasscode(currentPasscode);
+    if (!isCurrentValid) {
+      logSecurityEvent('AUTH_FAILURE', req, 'Passcode change rejected: current passcode mismatch');
       return res.status(400).json({ success: false, error: 'Current passcode is incorrect.' });
     }
 
-    if (!newPasscode || typeof newPasscode !== 'string' || newPasscode.trim().length < 6) {
-      return res.status(400).json({ success: false, error: 'New passcode must be at least 6 characters long.' });
+    if (!newPasscode || typeof newPasscode !== 'string' || newPasscode.trim().length < 8) {
+      return res.status(400).json({ success: false, error: 'New passcode must be at least 8 characters long.' });
     }
 
     await dbService.setAdminPasscode(newPasscode.trim());
+    logSecurityEvent('PASSCODE_CHANGED', req, 'Admin passcode changed');
     return res.json({ success: true, message: 'Admin passcode updated successfully.' });
   } catch (err: any) {
     console.error('Error changing admin passcode:', err);

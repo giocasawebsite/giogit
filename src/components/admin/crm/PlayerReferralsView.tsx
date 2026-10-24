@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAdminLiveSync } from '../../../hooks/useAdminLiveSync';
 import { Referral } from '../../../types';
 import { playerCrmApi } from '../../../services/playerCrmApi';
 import { Gift, Trophy, CheckCircle2, Clock, XCircle, Search, RefreshCw, AlertCircle, ArrowRight, User } from 'lucide-react';

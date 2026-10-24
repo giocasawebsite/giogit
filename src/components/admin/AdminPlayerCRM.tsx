@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageRoute, RouteParams, Player, PlayerProfileDetails, PlayerSegment } from '../../types';
 import { playerCrmApi } from '../../services/playerCrmApi';
 import { PlayerDirectoryTable } from './crm/PlayerDirectoryTable';
@@ -9,6 +9,7 @@ import { PlayerLoyaltyView } from './crm/PlayerLoyaltyView';
 import { PlayerReferralsView } from './crm/PlayerReferralsView';
 import { AdminRemindersView } from './crm/AdminRemindersView';
 import { LoyaltyRulesModal } from './crm/LoyaltyRulesModal';
+import { useAdminLiveSync } from '../../hooks/useAdminLiveSync';
 import { Users, PieChart, Sparkles, RefreshCw, AlertCircle, Gift, Clock, Sliders } from 'lucide-react';
 
 interface AdminPlayerCRMProps {
@@ -101,6 +102,53 @@ export const AdminPlayerCRM: React.FC<AdminPlayerCRMProps> = ({
       setProfileLoading(false);
     }
   };
+
+  // 3-Second Live Auto-Sync for Player CRM Directory & Profile Views
+  const silentSyncCRM = useCallback(async () => {
+    if (!passcode) return;
+    // Don't auto-sync while any modal is open to avoid interrupting active user typing
+    if (createModalOpen || editModalOpen || rulesModalOpen) return;
+
+    if (currentSubTab === 'directory' || currentSubTab === 'segments') {
+      const data = await playerCrmApi.getPlayers(passcode, {
+        search: searchQuery,
+        segment: selectedSegment,
+        status: statusFilter as any,
+        tier: tierFilter as any,
+        sortBy: sortBy as any,
+        page,
+        limit: 15,
+      });
+
+      setPlayers(data.players);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+      setSegmentsSummary(data.segmentsSummary);
+    } else if (currentSubTab === 'profile' && selectedPlayerId) {
+      const data = await playerCrmApi.getPlayerProfile(passcode, selectedPlayerId);
+      setDetailedProfile(data);
+    }
+  }, [
+    passcode,
+    currentSubTab,
+    selectedPlayerId,
+    searchQuery,
+    selectedSegment,
+    statusFilter,
+    tierFilter,
+    sortBy,
+    page,
+    createModalOpen,
+    editModalOpen,
+    rulesModalOpen,
+  ]);
+
+  useAdminLiveSync({
+    enabled: !!passcode,
+    intervalMs: 3000,
+    pauseWhenHidden: true,
+    onSync: silentSyncCRM,
+  });
 
   useEffect(() => {
     if (currentSubTab === 'directory' || currentSubTab === 'segments') {

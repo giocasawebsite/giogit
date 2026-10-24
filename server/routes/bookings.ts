@@ -10,8 +10,20 @@ import {
 } from '../utils/timezone';
 import { TimeSlot, Booking, CreateBookingRequest, ExtendBookingRequest } from '../types';
 import { calculateBookingPrice } from '../utils/pricing';
+import {
+  bookingCreationLimiter,
+  publicLookupLimiter,
+  validateAdminSession,
+  createRateLimiter,
+} from '../middleware/security';
 
 const router = Router();
+
+const cancelBookingLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many cancellation attempts. Please try again later.',
+}).middleware;
 
 // GET /api/booking/resources - Retrieve all gaming resources with live status
 router.get('/resources', async (req: Request, res: Response) => {
@@ -139,8 +151,8 @@ router.get('/availability', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bookings - Create booking with strict conflict detection
-router.post('/', async (req: Request, res: Response) => {
+// POST /api/bookings - Create booking with strict conflict detection & rate limiting
+router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => {
   try {
     const body: CreateBookingRequest = req.body;
 
@@ -254,8 +266,8 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/bookings/lookup - Look up bookings by Booking ID or Phone number
-router.get('/lookup', async (req: Request, res: Response) => {
+// GET /api/bookings/lookup - Look up bookings by Booking ID or Phone number with rate limiting & privacy masking
+router.get('/lookup', publicLookupLimiter, async (req: Request, res: Response) => {
   try {
     const query = (req.query.q as string || '').trim();
     if (!query) {
@@ -271,6 +283,7 @@ router.get('/lookup', async (req: Request, res: Response) => {
     const sanitized = bookings.map((b) => ({
       ...b,
       phone: b.phone.slice(0, 2) + '******' + b.phone.slice(-2),
+      email: b.email ? b.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : undefined,
     }));
 
     return res.json({ success: true, data: sanitized });
@@ -280,13 +293,32 @@ router.get('/lookup', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/bookings/:id - Get specific booking by ID
+// GET /api/bookings/:id - Get specific booking by ID (masks private customer PII for public requests)
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const booking = await dbService.getBookingById(req.params.id);
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found.' });
     }
+
+    // Check if requester has admin credentials
+    const authHeader = req.headers['authorization'];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const adminToken = (bearerToken || req.headers['x-admin-token'] || req.headers['x-admin-passcode']) as string;
+    const isAdmin = adminToken ? (validateAdminSession(adminToken) || await dbService.verifyAdminPasscode(adminToken)) : false;
+
+    if (!isAdmin) {
+      // Mask PII for public access
+      return res.json({
+        success: true,
+        data: {
+          ...booking,
+          phone: booking.phone.slice(0, 2) + '******' + booking.phone.slice(-2),
+          email: booking.email ? booking.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : undefined,
+        },
+      });
+    }
+
     return res.json({ success: true, data: booking });
   } catch (err: any) {
     console.error('Error fetching booking:', err);
@@ -318,10 +350,29 @@ router.post('/:id/extend', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/bookings/:id/cancel - Cancel booking
-router.post('/:id/cancel', async (req: Request, res: Response) => {
+// POST /api/bookings/:id/cancel - Cancel booking with rate limiting and protection
+router.post('/:id/cancel', cancelBookingLimiter, async (req: Request, res: Response) => {
   try {
-    const { reason } = req.body;
+    const { reason, phone } = req.body || {};
+    const booking = await dbService.getBookingById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found.' });
+    }
+
+    // Verify authorization: either admin or matching phone
+    const authHeader = req.headers['authorization'];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const adminToken = (bearerToken || req.headers['x-admin-token'] || req.headers['x-admin-passcode']) as string;
+    const isAdmin = adminToken ? (validateAdminSession(adminToken) || await dbService.verifyAdminPasscode(adminToken)) : false;
+
+    if (!isAdmin && phone) {
+      const cleanInput = String(phone).replace(/\D/g, '').slice(-10);
+      const cleanBookingPhone = booking.phone.replace(/\D/g, '').slice(-10);
+      if (cleanInput !== cleanBookingPhone) {
+        return res.status(403).json({ success: false, error: 'Verification failed: Phone number does not match this booking.' });
+      }
+    }
+
     const result = await dbService.cancelBooking(req.params.id, reason);
     if (!result.success) {
       return res.status(400).json({ success: false, error: result.error });

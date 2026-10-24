@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageRoute, RouteParams } from '../types';
 import { bookingApi, AdminOverviewData, Booking, GamingResource } from '../services/bookingApi';
 import { AdminTournamentsManager } from '../components/admin/AdminTournamentsManager';
 import { AdminHallOfFameManager } from '../components/admin/AdminHallOfFameManager';
 import { AdminPlayerCRM } from '../components/admin/AdminPlayerCRM';
 import { getPricingDescription } from '../utils/pricing';
+import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -31,6 +32,7 @@ import {
   Trash,
   CheckSquare,
   Square,
+  LogOut,
 } from 'lucide-react';
 
 interface AdminPageProps {
@@ -48,8 +50,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   adminSubTab,
   adminPlayerId,
 }) => {
-  // Passcode authentication
-  const [passcode, setPasscode] = useState<string>(() => localStorage.getItem('giocasa_admin_passcode') || '');
+  // Passcode / Session Token authentication (sessionStorage ensures credentials expire when browser is closed)
+  const [passcode, setPasscode] = useState<string>(
+    () =>
+      sessionStorage.getItem('giocasa_admin_token') ||
+      sessionStorage.getItem('giocasa_admin_passcode') ||
+      localStorage.getItem('giocasa_admin_passcode') ||
+      ''
+  );
   const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -132,20 +140,80 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setBookings(bkData);
       setResources(resData);
       setIsAuthenticated(true);
-      localStorage.setItem('giocasa_admin_passcode', code);
+      sessionStorage.setItem('giocasa_admin_token', code);
+      // Clean up plaintext legacy storage
+      localStorage.removeItem('giocasa_admin_passcode');
     } catch (err: any) {
       setIsAuthenticated(false);
-      setAuthError('Invalid Admin Passcode. Default is GIOCASA2026 if not changed.');
+      setAuthError('Invalid Admin Passcode or session expired.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  // 3-Second Live Auto-Sync for Dashboard, Bookings, Resources & Overview
+  const silentSyncDashboard = useCallback(async () => {
+    if (!passcode || !isAuthenticated) return;
+    // Do not sync while user has the manual booking modal open to avoid interrupting entry
+    if (showManualModal) return;
+
+    try {
+      const [ovData, bkData, resData] = await Promise.all([
+        bookingApi.getAdminOverview(passcode),
+        bookingApi.getAdminBookings(passcode),
+        bookingApi.getResources(),
+      ]);
+
+      setOverview(ovData);
+      setBookings(bkData);
+      setResources(resData);
+    } catch (err: any) {
+      if (err?.message?.includes('401') || err?.message?.includes('Unauthorized')) {
+        setIsAuthenticated(false);
+        setAuthError('Session expired. Please log in again.');
+      }
+      throw err;
+    }
+  }, [passcode, isAuthenticated, showManualModal]);
+
+  const { status: liveSyncStatus, lastSyncedAt } = useAdminLiveSync({
+    enabled: isAuthenticated && !!passcode,
+    intervalMs: 3000,
+    pauseWhenHidden: true,
+    onSync: silentSyncDashboard,
+  });
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passcodeInput.trim()) return;
-    setPasscode(passcodeInput.trim());
-    loadDashboard(passcodeInput.trim());
+    const candidate = passcodeInput.trim();
+    if (!candidate) return;
+    setAuthError(null);
+    setLoading(true);
+
+    try {
+      // Authenticate with server to issue a secure 12-hour session token
+      const result = await bookingApi.adminLogin(candidate);
+      const token = result.token;
+      setPasscode(token);
+      sessionStorage.setItem('giocasa_admin_token', token);
+      localStorage.removeItem('giocasa_admin_passcode');
+      await loadDashboard(token);
+    } catch (err: any) {
+      setAuthError(err.message || 'Invalid Admin Passcode.');
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (passcode) {
+      await bookingApi.adminLogout(passcode);
+    }
+    sessionStorage.removeItem('giocasa_admin_token');
+    sessionStorage.removeItem('giocasa_admin_passcode');
+    localStorage.removeItem('giocasa_admin_passcode');
+    setPasscode('');
+    setIsAuthenticated(false);
+    setAuthError(null);
   };
 
   // Change Passcode Handler
@@ -158,8 +226,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setPasscodeModalError('Please enter your current passcode.');
       return;
     }
-    if (newPasscodeInput.trim().length < 6) {
-      setPasscodeModalError('New passcode must be at least 6 characters long.');
+    if (newPasscodeInput.trim().length < 8) {
+      setPasscodeModalError('New passcode must be at least 8 characters long for security.');
       return;
     }
     if (newPasscodeInput !== confirmPasscodeInput) {
@@ -170,8 +238,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     setPasscodeSubmitting(true);
     try {
       await bookingApi.changeAdminPasscode(currentPasscodeInput.trim(), newPasscodeInput.trim());
-      setPasscode(newPasscodeInput.trim());
-      localStorage.setItem('giocasa_admin_passcode', newPasscodeInput.trim());
+      // Re-login with new passcode to acquire fresh session token
+      const session = await bookingApi.adminLogin(newPasscodeInput.trim());
+      setPasscode(session.token);
+      sessionStorage.setItem('giocasa_admin_token', session.token);
+      localStorage.removeItem('giocasa_admin_passcode');
       setPasscodeModalSuccess('Admin passcode updated successfully!');
       setTimeout(() => {
         setShowPasscodeModal(false);
@@ -415,7 +486,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <input
               type="password"
               required
-              placeholder="Admin Passcode (Default: GIOCASA2026)"
+              placeholder="Enter Admin Passcode"
               value={passcodeInput}
               onChange={(e) => setPasscodeInput(e.target.value)}
               className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-4 py-3 text-center text-brand-cream font-mono text-sm tracking-widest focus:outline-none focus:border-brand-terracotta"
@@ -479,6 +550,48 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               <Key className="w-3.5 h-3.5 text-brand-gold" />
               <span>Passcode</span>
             </button>
+
+            <button
+              onClick={handleLogout}
+              className="px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-300 text-xs font-mono flex items-center gap-1.5 transition-colors"
+              title="Secure Admin Logout"
+            >
+              <LogOut className="w-3.5 h-3.5 text-red-400" />
+              <span>Logout</span>
+            </button>
+
+            {/* 3s Live-Sync Status Badge */}
+            <div
+              className={`px-3 py-2 rounded-xl border text-xs font-mono flex items-center gap-2 transition-all ${
+                liveSyncStatus === 'error'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  : liveSyncStatus === 'paused'
+                  ? 'bg-brand-surface border-brand-border text-brand-subtle'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              }`}
+              title={
+                lastSyncedAt
+                  ? `Live 3s Sync Active • Last updated: ${lastSyncedAt.toLocaleTimeString()}`
+                  : 'Syncing live data every 3 seconds'
+              }
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  liveSyncStatus === 'error'
+                    ? 'bg-amber-400 animate-ping'
+                    : liveSyncStatus === 'paused'
+                    ? 'bg-brand-subtle'
+                    : 'bg-emerald-400 animate-pulse'
+                }`}
+              />
+              <span className="hidden sm:inline">
+                {liveSyncStatus === 'error'
+                  ? 'Reconnecting'
+                  : liveSyncStatus === 'paused'
+                  ? 'Sync Paused'
+                  : 'Live (3s)'}
+              </span>
+            </div>
 
             <button
               onClick={() => loadDashboard(passcode)}

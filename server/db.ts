@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { config } from './config';
+import { hashPassword, verifyPassword, timingSafeCompare } from './middleware/security';
 import {
   Booking,
   GamingResource,
@@ -1136,9 +1137,9 @@ class DatabaseService {
     if (this.isMongoConnected && this.db) {
       try {
         const doc = await this.db.collection('settings').findOne({ key: 'admin_passcode' });
-        if (doc && doc.value) {
-          this.cachedAdminPasscode = doc.value;
-          return doc.value;
+        if (doc && (doc.hash || doc.value)) {
+          this.cachedAdminPasscode = doc.hash || doc.value;
+          return this.cachedAdminPasscode as string;
         }
       } catch (err) {
         console.error('Error fetching admin passcode from Mongo:', err);
@@ -1148,9 +1149,9 @@ class DatabaseService {
         if (fs.existsSync(this.settingsFilePath)) {
           const raw = fs.readFileSync(this.settingsFilePath, 'utf-8');
           const data = JSON.parse(raw);
-          if (data.admin_passcode) {
-            this.cachedAdminPasscode = data.admin_passcode;
-            return data.admin_passcode;
+          if (data.admin_passcode_hash || data.admin_passcode) {
+            this.cachedAdminPasscode = data.admin_passcode_hash || data.admin_passcode;
+            return this.cachedAdminPasscode as string;
           }
         }
       } catch (err) {
@@ -1162,14 +1163,38 @@ class DatabaseService {
     return config.adminPasscode;
   }
 
+  async verifyAdminPasscode(candidate: string): Promise<boolean> {
+    if (!candidate || typeof candidate !== 'string') return false;
+    const stored = await this.getAdminPasscode();
+    if (!stored) return false;
+
+    // Direct constant-time match (matches stored token or hash)
+    if (timingSafeCompare(candidate.trim(), stored.trim())) {
+      return true;
+    }
+
+    const isValid = verifyPassword(candidate, stored);
+    if (isValid && !stored.includes('$')) {
+      // Transparently upgrade legacy plaintext to secure scrypt hash
+      this.setAdminPasscode(candidate).catch((err) =>
+        console.warn('Notice: Background passcode hash upgrade notice:', err?.message || err)
+      );
+    }
+    return isValid;
+  }
+
   async setAdminPasscode(newPasscode: string): Promise<void> {
-    this.cachedAdminPasscode = newPasscode;
+    const hashed = hashPassword(newPasscode);
+    this.cachedAdminPasscode = hashed;
 
     if (this.isMongoConnected && this.db) {
       try {
         await this.db.collection('settings').updateOne(
           { key: 'admin_passcode' },
-          { $set: { value: newPasscode, updatedAt: new Date().toISOString() } },
+          {
+            $set: { hash: hashed, updatedAt: new Date().toISOString() },
+            $unset: { value: '' },
+          },
           { upsert: true }
         );
       } catch (err) {
@@ -1185,7 +1210,8 @@ class DatabaseService {
           data = JSON.parse(fs.readFileSync(this.settingsFilePath, 'utf-8'));
         } catch {}
       }
-      data.admin_passcode = newPasscode;
+      data.admin_passcode_hash = hashed;
+      delete data.admin_passcode; // Remove unhashed legacy field
       data.updatedAt = new Date().toISOString();
       fs.writeFileSync(this.settingsFilePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -2361,7 +2387,7 @@ class DatabaseService {
       iat: Date.now(),
       exp: Date.now() + 2 * 60 * 60 * 1000,
     };
-    const secret = config.adminPasscode || 'giocasa-secret';
+    const secret = config.sessionSecret || config.adminPasscode || 'giocasa-secure-signing-seed-v1';
     const sig = crypto.createHmac('sha256', secret).update(JSON.stringify(tokenPayload)).digest('hex');
     const token = `gio_vtok_${Buffer.from(JSON.stringify(tokenPayload)).toString('base64url')}.${sig.slice(0, 16)}`;
 
@@ -2392,7 +2418,7 @@ class DatabaseService {
       iat: Date.now(),
       exp: Date.now() + 15 * 60 * 1000, // 15 minutes validity
     };
-    const secret = config.adminPasscode || 'giocasa-secret';
+    const secret = config.sessionSecret || config.adminPasscode || 'giocasa-secure-signing-seed-v1';
     const payloadStr = JSON.stringify(payload);
     const sig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
     return `gio_rec_${Buffer.from(payloadStr).toString('base64url')}.${sig.slice(0, 24)}`;
@@ -2419,10 +2445,10 @@ class DatabaseService {
       const payloadStr = Buffer.from(encodedPayload, 'base64url').toString('utf8');
       const payload = JSON.parse(payloadStr);
 
-      const secret = config.adminPasscode || 'giocasa-secret';
+      const secret = config.sessionSecret || config.adminPasscode || 'giocasa-secure-signing-seed-v1';
       const expectedSig = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex').slice(0, 24);
 
-      if (receivedSig !== expectedSig) {
+      if (!timingSafeCompare(receivedSig, expectedSig)) {
         return { valid: false, error: 'Tampered or forged recovery session token.' };
       }
 

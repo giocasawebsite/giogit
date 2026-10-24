@@ -5,6 +5,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config';
 import { dbService } from './db';
+import {
+  securityHeaders,
+  enforceHttps,
+  sanitizeInputs,
+  globalApiLimiter,
+} from './middleware/security';
 import bookingsRouter from './routes/bookings';
 import adminRouter from './routes/admin';
 import tournamentsRouter from './routes/tournaments';
@@ -18,23 +24,57 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middlewares
+// Trust reverse proxy (Render, Cloudflare, AWS)
+app.set('trust proxy', 1);
+
+// 1. Enforce HTTPS in production
+app.use(enforceHttps);
+
+// 2. Strict Security Headers (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
+app.use(securityHeaders);
+
+// 3. Restrictive CORS configuration
+const allowedOrigins = [
+  'https://giocasa1.netlify.app',
+  ...(config.corsOrigin && config.corsOrigin !== '*'
+    ? config.corsOrigin.split(',').map((o) => o.trim())
+    : []),
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, server-to-server, curl)
+    // Allow non-browser callers (mobile apps, server-to-server, curl, tests)
     if (!origin) return callback(null, true);
-    if (config.corsOrigin && config.corsOrigin !== '*') {
-      const allowed = config.corsOrigin.split(',').map((o) => o.trim());
-      if (allowed.includes(origin)) return callback(null, true);
+
+    // Explicitly allowed origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Localhost in development
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
     }
-    // Reflect request origin for Netlify domains, previews, and localhost
-    return callback(null, true);
+
+    // Netlify deploy previews for giocasa1
+    if (/^https:\/\/[a-z0-9-]+--giocasa1\.netlify\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // Reject all other origins
+    return callback(new Error('CORS Not Allowed: Origin is not permitted.'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-passcode'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-passcode', 'x-admin-token'],
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+
+// 4. Request body size limit (1MB default for all general JSON payloads)
+app.use(express.json({ limit: '1mb' }));
+
+// 5. Sanitize inputs to prevent NoSQL operator injection ($ and .)
+app.use(sanitizeInputs);
+
+// 6. Global API rate limiter (protects against scraping/flooding; easily permits 3s admin auto-sync)
+app.use('/api', globalApiLimiter);
 
 // Static serving for user-uploaded tournament and champion images
 const uploadsPath = path.resolve(__dirname, '../public/assets/uploads');
@@ -107,8 +147,8 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/hall-of-fame', hallOfFameRouter);
 app.use('/api/admin/players', adminPlayersRouter);
-app.use('/api/admin', adminTournamentsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin', adminTournamentsRouter);
 app.use('/api/players', playersRouter);
 
 // 404 handler for unknown API routes
@@ -132,10 +172,17 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-// Global error handler
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Unhandled Server Error:', err);
-  res.status(500).json({ success: false, error: 'Internal Server Error' });
+// Global error handler (protects against stack trace & internal error leakage)
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err.message && err.message.startsWith('CORS Not Allowed')) {
+    return res.status(403).json({ success: false, error: 'Forbidden: Request origin is not permitted.' });
+  }
+  console.error(`[Server Error] ${req.method} ${req.path}:`, err?.message || err);
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    success: false,
+    error: isProd ? 'Internal Server Error' : (err?.message || 'Internal Server Error'),
+  });
 });
 
 // Start Server - Bind immediately to process.env.PORT on 0.0.0.0 for instant gateway readiness
