@@ -278,6 +278,16 @@ class PlayerCrmApiClient {
     return json.data;
   }
 
+  async checkGioIdAvailability(gioId: string): Promise<{ success: boolean; available: boolean; gioId: string; message: string; error?: string }> {
+    const clean = encodeURIComponent(gioId.trim());
+    const res = await fetch(`${getApiBaseUrl()}/players/check-id/${clean}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    const json = await res.json().catch(() => ({ success: false, available: false, error: 'Network error checking ID availability.' }));
+    return json;
+  }
+
   async publicRegisterPlayer(data: any) {
     const res = await fetch(`${getApiBaseUrl()}/players/register`, {
       method: 'POST',

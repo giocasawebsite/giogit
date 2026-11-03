@@ -18,6 +18,10 @@ import hallOfFameRouter from './routes/hallOfFame';
 import adminTournamentsRouter from './routes/adminTournaments';
 import adminPlayersRouter from './routes/adminPlayers';
 import playersRouter from './routes/players';
+import contactRouter from './routes/contact';
+import reservationsRouter from './routes/reservations';
+import adminReservationsRouter from './routes/adminReservations';
+import adminPushRouter from './routes/adminPush';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +87,10 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use('/assets/uploads', express.static(uploadsPath));
 
+// Static serving for public assets (sw.js, manifest.webmanifest, icons)
+const publicPath = path.resolve(__dirname, '../public');
+app.use(express.static(publicPath));
+
 // Request logging
 app.use((req, res, next) => {
   const start = Date.now();
@@ -142,10 +150,24 @@ app.get('/api/health', healthHandler);
 app.get('/health', healthHandler);
 
 // API Routes (More specific sub-routers mounted first)
+app.use('/api/contact', contactRouter);
+app.use('/api/contact-settings', contactRouter);
+app.get('/api/games', async (req, res) => {
+  try {
+    const category = req.query.category as string;
+    const games = await dbService.getGames({ category, isAvailable: true });
+    return res.json({ success: true, data: games });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to retrieve games.' });
+  }
+});
 app.use('/api/booking', bookingsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/reservations', reservationsRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/hall-of-fame', hallOfFameRouter);
+app.use('/api/admin/push', adminPushRouter);
+app.use('/api/admin/reservations', adminReservationsRouter);
 app.use('/api/admin/players', adminPlayersRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin', adminTournamentsRouter);

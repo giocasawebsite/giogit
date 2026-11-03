@@ -30,7 +30,7 @@ export const LocationMapCard: React.FC = () => {
                 Find Your Way to GioCasa
               </h3>
               <p className="text-brand-subtle text-sm font-light mt-2 leading-relaxed">
-                Located in the vibrant center of Ayodhya, with dedicated basement dining and first-floor gaming lounge.
+                Located in the vibrant center of Ayodhya, featuring our 1st Floor Dine-in Restaurant & Slate Pool Table, and Basement High-Octane Gaming Arena.
               </p>
             </div>
 

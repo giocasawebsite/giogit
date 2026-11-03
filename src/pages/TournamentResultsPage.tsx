@@ -135,6 +135,8 @@ export const TournamentResultsPage: React.FC<TournamentResultsPageProps> = ({ sl
                 <img
                   src={champion.photoUrl || tournament.bannerImage || '/assets/real/ps5_setup.png'}
                   alt={champion.participantName}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = '/assets/real/ps5_setup.png';

@@ -104,6 +104,8 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
                 <img
                   src={featuredChampion.photoUrl}
                   alt={featuredChampion.playerName}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = '/assets/real/ps5_setup.png';
@@ -285,6 +287,8 @@ export const HallOfFamePage: React.FC<HallOfFamePageProps> = ({ onNavigate }) =>
                     <img
                       src={winner.photoUrl}
                       alt={winner.playerName}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/assets/real/ps5_setup.png';

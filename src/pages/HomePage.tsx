@@ -84,36 +84,44 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         {/* Narrative Subtitle */}
         <p className="text-sm sm:text-base text-brand-subtle max-w-2xl mx-auto font-light leading-relaxed text-balance">
-          Ayodhya’s modern social destination. Hand-stretched wood-fired pizzas & cozy café downstairs at <strong className="text-brand-orange font-bold">The Hearth</strong>. High-octane PS5 4K gaming, slate 8-ball pool & foosball upstairs at <strong className="text-brand-blue font-bold">The Arena</strong>.
+          Ayodhya’s modern social destination. Wood-fired artisanal pizzas & slate pool on the <strong className="text-brand-orange font-bold">1st Floor</strong>. High-octane PS5 4K gaming & racing simulator in the <strong className="text-brand-blue font-bold">Basement Gaming Arena</strong>.
         </p>
 
         {/* Hero CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <button
-            onClick={() => openBookingModal('dining')}
-            className="w-full sm:w-auto py-3.5 px-8 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
+            onClick={() => onNavigate('book')}
+            className="w-full sm:w-auto py-3.5 px-8 rounded-full bg-brand-blue hover:bg-brand-blueHover text-brand-charcoalDeep font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-blue hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
           >
-            <CalendarDays className="w-4 h-4" />
-            <span>Book Table / Game Slot</span>
+            <Gamepad2 className="w-4 h-4" />
+            <span>Book Gaming Slots</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
           <button
+            onClick={() => openBookingModal('choice')}
+            className="w-full sm:w-auto py-3.5 px-8 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span>Reserve Table or Event</span>
+          </button>
+
+          <button
             onClick={openDrawer}
-            className="w-full sm:w-auto py-3.5 px-8 rounded-full bg-brand-surface hover:bg-brand-surfaceElevated text-white border border-brand-orange/60 hover:border-brand-orange font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl hover:shadow-luxury-orange"
+            className="w-full sm:w-auto py-3.5 px-6 rounded-full bg-brand-surface hover:bg-brand-surfaceElevated text-white border border-brand-orange/60 hover:border-brand-orange font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl hover:shadow-luxury-orange"
           >
             <ShoppingBag className="w-4 h-4 text-brand-orange" />
-            <span>Order Wood-Fired Pizza</span>
+            <span>Order Food</span>
           </button>
         </div>
       </section>
 
       {/* 3. "MORE THAN A CAFÉ" — DUAL FLOOR ARCHITECTURAL SPLIT */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <SectionHeader
           tag="Two Levels • One House"
           title="More Than A Café."
-          titleItalic="Dinner downstairs. Competition upstairs."
+          titleItalic="Dining on the 1st Floor. Gaming in the Basement."
           subtitle="GioCasa brings together slow, authentic wood-fired gastronomy and fast-paced gaming culture under one roof in Ayodhya."
           accentColor="pink"
         />
@@ -124,7 +132,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 3. WOOD-FIRED PIZZA HERO PRODUCT SHOWCASE */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/40 border-y border-brand-border/40">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/40 border-y border-brand-border/40 content-visibility-auto">
         <div className="max-w-7xl mx-auto space-y-12 sm:space-y-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <SectionHeader
@@ -180,7 +188,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 4. PIZZA DELIVERY CONVERSION HUB */}
-      <section className="py-20 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-20 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-brand-surfaceElevated via-brand-surface to-brand-dark p-8 sm:p-12 lg:p-16 border border-brand-border shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-8 space-y-5">
@@ -238,13 +246,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 5. GAMING LOUNGE SECTION */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <SectionHeader
-            tag="Level 1 • The Arena"
-            title="Upstairs, Things Get Competitive."
+            tag="Basement • Gaming Arena"
+            title="In the Basement, Things Get Competitive."
             titleItalic="Play loud. Stay late."
-            subtitle="Four dedicated entertainment zones crafted for casual friendly matches, high-stakes tournaments, and unhurried tabletop nights."
+            subtitle="High-octane gaming zone crafted for PS5 multiplayer, force-feedback racing simulation, and unhurried pool nights."
             accentColor="blue"
             align="left"
             className="max-w-2xl"
@@ -262,7 +270,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 6. "CHOOSE YOUR NIGHT" EXPERIENCE PLANNER */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/30 border-t border-brand-border/40">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/30 border-t border-brand-border/40 content-visibility-auto">
         <div className="max-w-7xl mx-auto space-y-12">
           <SectionHeader
             tag="Curated Social Itineraries"
@@ -277,7 +285,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 7. UPCOMING EVENTS & COMMUNITY TOURNAMENTS */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <SectionHeader
             tag="Calendar & Tournaments"
@@ -348,7 +356,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 8. BIRTHDAY / PRIVATE CELEBRATIONS CALCULATOR */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/40 border-y border-brand-border/40">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 bg-brand-surface/40 border-y border-brand-border/40 content-visibility-auto">
         <div className="max-w-7xl mx-auto space-y-12">
           <SectionHeader
             tag="Private Celebrations"
@@ -363,7 +371,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 9. SOCIAL PROOF & COMMUNITY STORIES */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <SectionHeader
           tag="Guest Impressions"
           title="Loved by Ayodhya"
@@ -407,7 +415,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 10. INSTAGRAM / SOCIAL GRID */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <SectionHeader
           tag="Visual Stories"
           title="Follow The House"
@@ -422,7 +430,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 11. LOCATION & VISIT MAP */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto content-visibility-auto">
         <LocationMapCard />
       </section>
 

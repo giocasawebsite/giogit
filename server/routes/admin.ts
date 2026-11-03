@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { dbService } from '../db';
 import { config } from '../config';
+import { pushNotificationService } from '../services/pushNotification';
 import { getNowInKolkata, timeToMinutes, generateBookingId, minutesToTime, getOperatingHours } from '../utils/timezone';
 import { Booking, BookingStatus, PaymentStatus } from '../types';
+import { isValidPhoneNumber } from '../utils/phone';
 import { calculateBookingPrice } from '../utils/pricing';
 import {
   adminLoginLimiter,
@@ -376,6 +378,13 @@ router.post('/bookings', async (req: Request, res: Response) => {
       return res.status(409).json({ success: false, error: result.error });
     }
 
+    // Database insert confirmed! Dispatch real-time admin push notification asynchronously
+    if (result.booking) {
+      pushNotificationService.notifyNewBooking(result.booking).catch((err) => {
+        console.error('Failed to dispatch manual booking push alert:', err?.message || err);
+      });
+    }
+
     return res.status(201).json({ success: true, message: 'Manual booking created!', data: result.booking });
   } catch (err: any) {
     console.error('Error creating manual booking:', err);
@@ -464,13 +473,16 @@ router.post('/bookings/clear-history', async (req: Request, res: Response) => {
 // PATCH /api/admin/resources/:id - Toggle maintenance or active status
 router.patch('/resources/:id', async (req: Request, res: Response) => {
   try {
-    const { isMaintenance, maintenanceReason, active, ratePerHour } = req.body;
+    const { isMaintenance, maintenanceReason, active, ratePerHour, machineIdentifier, name, specs } = req.body;
     const updates: any = {};
 
     if (isMaintenance !== undefined) updates.isMaintenance = Boolean(isMaintenance);
     if (maintenanceReason !== undefined) updates.maintenanceReason = maintenanceReason;
     if (active !== undefined) updates.active = Boolean(active);
     if (ratePerHour !== undefined) updates.ratePerHour = Number(ratePerHour);
+    if (machineIdentifier !== undefined) updates.machineIdentifier = String(machineIdentifier);
+    if (name !== undefined) updates.name = String(name);
+    if (specs !== undefined && Array.isArray(specs)) updates.specs = specs;
 
     const updated = await dbService.updateResource(req.params.id, updates);
     if (!updated) {
@@ -485,6 +497,275 @@ router.patch('/resources/:id', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error updating resource:', err);
     return res.status(500).json({ success: false, error: 'Failed to update resource.' });
+  }
+});
+
+// =========================================================================
+// GAMING EQUIPMENT & MACHINE QUANTITY MANAGEMENT (PROTECTED ADMIN ROUTES)
+// =========================================================================
+
+// GET /api/admin/equipment - Summary and machine breakdown
+router.get('/equipment', async (_req: Request, res: Response) => {
+  try {
+    const [summary, allResources] = await Promise.all([
+      dbService.getEquipmentSummary(),
+      dbService.getAllResources(true),
+    ]);
+    return res.json({
+      success: true,
+      data: {
+        summary,
+        resources: allResources,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error fetching equipment summary:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve equipment data.' });
+  }
+});
+
+// GET /api/admin/resources - Alias for equipment resource list
+router.get('/resources', async (_req: Request, res: Response) => {
+  try {
+    const resources = await dbService.getAllResources(true);
+    return res.json({ success: true, data: resources });
+  } catch (err: any) {
+    console.error('Error fetching resources:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve resources.' });
+  }
+});
+
+// POST /api/admin/equipment - Add new equipment machine or equipment type
+router.post('/equipment', async (req: Request, res: Response) => {
+  try {
+    const body = req.body;
+    if (!body.name || !body.category) {
+      return res.status(400).json({ success: false, error: 'Equipment name and category are required.' });
+    }
+
+    const created = await dbService.createResource(body);
+    return res.status(201).json({
+      success: true,
+      message: `Equipment ${created.name} created successfully.`,
+      data: created,
+    });
+  } catch (err: any) {
+    console.error('Error creating equipment:', err);
+    return res.status(500).json({ success: false, error: 'Failed to create equipment.' });
+  }
+});
+
+// PUT /api/admin/equipment/:id - Update equipment details
+router.put('/equipment/:id', async (req: Request, res: Response) => {
+  try {
+    const updated = await dbService.updateResource(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Equipment not found.' });
+    }
+    return res.json({
+      success: true,
+      message: `Equipment ${updated.name} updated successfully.`,
+      data: updated,
+    });
+  } catch (err: any) {
+    console.error('Error updating equipment:', err);
+    return res.status(500).json({ success: false, error: 'Failed to update equipment.' });
+  }
+});
+
+// DELETE /api/admin/equipment/:id - Delete equipment with safety checks for active bookings
+router.delete('/equipment/:id', async (req: Request, res: Response) => {
+  try {
+    const result = await dbService.deleteResource(req.params.id);
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+        activeBookingsCount: result.activeBookingsCount,
+      });
+    }
+    return res.json({
+      success: true,
+      message: 'Equipment deleted successfully.',
+    });
+  } catch (err: any) {
+    console.error('Error deleting equipment:', err);
+    return res.status(500).json({ success: false, error: 'Failed to delete equipment.' });
+  }
+});
+
+// POST /api/admin/equipment/quantity - Adjust quantity (+1 or -1) with active booking verification
+router.post('/equipment/quantity', async (req: Request, res: Response) => {
+  try {
+    const { category, delta, templateData } = req.body;
+    if (!category || typeof delta !== 'number') {
+      return res.status(400).json({ success: false, error: 'category and delta (number) are required.' });
+    }
+
+    const result = await dbService.adjustCategoryQuantity(category, delta, templateData);
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+        activeBookingsCount: result.activeBookingsCount,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: delta > 0 ? `Machine added for ${category}.` : `Machine removed for ${category}.`,
+      data: result.resource,
+    });
+  } catch (err: any) {
+    console.error('Error adjusting machine quantity:', err);
+    return res.status(500).json({ success: false, error: 'Failed to adjust machine quantity.' });
+  }
+});
+
+// =========================================================================
+// GAMES LIBRARY MANAGEMENT (PROTECTED ADMIN ROUTES)
+// =========================================================================
+
+// GET /api/admin/games - Fetch all games (including unavailable)
+router.get('/games', async (req: Request, res: Response) => {
+  try {
+    const category = req.query.category as string;
+    const games = await dbService.getGames({ category });
+    return res.json({
+      success: true,
+      data: games,
+    });
+  } catch (err: any) {
+    console.error('Error fetching admin games:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch games.' });
+  }
+});
+
+// POST /api/admin/games - Add a new game
+router.post('/games', async (req: Request, res: Response) => {
+  try {
+    const { title, category, description, image, isAvailable, genre, minPlayers, maxPlayers } = req.body;
+    if (!title || !category) {
+      return res.status(400).json({ success: false, error: 'Game title and category are required.' });
+    }
+
+    const game = await dbService.createGame({
+      title,
+      category,
+      description: description || '',
+      image: image || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+      isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
+      genre: genre || 'Action',
+      minPlayers: Number(minPlayers) || 1,
+      maxPlayers: Number(maxPlayers) || 2,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Game "${game.title}" added to library.`,
+      data: game,
+    });
+  } catch (err: any) {
+    console.error('Error creating game:', err);
+    return res.status(500).json({ success: false, error: 'Failed to add game.' });
+  }
+});
+
+// PUT /api/admin/games/:id - Update game
+router.put('/games/:id', async (req: Request, res: Response) => {
+  try {
+    const updated = await dbService.updateGame(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Game not found.' });
+    }
+    return res.json({
+      success: true,
+      message: `Game "${updated.title}" updated successfully.`,
+      data: updated,
+    });
+  } catch (err: any) {
+    console.error('Error updating game:', err);
+    return res.status(500).json({ success: false, error: 'Failed to update game.' });
+  }
+});
+
+// DELETE /api/admin/games/:id - Delete game
+router.delete('/games/:id', async (req: Request, res: Response) => {
+  try {
+    const result = await dbService.deleteGame(req.params.id);
+    if (!result.success) {
+      return res.status(404).json({ success: false, error: result.error || 'Game not found.' });
+    }
+    return res.json({
+      success: true,
+      message: 'Game deleted successfully.',
+    });
+  } catch (err: any) {
+    console.error('Error deleting game:', err);
+    return res.status(500).json({ success: false, error: 'Failed to delete game.' });
+  }
+});
+
+// =========================================================================
+// CONTACT & WHATSAPP SETTINGS (PROTECTED ADMIN ROUTES)
+// =========================================================================
+
+// GET /api/admin/contact-settings - Fetch current contact settings
+router.get('/contact-settings', async (_req: Request, res: Response) => {
+  try {
+    const settings = await dbService.getContactSettings();
+    return res.json({
+      success: true,
+      data: settings,
+    });
+  } catch (err: any) {
+    console.error('Error fetching contact settings in admin route:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch contact settings.' });
+  }
+});
+
+// PUT /api/admin/contact-settings - Update contact settings with validation & MongoDB persistence
+router.put('/contact-settings', async (req: Request, res: Response) => {
+  try {
+    const updates = req.body || {};
+
+    if (updates.whatsappNumber !== undefined) {
+      if (typeof updates.whatsappNumber !== 'string' || !isValidPhoneNumber(updates.whatsappNumber)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid 10-digit mobile number or international phone number for WhatsApp.',
+        });
+      }
+    }
+
+    if (updates.phone !== undefined && updates.phone !== '') {
+      if (typeof updates.phone !== 'string' || !isValidPhoneNumber(updates.phone)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid business phone number.',
+        });
+      }
+    }
+
+    if (updates.email !== undefined && updates.email !== '') {
+      if (typeof updates.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.email.trim())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid email address.',
+        });
+      }
+    }
+
+    const updated = await dbService.updateContactSettings(updates);
+
+    return res.json({
+      success: true,
+      message: 'Contact settings updated successfully.',
+      data: updated,
+    });
+  } catch (err: any) {
+    console.error('Error updating contact settings in admin route:', err);
+    return res.status(500).json({ success: false, error: 'Failed to update contact settings.' });
   }
 });
 

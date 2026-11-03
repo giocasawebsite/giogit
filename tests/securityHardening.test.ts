@@ -263,7 +263,7 @@ async function runSecurityTestSuite() {
   let testBookingId = '';
   const testSlotDate = (() => {
     const d = new Date();
-    d.setDate(d.getDate() + 15 + Math.floor(Math.random() * 30));
+    d.setDate(d.getDate() + 200 + Math.floor(Math.random() * 10000));
     return d.toISOString().slice(0, 10);
   })();
 

@@ -13,9 +13,9 @@ export const businessConfig = {
     mapEmbedPlaceholder: "Ayodhya, Uttar Pradesh, India"
   },
   contact: {
-    phone: "+91 98765 43210", // Placeholder for actual owner phone
-    displayPhone: "+91 98765 43210",
-    whatsappNumber: "919876543210", // Format for wa.me links
+    phone: "+91 96960 28522",
+    displayPhone: "+91 96960 28522",
+    whatsappNumber: "919696028522", // Format for wa.me links
     email: "ciao@giocasa.in",
     instagramHandle: "@giocasa.ayodhya",
     instagramUrl: "https://instagram.com",
@@ -32,29 +32,36 @@ export const businessConfig = {
     orderVia: ["WhatsApp Direct", "Phone Call", "Zomato / Swiggy (Coming Soon)"]
   },
   floors: {
-    downstairs: {
-      level: "Level 0 • Basement & Ground",
-      name: "The Hearth & Café Dining",
-      vibe: "Warm, Intimate & Aromatic",
+    firstFloor: {
+      level: "1st Floor • Restaurant & Pool",
+      name: "GioCasa Dine-in Restaurant & Hot-Shot Pool",
+      vibe: "Warm, Artisanal & Relaxed Social Dining",
       highlights: [
         "Artisan Wood-Fired Pizza Oven (450°C)",
-        "Specialty Espresso & Brew Bar",
-        "Cozy Banquettes & Warm Wood Paneling",
-        "Italian Comfort Bites & Decadent Shakes"
-      ],
-      idealFor: "Dinner dates, family meals, quiet work with chai/coffee, relaxed conversations."
-    },
-    upstairs: {
-      level: "Level 1 • First Floor",
-      name: "The Arena & Social Lounge",
-      vibe: "High Energy, Friendly Competition & Play",
-      highlights: [
-        "PS5 Stations with 4K HDR 120Hz Displays",
         "Hot-Shot Slate 8-Ball Championship Pool Table",
-        "Competition Foosball (Table Football)",
-        "Curated 50+ Tabletop Board Game Vault"
+        "Specialty Espresso, Café Brews & Handcrafted Mocktails",
+        "Cozy Banquettes & Warm Wood Paneling"
       ],
-      idealFor: "Group hangouts, intense multiplayer duels, birthday tournaments, after-dinner games."
+      idealFor: "Dinner dates, family meals, friends shooting pool, relaxed dining & celebrations."
+    },
+    basement: {
+      level: "Basement • Gaming Arena",
+      name: "GioCasa High-Octane Gaming Arena & Racing Sim",
+      vibe: "High Energy, Cyberpunk & Competitive Gaming",
+      highlights: [
+        "Ultra-Immersive Force-Feedback Racing Simulator Cockpit",
+        "PlayStation 5 (PS5) Stations with 4K HDR 120Hz Displays",
+        "Top Titles: EA Sports FC 25, Mortal Kombat 1, GTA V, Tekken 8",
+        "Dual-Controller Couches & Pro Gaming Surround Sound"
+      ],
+      idealFor: "Intense multiplayer duels, racing lap times, birthday gaming tournaments, group gaming sessions."
+    },
+    // Backwards-compatible aliases
+    get downstairs() {
+      return this.basement;
+    },
+    get upstairs() {
+      return this.firstFloor;
     }
   }
 };

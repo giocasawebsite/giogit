@@ -8,7 +8,7 @@ export const faqData: FAQItem[] = [
   {
     category: 'general',
     question: 'How is GioCasa structured across its two floors?',
-    answer: 'GioCasa is thoughtfully divided into two distinct hospitality zones: Level 0 (Basement/Ground) houses "The Hearth" — our intimate dining café with a wood-fired pizza oven, artisanal coffee bar, and comfortable seating. Level 1 (First Floor) houses "The Arena" — our dedicated gaming lounge featuring PS5 4K stations, tournament 8-ball pool, soccer foosball, and a 50+ board game library.'
+    answer: 'GioCasa is thoughtfully divided across two distinct hospitality zones: The 1st Floor houses our Dine-in Restaurant and Hot-Shot Pool Table — featuring authentic wood-fired pizzas baked at 450°C, specialty cafés, mocktails, and a slate 8-ball pool table. The Basement houses our High-Octane Gaming Arena — equipped with ultra-fast PS5 stations (4K 120Hz) and force-feedback Racing Simulator cockpits.'
   },
   {
     category: 'general',

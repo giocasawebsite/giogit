@@ -4,6 +4,9 @@ import { bookingApi, AdminOverviewData, Booking, GamingResource } from '../servi
 import { AdminTournamentsManager } from '../components/admin/AdminTournamentsManager';
 import { AdminHallOfFameManager } from '../components/admin/AdminHallOfFameManager';
 import { AdminPlayerCRM } from '../components/admin/AdminPlayerCRM';
+import { AdminContactSettings } from '../components/admin/AdminContactSettings';
+import { AdminEquipmentManager } from '../components/admin/AdminEquipmentManager';
+import { AdminReservationsManager } from '../components/admin/AdminReservationsManager';
 import { getPricingDescription } from '../utils/pricing';
 import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
 import {
@@ -12,6 +15,7 @@ import {
   RefreshCw,
   Users,
   Clock,
+  Layers,
   DollarSign,
   Gamepad2,
   Calendar,
@@ -33,6 +37,9 @@ import {
   CheckSquare,
   Square,
   LogOut,
+  MessageCircle,
+  Utensils,
+  Bell,
 } from 'lucide-react';
 
 interface AdminPageProps {
@@ -62,21 +69,30 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Tab Navigation: 'stations' | 'tournaments' | 'hall-of-fame' | 'players'
-  const [selectedTab, setSelectedTab] = useState<'stations' | 'tournaments' | 'hall-of-fame' | 'players'>(() => {
+  // Tab Navigation: 'stations' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations'
+  const [selectedTab, setSelectedTab] = useState<'stations' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations'>(() => {
+    if (adminTab === 'reservations') return 'reservations';
+    if (adminTab === 'equipment') return 'equipment';
     if (adminTab === 'players') return 'players';
     if (adminTab === 'hall-of-fame') return 'hall-of-fame';
     if (adminTab?.startsWith('tournament')) return 'tournaments';
+    if (adminTab === 'contact' || adminTab === 'settings') return 'contact';
     return 'stations';
   });
 
   useEffect(() => {
-    if (adminTab === 'players') {
+    if (adminTab === 'reservations') {
+      setSelectedTab('reservations');
+    } else if (adminTab === 'equipment') {
+      setSelectedTab('equipment');
+    } else if (adminTab === 'players') {
       setSelectedTab('players');
     } else if (adminTab === 'hall-of-fame') {
       setSelectedTab('hall-of-fame');
     } else if (adminTab?.startsWith('tournament')) {
       setSelectedTab('tournaments');
+    } else if (adminTab === 'contact' || adminTab === 'settings') {
+      setSelectedTab('contact');
     } else if (adminTab === 'overview' || !adminTab) {
       setSelectedTab('stations');
     }
@@ -517,7 +533,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-cream pt-24 pb-24 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-brand-dark text-brand-cream pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6 pb-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-10">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-brand-border/60">
@@ -535,6 +551,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setSelectedTab('contact');
+                onNavigate('admin', { adminTab: 'contact' });
+              }}
+              className="px-3.5 py-2 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-gold/50 text-brand-subtle hover:text-brand-cream text-xs font-mono flex items-center gap-1.5 transition-colors"
+              title="Configure Web Push Notifications & Devices"
+            >
+              <Bell className="w-3.5 h-3.5 text-brand-gold" />
+              <span className="hidden sm:inline">Push Alerts</span>
+            </button>
+
             <button
               onClick={() => {
                 setCurrentPasscodeInput('');
@@ -676,6 +704,51 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           >
             <Users className="w-4 h-4 text-[#ED249B]" />
             <span>Player CRM</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('contact');
+              onNavigate('admin', { adminTab: 'contact' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'contact'
+                ? 'border-[#25D366] text-[#25D366] font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+            <span>Contact Settings & Alerts</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('equipment');
+              onNavigate('admin', { adminTab: 'equipment' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'equipment'
+                ? 'border-brand-blue text-brand-blue font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <Layers className="w-4 h-4 text-brand-blue" />
+            <span>Equipment & Games</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('reservations');
+              onNavigate('admin', { adminTab: 'reservations' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'reservations'
+                ? 'border-brand-orange text-brand-orange font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <Utensils className="w-4 h-4 text-brand-orange" />
+            <span>Dining & Events</span>
           </button>
         </div>
 
@@ -1143,6 +1216,28 @@ export const AdminPage: React.FC<AdminPageProps> = ({
         onNavigate={onNavigate}
         subTab={adminSubTab}
         playerId={adminPlayerId}
+      />
+    )}
+
+    {/* CONTACT & WHATSAPP SETTINGS */}
+    {selectedTab === 'contact' && (
+      <AdminContactSettings
+        passcode={passcode}
+      />
+    )}
+
+    {/* EQUIPMENT & GAMES MANAGER */}
+    {selectedTab === 'equipment' && (
+      <AdminEquipmentManager
+        passcode={passcode}
+        onRefreshData={() => loadDashboard(passcode)}
+      />
+    )}
+
+    {/* DINING & EVENTS RESERVATIONS MANAGER */}
+    {selectedTab === 'reservations' && (
+      <AdminReservationsManager
+        passcode={passcode}
       />
     )}
 

@@ -4,7 +4,7 @@ export const gamingZones: GamingZone[] = [
   {
     id: 'ps5-arena',
     name: 'PlayStation 5 Pro Stations',
-    subtitle: 'Ultra-low Latency • 4K 120Hz Displays • DualSense Haptics',
+    subtitle: 'Basement Arena • Ultra-low Latency • 4K 120Hz Displays',
     type: 'ps5',
     image: '/assets/real/ps5_setup.png',
     ratePerHour: '₹150 / hr (Single) • ₹250 / hr (Double)',
@@ -37,7 +37,7 @@ export const gamingZones: GamingZone[] = [
   {
     id: 'hotshot-pool',
     name: 'Hot-Shot 8-Ball Championship Pool',
-    subtitle: 'Precision Slate Bed • Premium Green Baize • Custom Cue Sets',
+    subtitle: '1st Floor Restaurant • Precision Slate Bed • Custom Cue Sets',
     type: 'pool',
     image: '/assets/real/pool_table.png',
     ratePerHour: '₹200 / hr • ₹120 / 30 mins',
@@ -58,7 +58,7 @@ export const gamingZones: GamingZone[] = [
   {
     id: 'racing-arena',
     name: 'Pro Racing Simulator Cockpit',
-    subtitle: 'Force Feedback Steering • Curved Cockpit Display • High-Speed Sim Physics',
+    subtitle: 'Basement Arena • Force Feedback Steering • High-Speed Sim Physics',
     type: 'racing',
     image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
     ratePerHour: '₹200 / hr (+₹100 per extra player)',

@@ -16,6 +16,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { InstagramIcon } from '../components/ui/InstagramIcon';
+import { useContactSettings } from '../context/ContactSettingsContext';
 import confetti from 'canvas-confetti';
 
 interface ContactPageProps {
@@ -23,8 +24,15 @@ interface ContactPageProps {
 }
 
 export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
+  const { settings } = useContactSettings();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [activeFaqCategory, setActiveFaqCategory] = useState<string>('all');
+  
+  const whatsappNumber = settings.whatsappNumber || businessConfig.contact.whatsappNumber;
+  const phone = settings.phone || businessConfig.contact.phone;
+  const displayPhone = settings.displayPhone || businessConfig.contact.displayPhone;
+  const instagramUrl = settings.instagramUrl || businessConfig.contact.instagramUrl;
+  const instagramHandle = settings.instagramHandle || businessConfig.contact.instagramHandle;
   
   // Contact form state
   const [formData, setFormData] = useState({
@@ -67,7 +75,7 @@ ${formData.message || 'Hello GioCasa team, I have a query regarding your venue.'
 
 Please get back to me! Thank you.`;
 
-    return `https://wa.me/${businessConfig.contact.whatsappNumber}?text=${encodeURIComponent(msg)}`;
+    return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
   };
 
   return (
@@ -112,7 +120,7 @@ Please get back to me! Thank you.`;
             <div className="space-y-4 text-xs">
               {/* WhatsApp */}
               <a
-                href={`https://wa.me/${businessConfig.contact.whatsappNumber}`}
+                href={`https://wa.me/${whatsappNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-5 rounded-2xl bg-brand-surface border border-brand-border hover:border-emerald-500/50 flex items-center justify-between transition-all group shadow-md"
@@ -131,7 +139,7 @@ Please get back to me! Thank you.`;
 
               {/* Phone */}
               <a
-                href={`tel:${businessConfig.contact.phone}`}
+                href={`tel:${phone}`}
                 className="p-5 rounded-2xl bg-brand-surface border border-brand-border hover:border-brand-gold/50 flex items-center justify-between transition-all group shadow-md"
               >
                 <div className="flex items-center gap-4">
@@ -140,7 +148,7 @@ Please get back to me! Thank you.`;
                   </div>
                   <div>
                     <div className="text-brand-cream font-bold text-sm">Direct Phone Line</div>
-                    <div className="text-brand-gold font-mono">{businessConfig.contact.displayPhone}</div>
+                    <div className="text-brand-gold font-mono">{displayPhone}</div>
                   </div>
                 </div>
                 <Navigation className="w-4 h-4 text-brand-muted group-hover:text-brand-cream transition-colors" />
@@ -148,7 +156,7 @@ Please get back to me! Thank you.`;
 
               {/* Instagram */}
               <a
-                href={businessConfig.contact.instagramUrl}
+                href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-5 rounded-2xl bg-brand-surface border border-brand-border hover:border-brand-terracotta/50 flex items-center justify-between transition-all group shadow-md"
@@ -159,7 +167,7 @@ Please get back to me! Thank you.`;
                   </div>
                   <div>
                     <div className="text-brand-cream font-bold text-sm">Instagram Community</div>
-                    <div className="text-brand-subtle">{businessConfig.contact.instagramHandle}</div>
+                    <div className="text-brand-subtle">{instagramHandle}</div>
                   </div>
                 </div>
                 <Navigation className="w-4 h-4 text-brand-muted group-hover:text-brand-cream transition-colors" />

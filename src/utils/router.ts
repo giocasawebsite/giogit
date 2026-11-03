@@ -109,6 +109,18 @@ export function parseCurrentRoute(): ParsedRoute {
       return { page: 'admin', params: { adminTab: 'hall-of-fame' } };
     }
 
+    if (segments[1] === 'contact' || segments[1] === 'settings' || segments[1] === 'contact-settings') {
+      return { page: 'admin', params: { adminTab: 'contact' } };
+    }
+
+    if (segments[1] === 'equipment') {
+      return { page: 'admin', params: { adminTab: 'equipment' } };
+    }
+
+    if (segments[1] === 'reservations') {
+      return { page: 'admin', params: { adminTab: 'reservations' } };
+    }
+
     return { page: 'admin', params: { adminTab: 'overview' } };
   }
 
@@ -164,6 +176,9 @@ export function buildRoutePath(page: PageRoute, params?: RouteParams): string {
       }
       if (params?.adminTab === 'tournaments') return '/admin/tournaments';
       if (params?.adminTab === 'hall-of-fame') return '/admin/hall-of-fame';
+      if (params?.adminTab === 'contact') return '/admin/contact';
+      if (params?.adminTab === 'equipment') return '/admin/equipment';
+      if (params?.adminTab === 'reservations') return '/admin/reservations';
       return '/admin';
     }
     default:

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbService } from '../db';
+import { pushNotificationService } from '../services/pushNotification';
 import {
   getNowInKolkata,
   getOperatingHours,
@@ -33,6 +34,18 @@ router.get('/resources', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error fetching resources:', err);
     return res.status(500).json({ success: false, error: 'Failed to retrieve gaming resources.' });
+  }
+});
+
+// GET /api/booking/games - Retrieve all available games from the library
+router.get('/games', async (req: Request, res: Response) => {
+  try {
+    const category = req.query.category as string;
+    const games = await dbService.getGames({ category, isAvailable: true });
+    return res.json({ success: true, data: games });
+  } catch (err: any) {
+    console.error('Error fetching public games:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve games library.' });
   }
 });
 
@@ -241,7 +254,7 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
       numberOfPeople,
       totalAmount,
       status: 'confirmed',
-      paymentStatus: 'unpaid',
+      paymentStatus: (body.paymentStatus && ['paid', 'pending', 'unpaid'].includes(body.paymentStatus)) ? body.paymentStatus : 'unpaid',
       notes: body.notes ? body.notes.trim() : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -253,6 +266,13 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
 
     if (!result.success) {
       return res.status(409).json({ success: false, error: result.error });
+    }
+
+    // Database insert confirmed! Dispatch real-time admin push notification asynchronously
+    if (result.booking) {
+      pushNotificationService.notifyNewBooking(result.booking).catch((err) => {
+        console.error('Failed to dispatch booking push alert:', err?.message || err);
+      });
     }
 
     return res.status(201).json({
@@ -329,12 +349,16 @@ router.get('/:id', async (req: Request, res: Response) => {
 // POST /api/bookings/:id/extend - Extend active or upcoming booking
 router.post('/:id/extend', async (req: Request, res: Response) => {
   try {
-    const { additionalMinutes } = req.body as ExtendBookingRequest;
+    const { additionalMinutes, paymentStatus, idempotencyKey, notes } = req.body as ExtendBookingRequest;
     if (!additionalMinutes || ![30, 60].includes(additionalMinutes)) {
       return res.status(400).json({ success: false, error: 'Extension must be either 30 or 60 minutes.' });
     }
 
-    const result = await dbService.extendBooking(req.params.id, additionalMinutes);
+    const result = await dbService.extendBooking(req.params.id, additionalMinutes, {
+      paymentStatus,
+      idempotencyKey,
+      notes,
+    });
     if (!result.success) {
       return res.status(409).json({ success: false, error: result.error });
     }

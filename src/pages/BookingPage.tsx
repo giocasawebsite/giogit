@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PageRoute } from '../types';
 import { bookingApi, GamingResource, TimeSlot } from '../services/bookingApi';
 import { useOrderCart } from '../context/OrderCartContext';
@@ -35,6 +35,84 @@ interface BookingPageProps {
   onNavigate: (page: PageRoute) => void;
   initialResourceId?: string;
 }
+
+const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
+  {
+    id: 'ps5-station-1',
+    name: 'PS5 Pro Station 1',
+    category: 'ps5',
+    zoneId: 'ps5-arena',
+    ratePerHour: 150,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 180,
+    playersCapacity: { min: 1, max: 4 },
+    active: true,
+    isMaintenance: false,
+    specs: ['PlayStation 5 Console with Ultra-Speed SSD', '55" 4K HDR 120Hz Low Latency Display', 'DualSense Wireless Controllers with Haptics', 'EA FC 25, Tekken 8, Mortal Kombat 1, Spider-Man 2'],
+    image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80',
+    order: 1,
+  },
+  {
+    id: 'ps5-station-2',
+    name: 'PS5 Pro Station 2',
+    category: 'ps5',
+    zoneId: 'ps5-arena',
+    ratePerHour: 150,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 180,
+    playersCapacity: { min: 1, max: 4 },
+    active: true,
+    isMaintenance: false,
+    specs: ['PlayStation 5 Console with Ultra-Speed SSD', '65" 4K HDR 120Hz Tournament Display', 'DualSense Wireless Controllers with Haptics', 'Gran Turismo 7, Call of Duty, WWE 2K24, It Takes Two'],
+    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80',
+    order: 2,
+  },
+  {
+    id: 'hotshot-pool-table',
+    name: 'Hot-Shot Slate 8-Ball Pool',
+    category: 'pool',
+    zoneId: 'hotshot-pool',
+    ratePerHour: 200,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 120,
+    playersCapacity: { min: 2, max: 6 },
+    active: true,
+    isMaintenance: false,
+    specs: ['Championship Tournament Slate Bed (Hot-Shot)', 'Custom Balanced Ash Wood & Graphite Cues', 'Aramith Pro Ball Set, Triangle Rack & Chalks', 'Dedicated Warm Directional Canopy Lighting'],
+    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
+    order: 3,
+  },
+  {
+    id: 'foosball-table',
+    name: 'Championship Pro Foosball',
+    category: 'foosball',
+    zoneId: 'arena-floor',
+    ratePerHour: 100,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 60,
+    playersCapacity: { min: 2, max: 4 },
+    active: true,
+    isMaintenance: false,
+    specs: ['Tornado Competition Specification Table', 'Solid Steel Rods with Ergonomic Handles', 'High-Grip Polyurethane Tournament Balls', 'Acoustic Sound-Dampened Goal Boxes'],
+    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80',
+    order: 4,
+  },
+  {
+    id: 'sim-rig-1',
+    name: 'Logitech G Racing Cockpit',
+    category: 'racing',
+    zoneId: 'racing-sim',
+    ratePerHour: 200,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 180,
+    playersCapacity: { min: 1, max: 4 },
+    active: true,
+    isMaintenance: false,
+    specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
+    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    order: 5,
+  },
+];
 
 export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialResourceId }) => {
   const { openDrawer } = useOrderCart();
@@ -106,10 +184,15 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
     }, 280);
   };
 
-  // Resources state
-  const [resources, setResources] = useState<GamingResource[]>([]);
+  // Resources state (Initialized with fallback for instant rendering without waiting for backend cold start)
+  const [resources, setResources] = useState<GamingResource[]>(DEFAULT_FALLBACK_RESOURCES);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedResource, setSelectedResource] = useState<GamingResource | null>(null);
+  const [selectedResource, setSelectedResource] = useState<GamingResource | null>(() => {
+    if (initialResourceId) {
+      return DEFAULT_FALLBACK_RESOURCES.find(r => r.id === initialResourceId) || DEFAULT_FALLBACK_RESOURCES[0];
+    }
+    return DEFAULT_FALLBACK_RESOURCES[0];
+  });
 
   // Date & Duration state
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -369,6 +452,33 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  // Dynamic category pills based on live resources from MongoDB
+  const categoryPills = useMemo(() => {
+    const categoriesMap: Record<string, string> = {
+      ps5: 'PS5 Pro',
+      racing: 'Racing Sim',
+      pool: '8-Ball Slate Pool',
+      foosball: 'Foosball',
+      boardgames: 'Tabletop Vault',
+      xbox: 'Xbox Series X',
+      pc: 'PC Gaming',
+      snooker: 'Snooker Table',
+    };
+
+    const uniqueCategories = Array.from(new Set(resources.map((r) => r.category)));
+    const pills = uniqueCategories.map((cat) => {
+      const totalCount = resources.filter((r) => r.category === cat).length;
+      const labelName = categoriesMap[cat] || `${cat.toUpperCase()}`;
+      const countStr = totalCount > 1 ? ` (${totalCount} Units)` : '';
+      return {
+        id: cat,
+        label: `${labelName}${countStr}`,
+      };
+    });
+
+    return [{ id: 'all', label: 'All Equipment' }, ...pills];
+  }, [resources]);
+
   // Filtered resources based on category pill
   const filteredResources = resources.filter((r) => {
     if (selectedCategory === 'all') return true;
@@ -383,7 +493,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-surface border border-brand-blue/40 shadow-lg">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-brand-blue font-bold">
-              LEVEL 1 • THE ARENA • LIVE BOOKING
+              AYODHYA • GAMING SLOT BOOKING
             </span>
           </div>
 
@@ -392,7 +502,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
           </h1>
 
           <p className="font-italic-accent text-lg sm:text-xl text-brand-pink italic">
-            PlayStation 5 Pro • Hot-Shot Slate Championship Pool • The Arena
+            PS5 Pro • Racing Simulators (Basement) • Slate Pool (1st Floor)
           </p>
 
           <p className="text-xs sm:text-sm text-brand-muted max-w-xl mx-auto font-light leading-relaxed">
@@ -493,15 +603,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       </h2>
                     </div>
 
-                    {/* Category Filter Pills */}
+                    {/* Dynamic Category Filter Pills */}
                     <div className="flex flex-wrap gap-1.5">
-                      {[
-                        { id: 'all', label: 'All Equipment' },
-                        ...(resources.some((r) => r.category === 'ps5') ? [{ id: 'ps5', label: 'PS5 Pro (3 Units)' }] : []),
-                        ...(resources.some((r) => r.category === 'pool') ? [{ id: 'pool', label: '8-Ball Slate Pool' }] : []),
-                        ...(resources.some((r) => r.category === 'foosball') ? [{ id: 'foosball', label: 'Foosball' }] : []),
-                        ...(resources.some((r) => r.category === 'boardgames') ? [{ id: 'boardgames', label: 'Tabletop Vault' }] : []),
-                      ].map((cat) => (
+                      {categoryPills.map((cat) => (
                         <button
                           key={cat.id}
                           type="button"
@@ -552,11 +656,20 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                               <img
                                 src={res.image}
                                 alt={res.name}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover brightness-90"
                               />
-                              <div className="absolute top-2.5 left-2.5 flex items-center gap-2">
+                              <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
                                 <span className="px-2.5 py-1 rounded-full bg-brand-dark/90 backdrop-blur-md border border-brand-border text-[11px] font-mono font-bold text-brand-blue shadow-md">
                                   {getPricingDescription(res.category)}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border backdrop-blur-md shadow-md ${
+                                  (res.floorLocation === '1st Floor' || res.category === 'pool')
+                                    ? 'bg-brand-orange/25 border-brand-orange/50 text-brand-orange'
+                                    : 'bg-brand-blue/25 border-brand-blue/50 text-brand-blue'
+                                }`}>
+                                  {res.floorLocation || (res.category === 'pool' ? '1st Floor' : 'Basement')}
                                 </span>
                               </div>
 
@@ -1043,6 +1156,12 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
 
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between py-1 border-b border-brand-border/30">
+                          <span className="text-brand-muted">Floor Location:</span>
+                          <span className="font-semibold text-brand-gold">
+                            {selectedResource?.floorLocation || (selectedResource?.category === 'pool' ? '1st Floor • Pool' : 'Basement • Gaming Arena')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-brand-border/30">
                           <span className="text-brand-muted">Date:</span>
                           <span className="font-semibold text-white">{getReadableDate(selectedDate)}</span>
                         </div>
@@ -1155,6 +1274,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
               {/* Receipt Details */}
               <div className="grid grid-cols-2 gap-4 text-xs pt-2">
                 <div>
+                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Facility Floor</span>
+                  <span className="font-semibold text-brand-gold mt-0.5 block">
+                    {(confirmedBooking.resourceId === 'res-pool-1' || confirmedBooking.resourceName?.toLowerCase().includes('pool'))
+                      ? '1st Floor • Restaurant & Pool'
+                      : 'Basement • Gaming Arena'}
+                  </span>
+                </div>
+                <div>
                   <span className="text-[10px] font-mono text-brand-muted block uppercase">Date</span>
                   <span className="font-semibold text-white mt-0.5 block">
                     {getReadableDate(confirmedBooking.date)}
@@ -1172,12 +1299,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     {confirmedBooking.customerName}
                   </span>
                 </div>
-                <div>
-                  <span className="text-[10px] font-mono text-brand-muted block uppercase">Contact Phone</span>
-                  <span className="font-mono font-semibold text-white mt-0.5 block">
-                    +91 {confirmedBooking.phone}
-                  </span>
-                </div>
               </div>
 
               {/* Cross-Sell Experience Callout (Requirement 21) */}
@@ -1187,7 +1308,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   <span>Make it a Full GioCasa Night</span>
                 </span>
                 <p className="text-xs text-white/90 leading-relaxed font-light">
-                  Enhance your session with wood-fired sourdough pizzas & specialty cold coffee brewed downstairs at The Hearth, served straight to your game station.
+                  Enhance your session with wood-fired sourdough pizzas & specialty cold coffee brewed fresh on the 1st Floor, served straight to your game station.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">

@@ -55,6 +55,8 @@ export const ExperiencePlanner: React.FC = () => {
               <img
                 src={currentNight.image}
                 alt={currentNight.title}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover brightness-95"
               />
               <div className="absolute top-3 left-3">

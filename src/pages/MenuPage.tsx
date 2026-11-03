@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageRoute, MenuItem } from '../types';
 import { menuCategories, menuData } from '../data/menuData';
 import { businessConfig } from '../data/businessConfig';
@@ -31,24 +31,28 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
     document.title = 'GioCasa Menu | Vegetarian Brick-Oven Pizza, Coffee & More';
   }, []);
 
-  // Filter items
-  const filteredItems = menuData.filter(item => {
-    const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
+  // Memoized filtered items to prevent expensive recomputations on mobile
+  const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return matchesCategory;
+    return menuData.filter(item => {
+      const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
+      if (!q) return matchesCategory;
 
-    const matchesName = item.name.toLowerCase().includes(q);
-    const matchesDesc = item.description ? item.description.toLowerCase().includes(q) : false;
-    const matchesFlavors = item.flavors ? item.flavors.some(f => f.name.toLowerCase().includes(q)) : false;
-    const matchesCategoryName = item.category.toLowerCase().includes(q);
+      const matchesName = item.name.toLowerCase().includes(q);
+      const matchesDesc = item.description ? item.description.toLowerCase().includes(q) : false;
+      const matchesFlavors = item.flavors ? item.flavors.some(f => f.name.toLowerCase().includes(q)) : false;
+      const matchesCategoryName = item.category.toLowerCase().includes(q);
 
-    return matchesCategory && (matchesName || matchesDesc || matchesFlavors || matchesCategoryName);
-  });
+      return matchesCategory && (matchesName || matchesDesc || matchesFlavors || matchesCategoryName);
+    });
+  }, [activeCategory, searchQuery]);
 
   // Grouped by categories (excluding 'all')
-  const categoriesToDisplay = activeCategory === 'all'
-    ? menuCategories.filter(c => c.id !== 'all')
-    : menuCategories.filter(c => c.id === activeCategory);
+  const categoriesToDisplay = useMemo(() => {
+    return activeCategory === 'all'
+      ? menuCategories.filter(c => c.id !== 'all')
+      : menuCategories.filter(c => c.id === activeCategory);
+  }, [activeCategory]);
 
   return (
     <div className="min-h-screen bg-brand-dark text-white pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 selection:bg-brand-orange selection:text-brand-charcoalDeep">

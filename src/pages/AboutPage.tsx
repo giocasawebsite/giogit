@@ -76,10 +76,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               Most cafés are either quiet dining rooms where you have to whisper, or noisy video game parlors with poor food. We believed you shouldn’t have to compromise.
             </p>
             <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed">
-              Downstairs, <strong>The Hearth</strong> is warm, intimate, and aromatic. The wood-fired oven crackles, coffee beans are freshly ground, and people gather around comforting Italian dishes.
+              On the <strong>1st Floor</strong>, our <strong>Dine-in Restaurant & Hot-Shot Pool Table</strong> is warm, intimate, and welcoming. The wood-fired oven crackles at 450°C, artisanal coffee beans are freshly ground, friends challenge each other on the championship 8-ball slate pool table, and guests gather around comforting Italian dishes.
             </p>
             <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed">
-              Upstairs, <strong>The Arena</strong> is where things get competitive. Four 4K PS5 stations, a championship green felt 8-ball slate pool table, competition foosball, and over 50 curated tabletop games bring friends together for hours of genuine laughter.
+              In the <strong>Basement</strong>, our <strong>High-Octane Gaming Arena</strong> is where things get competitive. 4K HDR PS5 stations with DualSense controllers and force-feedback racing simulator cockpits bring squads and solo gamers together for hours of intense gameplay.
             </p>
           </div>
 
@@ -87,6 +87,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             <img
               src="/assets/real/foosball_lounge.png"
               alt="GioCasa Interior Lounge in Ayodhya"
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover brightness-95"
             />
             <div className="absolute bottom-4 left-4 right-4 p-3.5 rounded-2xl bg-brand-dark/90 backdrop-blur-md border border-brand-border text-xs text-brand-cream flex items-center justify-between">

@@ -151,6 +151,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 <img
                   src={featuredTournament.bannerImage}
                   alt={featuredTournament.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = '/assets/real/ps5_setup.png';
@@ -421,6 +423,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                     <img
                       src={t.bannerImage}
                       alt={t.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/assets/real/ps5_setup.png';

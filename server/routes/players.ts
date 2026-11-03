@@ -73,6 +73,41 @@ router.post('/verify', publicLookupLimiter, async (req: Request, res: Response) 
   }
 });
 
+// 3b. GET & POST /api/players/check-id - Check availability of customer custom Gio ID
+router.get('/check-id/:gioId', publicLookupLimiter, async (req: Request, res: Response) => {
+  try {
+    const { gioId } = req.params;
+    const result = await dbService.isGioIdAvailable(gioId);
+    return res.json({
+      success: true,
+      available: result.available,
+      gioId: result.normalized || (gioId || '').trim().toUpperCase(),
+      message: result.available ? 'This Gio ID is available!' : (result.error || 'This Gio ID is already taken. Please choose another.'),
+      error: result.available ? undefined : (result.error || 'This Gio ID is already taken. Please choose another.'),
+    });
+  } catch (err: any) {
+    console.error('Error checking Gio ID availability:', err);
+    return res.status(500).json({ success: false, available: false, error: 'Failed to check Gio ID availability.' });
+  }
+});
+
+router.post('/check-id', publicLookupLimiter, async (req: Request, res: Response) => {
+  try {
+    const { gioId } = req.body || {};
+    const result = await dbService.isGioIdAvailable(gioId);
+    return res.json({
+      success: true,
+      available: result.available,
+      gioId: result.normalized || (typeof gioId === 'string' ? gioId.trim().toUpperCase() : ''),
+      message: result.available ? 'This Gio ID is available!' : (result.error || 'This Gio ID is already taken. Please choose another.'),
+      error: result.available ? undefined : (result.error || 'This Gio ID is already taken. Please choose another.'),
+    });
+  } catch (err: any) {
+    console.error('Error checking Gio ID availability:', err);
+    return res.status(500).json({ success: false, available: false, error: 'Failed to check Gio ID availability.' });
+  }
+});
+
 // 4. POST /api/players/register - Public customer self-registration / one-time signup with rate limiting
 router.post('/register', playerRegistrationLimiter, async (req: Request, res: Response) => {
   try {
@@ -85,6 +120,8 @@ router.post('/register', playerRegistrationLimiter, async (req: Request, res: Re
       favoritePlatform,
       dateOfBirth,
       referredBy,
+      customGioId,
+      gioId,
       consent,
     } = req.body;
 
@@ -93,6 +130,18 @@ router.post('/register', playerRegistrationLimiter, async (req: Request, res: Re
     }
     if (!phone || !phone.trim()) {
       return res.status(400).json({ success: false, error: 'Mobile number is required.' });
+    }
+
+    // Validate custom Gio ID if provided
+    const requestedCustomId = (customGioId || gioId || '').toString().trim();
+    if (requestedCustomId) {
+      const avail = await dbService.isGioIdAvailable(requestedCustomId);
+      if (!avail.available) {
+        return res.status(avail.error?.includes('already taken') ? 409 : 400).json({
+          success: false,
+          error: avail.error || 'This Gio ID is already taken. Please choose another.',
+        });
+      }
     }
 
     const normPhone = dbService.normalizePhone(phone.trim());
@@ -141,6 +190,7 @@ router.post('/register', playerRegistrationLimiter, async (req: Request, res: Re
       gamerTag: gamerTag?.trim(),
       phone: phone.trim(),
       email: email?.trim(),
+      gioId: requestedCustomId || undefined,
       favoriteGame: favoriteGame?.trim() || 'EA Sports FC 25',
       favoritePlatform: favoritePlatform || 'ps5',
       dateOfBirth,

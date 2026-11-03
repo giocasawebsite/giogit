@@ -11,10 +11,10 @@ export const nightExperiences: NightExperience[] = [
     vibe: 'Warm, rustic & aromatic',
     bookingType: 'dining',
     includes: [
-      'Reserved booth seating in the Hearth basement',
+      'Reserved table seating in the 1st Floor Dine-in Restaurant',
       'Chef-curated wood-fired pizza & white sauce pasta',
       'Artisanal hazelnut coffee & chilled frappes',
-      'Option to head upstairs for a casual board game after dessert'
+      'Option to head downstairs to the Basement Gaming Arena after dessert'
     ]
   },
   {

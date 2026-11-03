@@ -1,0 +1,25 @@
+{
+  "name": "GioCasa Admin Operations",
+  "short_name": "GioCasa Admin",
+  "description": "Real-time Operations Dashboard, Gaming Station Management, Dining & Event Reservations, and Arena Tournaments for GioCasa staff.",
+  "start_url": "/#/admin",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B0C0E",
+  "theme_color": "#0B0C0E",
+  "icons": [
+    {
+      "src": "/assets/giocasa_logo_circle.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/giocasa_logo_circle.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

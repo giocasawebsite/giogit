@@ -15,6 +15,7 @@ import {
 import { InstagramIcon } from '../ui/InstagramIcon';
 import { useBookingModal } from '../../context/BookingModalContext';
 import { useOrderCart } from '../../context/OrderCartContext';
+import { useContactSettings } from '../../context/ContactSettingsContext';
 
 interface FooterProps {
   onNavigate: (page: PageRoute) => void;
@@ -23,6 +24,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const { openBookingModal } = useBookingModal();
   const { openDrawer } = useOrderCart();
+  const { settings } = useContactSettings();
 
   const handleNav = (page: PageRoute) => {
     onNavigate(page);
@@ -67,13 +69,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </div>
 
             <p className="text-brand-subtle text-sm leading-relaxed max-w-md font-light">
-              Italian-inspired wood-fired dining in the basement, high-energy gaming lounge on the first floor. A modern social destination crafted for slow meals, fast matches, and unforgettable nights in Ayodhya.
+              Wood-fired Italian dining & slate pool on the 1st Floor, high-energy PS5 & racing sim gaming lounge in the Basement. A modern social destination crafted for slow meals, fast matches, and unforgettable nights in Ayodhya.
             </p>
 
             {/* Quick Action Pills */}
             <div className="flex flex-wrap gap-2.5 pt-2">
               <button
-                onClick={() => openBookingModal('dining')}
+                onClick={() => openBookingModal('choice')}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-surface border border-brand-border hover:border-brand-orange text-xs font-semibold uppercase tracking-wider text-white hover:text-brand-orange transition-colors"
               >
                 <Flame className="w-3.5 h-3.5 text-brand-orange" />
@@ -154,29 +156,29 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <ul className="space-y-3 text-xs">
               <li>
                 <a
-                  href={businessConfig.location.googleMapsUrl}
+                  href={settings.googleMapsUrl || businessConfig.location.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-brand-subtle hover:text-white flex items-start gap-2.5 group"
                 >
                   <MapPin className="w-4 h-4 text-brand-orange shrink-0 mt-0.5" />
                   <span>
-                    {businessConfig.location.addressLine1}, {businessConfig.location.city}, {businessConfig.location.state}
+                    {settings.addressLine1 || businessConfig.location.addressLine1}, {settings.city || businessConfig.location.city}, {settings.state || businessConfig.location.state}
                   </span>
                 </a>
               </li>
               <li>
                 <a
-                  href={`tel:${businessConfig.contact.phone}`}
+                  href={`tel:${settings.phone || businessConfig.contact.phone}`}
                   className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
                 >
                   <Phone className="w-4 h-4 text-brand-pink shrink-0" />
-                  <span className="font-mono">{businessConfig.contact.displayPhone}</span>
+                  <span className="font-mono">{settings.displayPhone || businessConfig.contact.displayPhone}</span>
                 </a>
               </li>
               <li>
                 <a
-                  href={`https://wa.me/${businessConfig.contact.whatsappNumber}`}
+                  href={`https://wa.me/${settings.whatsappNumber || businessConfig.contact.whatsappNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
@@ -187,13 +189,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </li>
               <li>
                 <a
-                  href={businessConfig.contact.instagramUrl}
+                  href={settings.instagramUrl || businessConfig.contact.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-brand-subtle hover:text-white flex items-center gap-2.5 group"
                 >
                   <InstagramIcon className="w-4 h-4 text-brand-pink shrink-0" />
-                  <span>{businessConfig.contact.instagramHandle}</span>
+                  <span>{settings.instagramHandle || businessConfig.contact.instagramHandle}</span>
                 </a>
               </li>
             </ul>

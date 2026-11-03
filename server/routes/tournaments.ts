@@ -3,6 +3,7 @@ import { dbService } from '../db';
 import { getNowInKolkata } from '../utils/timezone';
 import { Tournament } from '../types';
 import { tournamentRegistrationLimiter } from '../middleware/security';
+import { pushNotificationService } from '../services/pushNotification';
 
 const router = Router();
 
@@ -191,6 +192,11 @@ router.post('/:slug/register', tournamentRegistrationLimiter, async (req: Reques
       teammates,
       notes,
       rulesAccepted: Boolean(rulesAccepted),
+    });
+
+    // Database insert confirmed! Dispatch real-time admin push notification asynchronously
+    pushNotificationService.notifyNewTournamentRegistration(result.registration, result.tournament).catch((err) => {
+      console.error('Failed to dispatch tournament push alert:', err?.message || err);
     });
 
     return res.status(201).json({

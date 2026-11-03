@@ -27,6 +27,9 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Utensils,
+  PartyPopper,
+  Building,
 } from 'lucide-react';
 
 interface PlayerProfileViewProps {
@@ -46,8 +49,8 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
 }) => {
   const { player, registrations, bookings, wins, loyaltyLedger, activityTimeline } = profile;
 
-  // Active Tab: 'timeline' | 'tournaments' | 'bookings' | 'notes' | 'loyalty'
-  const [activeTab, setActiveTab] = useState<'timeline' | 'tournaments' | 'bookings' | 'notes' | 'loyalty'>('timeline');
+  // Active Tab: 'timeline' | 'tournaments' | 'bookings' | 'dining-events' | 'referrals' | 'notes' | 'loyalty'
+  const [activeTab, setActiveTab] = useState<'timeline' | 'tournaments' | 'bookings' | 'dining-events' | 'referrals' | 'notes' | 'loyalty'>('timeline');
 
   // Staff Note Form
   const [noteText, setNoteText] = useState('');
@@ -360,7 +363,7 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
       </div>
 
       {/* Metrics Summary Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Metric 1: Tournaments & Wins */}
         <div className="p-5 rounded-2xl bg-brand-surface border border-brand-border shadow-lg space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-widest text-brand-subtle block">
@@ -408,11 +411,12 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
           </span>
           <div className="flex items-baseline gap-1 font-mono text-3xl font-bold text-emerald-400">
             <span>₹</span>
-            <span>{(player.stats.totalSpend || 0).toLocaleString('en-IN')}</span>
+            <span>{(profile.paymentSummary?.lifetimeSpend ?? player.stats.totalSpend ?? 0).toLocaleString('en-IN')}</span>
           </div>
-          <span className="text-[11px] text-brand-subtle block">
-            Reliable transaction ledger records
-          </span>
+          <div className="flex items-center justify-between text-[11px] text-brand-subtle pt-0.5">
+            <span>Base: <strong className="text-brand-cream">₹{(profile.paymentSummary?.originalBookingsSpend ?? player.stats.originalBookingSpend ?? player.stats.totalSpend ?? 0).toLocaleString('en-IN')}</strong></span>
+            <span>Extra Time: <strong className="text-amber-400 font-semibold">+₹{(profile.paymentSummary?.extensionsSpend ?? player.stats.extensionSpend ?? 0).toLocaleString('en-IN')}</strong></span>
+          </div>
         </div>
 
         {/* Metric 4: Loyalty Points & Tier */}
@@ -434,8 +438,27 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
             </span>
           </div>
           <span className="text-[11px] text-brand-subtle block">
-            Earn 1 pt per ₹10 on paid sessions
+            Earn points on sessions & tournaments
           </span>
+        </div>
+
+        {/* Metric 5: Dining & Event Enquiries */}
+        <div className="p-5 rounded-2xl bg-brand-surface border border-brand-border shadow-lg space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-brand-subtle block">
+            Dining & Events
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-3xl font-bold text-brand-orange">
+              {(profile.diningCount ?? profile.diningReservations?.length ?? 0) + (profile.eventCount ?? profile.eventReservations?.length ?? 0)}
+            </span>
+            <span className="text-xs font-mono text-brand-subtle">
+              Total records
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-brand-subtle">
+            <span>Dining: <strong className="text-brand-cream">{profile.diningCount ?? profile.diningReservations?.length ?? 0}</strong></span>
+            <span>Events: <strong className="text-brand-cream">{profile.eventCount ?? profile.eventReservations?.length ?? 0}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -472,6 +495,29 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
           }`}
         >
           Gaming Bookings ({bookings.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('dining-events')}
+          className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all border-b-2 whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'dining-events'
+              ? 'border-brand-orange text-brand-orange font-bold'
+              : 'border-transparent text-brand-subtle hover:text-white'
+          }`}
+        >
+          <Utensils className="w-3.5 h-3.5" />
+          <span>Dining & Events ({(profile.diningReservations?.length || 0) + (profile.eventReservations?.length || 0)})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('referrals')}
+          className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'referrals'
+              ? 'border-brand-pink text-brand-pink font-bold'
+              : 'border-transparent text-brand-subtle hover:text-white'
+          }`}
+        >
+          Referrals ({profile.referrals?.length ?? player.referralCount ?? 0})
         </button>
 
         <button
@@ -682,7 +728,19 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                             {b.date} • {b.startTime}{b.endTime ? ` - ${b.endTime}` : ''}
                           </td>
                           <td className="py-3 px-3">{b.durationMinutes} mins</td>
-                          <td className="py-3 px-3 text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</td>
+                          <td className="py-3 px-3">
+                            <div className="text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</div>
+                            {b.extensions && b.extensions.length > 0 && (
+                              <div className="text-[10px] text-brand-subtle space-y-0.5 pt-0.5">
+                                <div>Base: ₹{b.originalAmount ?? (b.totalAmount || 0)}</div>
+                                {b.extensions.map((ext, i) => (
+                                  <div key={ext.id || i} className="text-amber-400">
+                                    +{ext.extensionMinutes}m: ₹{ext.amount} ({ext.paymentStatus})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-3 px-3">
                             <span className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/40 text-[10px] text-blue-400 uppercase font-bold">
                               {b.status}
@@ -736,7 +794,19 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                             {b.date} • {b.startTime}{b.endTime ? ` - ${b.endTime}` : ''}
                           </td>
                           <td className="py-3 px-3">{b.durationMinutes} mins</td>
-                          <td className="py-3 px-3 text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</td>
+                          <td className="py-3 px-3">
+                            <div className="text-emerald-400 font-bold">₹{b.totalAmount || b.totalPrice || 0}</div>
+                            {b.extensions && b.extensions.length > 0 && (
+                              <div className="text-[10px] text-brand-subtle space-y-0.5 pt-0.5">
+                                <div>Base: ₹{b.originalAmount ?? (b.totalAmount || 0)}</div>
+                                {b.extensions.map((ext, i) => (
+                                  <div key={ext.id || i} className="text-amber-400">
+                                    +{ext.extensionMinutes}m: ₹{ext.amount} ({ext.paymentStatus})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-3 px-3">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
                               b.status === 'completed'
@@ -758,6 +828,221 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
           </div>
         );
       })()}
+
+      {/* Tab: Dining & Events */}
+      {activeTab === 'dining-events' && (
+        <div className="space-y-6">
+          {/* Loyalty policy notice */}
+          <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border flex items-start gap-3">
+            <Utensils className="w-5 h-5 text-brand-orange shrink-0 mt-0.5" />
+            <div className="text-xs text-brand-subtle space-y-1">
+              <strong className="text-white block font-sans">Hospitality & Dining History</strong>
+              <span>
+                All dining table reservations (1st Floor Restaurant) and event bookings requested under this customer's phone or Gio ID. In accordance with GioCasa loyalty rules, dining and event bookings do not accrue gaming loyalty points.
+              </span>
+            </div>
+          </div>
+
+          {/* Dining Reservations Section */}
+          <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-brand-orange" />
+                  <span>1st Floor Dining Reservations</span>
+                </h3>
+                <p className="text-xs text-brand-subtle">
+                  Wood-fired restaurant table reservations.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-brand-orange/15 border border-brand-orange/30 font-mono text-xs font-bold text-brand-orange">
+                {profile.diningReservations?.length || 0} Records
+              </span>
+            </div>
+
+            {(!profile.diningReservations || profile.diningReservations.length === 0) ? (
+              <div className="py-8 text-center text-brand-subtle font-mono text-xs">
+                No dining reservations recorded for this player.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
+                    <tr>
+                      <th className="py-3 px-3">Reference</th>
+                      <th className="py-3 px-3">Location</th>
+                      <th className="py-3 px-3">Date & Time</th>
+                      <th className="py-3 px-3">Guests</th>
+                      <th className="py-3 px-3">Seating</th>
+                      <th className="py-3 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/40 text-white">
+                    {profile.diningReservations.map(res => (
+                      <tr key={res.id} className="hover:bg-brand-surfaceElevated/50">
+                        <td className="py-3 px-3 font-bold text-brand-orange">#{res.referenceCode}</td>
+                        <td className="py-3 px-3 font-sans text-brand-subtle">1st Floor Restaurant</td>
+                        <td className="py-3 px-3 text-brand-cream">{res.date} • {res.time}</td>
+                        <td className="py-3 px-3">{res.guests} Guests</td>
+                        <td className="py-3 px-3 text-brand-subtle">{res.seatingPreference || 'Standard'}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
+                            res.status === 'pending'
+                              ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                              : res.status === 'confirmed'
+                              ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                              : res.status === 'completed'
+                              ? 'bg-blue-500/15 border border-blue-500/40 text-blue-400'
+                              : 'bg-red-500/15 border border-red-500/40 text-red-400'
+                          }`}>
+                            {res.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Event Enquiries Section */}
+          <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
+                  <PartyPopper className="w-4 h-4 text-emerald-400" />
+                  <span>Celebration & Event Enquiries</span>
+                </h3>
+                <p className="text-xs text-brand-subtle">
+                  Private parties, birthdays, and group celebrations.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 font-mono text-xs font-bold text-emerald-400">
+                {profile.eventReservations?.length || 0} Records
+              </span>
+            </div>
+
+            {(!profile.eventReservations || profile.eventReservations.length === 0) ? (
+              <div className="py-8 text-center text-brand-subtle font-mono text-xs">
+                No event enquiries recorded for this player.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
+                    <tr>
+                      <th className="py-3 px-3">Reference</th>
+                      <th className="py-3 px-3">Event Type</th>
+                      <th className="py-3 px-3">Date & Time</th>
+                      <th className="py-3 px-3">Party Size</th>
+                      <th className="py-3 px-3">Budget</th>
+                      <th className="py-3 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/40 text-white">
+                    {profile.eventReservations.map(ev => (
+                      <tr key={ev.id} className="hover:bg-brand-surfaceElevated/50">
+                        <td className="py-3 px-3 font-bold text-emerald-400">#{ev.referenceCode}</td>
+                        <td className="py-3 px-3 font-sans font-medium text-white">{ev.eventType}</td>
+                        <td className="py-3 px-3 text-brand-cream">{ev.date} • {ev.time}</td>
+                        <td className="py-3 px-3">{ev.expectedGuests} Guests</td>
+                        <td className="py-3 px-3 text-emerald-300">{ev.estimatedBudget || 'Flexible'}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
+                            ev.status === 'pending'
+                              ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                              : ev.status === 'confirmed'
+                              ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                              : ev.status === 'completed'
+                              ? 'bg-blue-500/15 border border-blue-500/40 text-blue-400'
+                              : 'bg-red-500/15 border border-red-500/40 text-red-400'
+                          }`}>
+                            {ev.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Referrals */}
+      {activeTab === 'referrals' && (
+        <div className="p-6 rounded-3xl bg-brand-surface border border-brand-border space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-serif text-xl font-bold text-white">Player Referral History</h3>
+              <p className="text-xs text-brand-subtle">
+                Personal referral code: <strong className="text-brand-orange font-mono">{player.referralCode}</strong> • Total invited: {player.referralCount || 0} • Verified: {player.successfulReferralCount || 0}
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-brand-orange/15 border border-brand-orange/30 font-mono text-xs font-bold text-brand-orange">
+              {profile.referrals?.length || player.referralCount || 0} Records
+            </span>
+          </div>
+
+          {(!profile.referrals || profile.referrals.length === 0) ? (
+            <div className="py-8 text-center text-brand-subtle font-mono text-xs">
+              No referral records linked to this player profile yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-brand-dark/95 border-b border-brand-border text-brand-subtle text-[10px] uppercase">
+                  <tr>
+                    <th className="py-3 px-3">Role</th>
+                    <th className="py-3 px-3">Player Name</th>
+                    <th className="py-3 px-3">Gio ID</th>
+                    <th className="py-3 px-3">Status</th>
+                    <th className="py-3 px-3">Points Earned</th>
+                    <th className="py-3 px-3">Activity Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border/40 text-white">
+                  {profile.referrals.map((ref) => {
+                    const isReferrer = ref.referrerPlayerId === player.id;
+                    return (
+                      <tr key={ref.id} className="hover:bg-brand-surfaceElevated/50">
+                        <td className="py-3 px-3 font-bold text-brand-pink">
+                          {isReferrer ? 'Invited Player' : 'Referred By'}
+                        </td>
+                        <td className="py-3 px-3 font-sans font-medium">
+                          {isReferrer ? (ref.referredPlayerName || ref.referredName || 'Guest Player') : ref.referrerName}
+                        </td>
+                        <td className="py-3 px-3 text-brand-blue font-bold">
+                          {isReferrer ? ref.referredGioId : ref.referrerGioId}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
+                            ref.status === 'qualified'
+                              ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                              : ref.status === 'pending'
+                              ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400'
+                              : 'bg-red-500/15 border border-red-500/40 text-red-400'
+                          }`}>
+                            {ref.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-emerald-400 font-bold">
+                          {ref.status === 'qualified' ? `+${ref.pointsAwarded || 200} pts` : '0 pts'}
+                        </td>
+                        <td className="py-3 px-3 text-brand-subtle">
+                          {ref.qualifiedAt ? ref.qualifiedAt.slice(0, 10) : (ref.createdAt ? ref.createdAt.slice(0, 10) : 'N/A')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab 4: Staff Notes & Reminders */}
       {activeTab === 'notes' && (

@@ -1,7 +1,7 @@
 export interface GamingResource {
   id: string;
   name: string;
-  category: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
+  category: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames' | 'xbox' | 'pc' | 'snooker' | string;
   zoneId: string;
   ratePerHour: number;
   minDurationMinutes: number;
@@ -13,6 +13,11 @@ export interface GamingResource {
   specs: string[];
   image: string;
   order: number;
+  machineIdentifier?: string;
+  floorLocation?: 'Basement' | '1st Floor';
+  availableGames?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type SlotStatus = 'available' | 'booked' | 'playing' | 'unavailable';

@@ -1,10 +1,11 @@
-export type ResourceCategory = 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
+export type ResourceCategory = 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames' | 'xbox' | 'pc' | 'snooker' | string;
 
 export interface GamingResource {
   id: string; // e.g. 'ps5-station-1'
   name: string; // 'PS5 Pro Station 1'
   category: ResourceCategory;
   zoneId: string; // 'ps5-arena'
+  floorLocation?: 'Basement' | '1st Floor';
   ratePerHour: number;
   minDurationMinutes: number;
   maxDurationMinutes: number;
@@ -15,10 +16,54 @@ export interface GamingResource {
   specs: string[];
   image: string;
   order: number;
+  machineIdentifier?: string; // e.g. 'PS5-01', 'RIG-01', 'TABLE-1'
+  availableGames?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GameItem {
+  id: string; // e.g. 'game-ea-fc-25'
+  title: string; // 'EA Sports FC 25'
+  category: string; // 'ps5', 'xbox', 'pc', 'racing', 'pool', 'foosball', 'boardgames', 'all'
+  genre?: string; // 'Sports', 'Fighting', 'Action', 'Racing', 'Co-op', 'Billiards', 'Tabletop'
+  description: string;
+  image: string;
+  isAvailable: boolean;
+  minPlayers?: number;
+  maxPlayers?: number;
+  order?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentSummary {
+  category: string;
+  name: string;
+  totalMachines: number;
+  availableMachines: number;
+  bookedMachines: number;
+  maintenanceMachines: number;
+  ratePerHour: number;
+  minPlayers: number;
+  maxPlayers: number;
+  image: string;
+  machines: GamingResource[];
 }
 
 export type BookingStatus = 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' | 'expired';
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'refunded';
+
+export interface BookingExtension {
+  id: string; // 'ext-xxx'
+  extensionMinutes: number; // 30, 60
+  amount: number; // INR
+  paymentStatus: PaymentStatus; // 'paid', 'pending', 'unpaid'
+  paidAt?: string;
+  createdAt: string;
+  idempotencyKey?: string;
+  notes?: string;
+}
 
 export interface Booking {
   id: string; // 'GC-XXXXXX'
@@ -34,6 +79,9 @@ export interface Booking {
   durationMinutes: number;
   numberOfPeople: number;
   totalAmount: number;
+  originalAmount?: number; // Initial booking cost before extensions
+  extensionAmount?: number; // Total confirmed extension payments
+  extensions?: BookingExtension[];
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   notes?: string;
@@ -67,6 +115,9 @@ export interface CreateBookingRequest {
 
 export interface ExtendBookingRequest {
   additionalMinutes: number; // e.g. 30 or 60
+  paymentStatus?: PaymentStatus;
+  idempotencyKey?: string;
+  notes?: string;
 }
 
 export interface AdminBookingFilter {
@@ -367,6 +418,10 @@ export interface PlayerStats {
   completedBookingsCount?: number;
   totalHoursPlayed: number;
   totalSpend: number; // Verified INR
+  originalBookingSpend?: number; // Spending from initial bookings (INR)
+  extensionSpend?: number; // Spending from session extensions (INR)
+  diningCount?: number;
+  eventCount?: number;
   firstVisitDate?: string;
   lastVisitDate?: string;
   lastActivityDate?: string;
@@ -380,7 +435,8 @@ export type PlayerAcquisitionSource =
 
 export interface Player {
   id: string; // 'ply-xxx'
-  gioId: string; // Permanent Public Unique ID: e.g. 'GIO-7K4P9X'
+  gioId: string; // Permanent Public Unique ID: e.g. 'GIO-7K4P9X' or 'GIOKING23'
+  normalizedGioId?: string; // Uppercase alphanumeric normalized ID for uniqueness indexing
   referralCode: string; // e.g. 'REF-7K4P9X'
   referredBy?: string; // referrer's referralCode or gioId
   referralCount: number;
@@ -471,10 +527,73 @@ export interface PlayerTimelineEvent {
   metadata?: Record<string, any>;
 }
 
+export interface PlayerPaymentSummary {
+  lifetimeSpend: number;
+  originalBookingsSpend: number;
+  extensionsSpend: number;
+  confirmedBookingsCount: number;
+  confirmedExtensionsCount: number;
+}
+
+export type ReservationStatus = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+
+export interface DiningReservation {
+  id: string; // 'gdr-xxx'
+  reference: string; // 'GDR-XXXXXX'
+  referenceCode: string; // Alias 'GDR-XXXXXX'
+  type: 'dining';
+  customerName: string;
+  phone: string;
+  whatsappPhone?: string;
+  email?: string;
+  guests: number;
+  date: string;
+  time: string;
+  location: string; // 'GioCasa Dine-in Restaurant — 1st Floor'
+  seatingPreference?: string;
+  specialRequests?: string;
+  additionalRequirements?: string;
+  status: ReservationStatus;
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  playerId?: string;
+  gioId?: string;
+}
+
+export interface EventReservation {
+  id: string; // 'ger-xxx'
+  reference: string; // 'GER-XXXXXX'
+  referenceCode: string; // Alias 'GER-XXXXXX'
+  type: 'event';
+  customerName: string;
+  phone: string;
+  whatsappPhone?: string;
+  email: string;
+  eventType: string; // 'Birthday' | 'Anniversary' | 'Corporate Event' | 'Private Party' | 'Other'
+  date: string;
+  time: string;
+  expectedGuests: number;
+  estimatedBudget?: string;
+  foodRequirements?: string;
+  decorationRequirements?: string;
+  additionalMessage?: string;
+  status: ReservationStatus;
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  playerId?: string;
+  gioId?: string;
+}
+
 export interface PlayerProfileDetails {
   player: Player;
   registrations: TournamentRegistration[];
   bookings: Booking[];
+  diningReservations?: DiningReservation[];
+  eventReservations?: EventReservation[];
+  diningCount?: number;
+  eventCount?: number;
   wins: Array<{
     id: string;
     tournamentTitle: string;
@@ -486,7 +605,68 @@ export interface PlayerProfileDetails {
   }>;
   loyaltyLedger: LoyaltyLedgerEntry[];
   referrals?: Referral[];
+  paymentSummary?: PlayerPaymentSummary;
   reminders?: AdminReminder[];
   communicationLogs?: CommunicationLog[];
   activityTimeline: PlayerTimelineEvent[];
 }
+
+// =========================================================================
+// CONTACT SETTINGS & WHATSAPP CONFIGURATION
+// =========================================================================
+
+export interface ContactSettings {
+  brandName: string;
+  whatsappNumber: string; // digits only, e.g. '919696028522'
+  phone: string; // e.g. '+91 96960 28522'
+  displayPhone: string; // e.g. '+91 96960 28522'
+  email: string; // e.g. 'ciao@giocasa.in'
+  addressLine1: string; // e.g. 'Civil Lines / Main Hub'
+  addressLine2: string; // e.g. 'Ayodhya, Uttar Pradesh 224001'
+  landmark: string; // e.g. 'Near City Center'
+  city: string; // e.g. 'Ayodhya'
+  state: string; // e.g. 'Uttar Pradesh'
+  country: string; // e.g. 'India'
+  pincode: string; // e.g. '224001'
+  googleMapsUrl: string; // e.g. 'https://maps.google.com/?q=Ayodhya+Uttar+Pradesh'
+  instagramHandle: string; // e.g. '@giocasa.ayodhya'
+  instagramUrl: string; // e.g. 'https://instagram.com'
+  updatedAt?: string;
+}
+
+// =========================================================================
+// ADMIN WEB PUSH NOTIFICATIONS & DEVICE SUBSCRIPTIONS
+// =========================================================================
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface AdminPushSubscription {
+  id: string;
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+  deviceName?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  createdAt: string;
+  updatedAt?: string;
+  lastUsedAt?: string;
+}
+
+export interface PushNotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  data?: {
+    url: string;
+    type: 'booking' | 'dining' | 'event' | 'tournament' | 'test';
+    reference?: string;
+    timestamp?: number;
+  };
+}
+
+

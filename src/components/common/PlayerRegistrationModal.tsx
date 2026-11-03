@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { playerCrmApi } from '../../services/playerCrmApi';
 import { VerifiedPlayerData } from './PlayerIdLookup';
-import { X, Sparkles, Copy, Check, Share2, ShieldCheck, Trophy, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Copy, Check, Share2, ShieldCheck, Trophy, AlertCircle, Loader2 } from 'lucide-react';
 
 interface PlayerRegistrationModalProps {
   isOpen: boolean;
@@ -16,6 +16,9 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
 }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [customGioId, setCustomGioId] = useState('');
+  const [idChecking, setIdChecking] = useState(false);
+  const [idStatus, setIdStatus] = useState<{ available?: boolean; message?: string; error?: string } | null>(null);
   const [gamerTag, setGamerTag] = useState('');
   const [email, setEmail] = useState('');
   const [favoriteGame, setFavoriteGame] = useState('EA Sports FC 25');
@@ -27,6 +30,56 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
   const [error, setError] = useState<string | null>(null);
   const [createdPlayer, setCreatedPlayer] = useState<VerifiedPlayerData | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Live availability feedback for custom Gio ID
+  useEffect(() => {
+    const trimmed = customGioId.trim().toUpperCase();
+    if (!trimmed) {
+      setIdStatus(null);
+      setIdChecking(false);
+      return;
+    }
+
+    if (!trimmed.startsWith('GIO')) {
+      setIdStatus({ available: false, error: 'Must start with GIO (e.g. GIOKING23)' });
+      setIdChecking(false);
+      return;
+    }
+    if (trimmed.length < 6) {
+      setIdStatus({ available: false, error: 'At least 6 characters (e.g. GIOFC24)' });
+      setIdChecking(false);
+      return;
+    }
+    if (trimmed.length > 20) {
+      setIdStatus({ available: false, error: 'Maximum 20 characters allowed' });
+      setIdChecking(false);
+      return;
+    }
+    const suffix = trimmed.slice(3);
+    if (!/^[A-Z0-9]+$/.test(suffix)) {
+      setIdStatus({ available: false, error: 'Only uppercase letters and numbers after GIO (no special characters)' });
+      setIdChecking(false);
+      return;
+    }
+
+    setIdChecking(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await playerCrmApi.checkGioIdAvailability(trimmed);
+        if (res.available) {
+          setIdStatus({ available: true, message: 'This Gio ID is available!' });
+        } else {
+          setIdStatus({ available: false, error: res.error || 'This Gio ID is already taken. Please choose another.' });
+        }
+      } catch {
+        setIdStatus({ available: false, error: 'Could not verify ID availability.' });
+      } finally {
+        setIdChecking(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [customGioId]);
 
   if (!isOpen) return null;
 
@@ -40,6 +93,10 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
       setError('A valid 10-digit mobile number is required.');
       return;
     }
+    if (customGioId.trim() && idStatus && !idStatus.available) {
+      setError(idStatus.error || 'Please choose an available Gio ID before continuing.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -49,6 +106,7 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
         gamerTag: gamerTag.trim() || undefined,
         phone: phone.trim(),
         email: email.trim() || undefined,
+        customGioId: customGioId.trim().toUpperCase() || undefined,
         favoriteGame,
         favoritePlatform,
         referredBy: referredBy.trim() || undefined,
@@ -219,6 +277,66 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
                   className="w-full px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ED249B]"
                 />
               </div>
+            </div>
+
+            {/* Custom Gio ID Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                  Custom Player ID (Optional)
+                </label>
+                <span className="text-[10px] text-neutral-400">
+                  Must start with GIO • Leave blank to auto-generate
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g. GIOKING23, GIOPLAYER101, GIOFC24"
+                  value={customGioId}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                    setCustomGioId(clean);
+                  }}
+                  maxLength={20}
+                  className={`w-full px-3 py-2 text-xs font-mono uppercase tracking-wider rounded-xl border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 ${
+                    idStatus?.available
+                      ? 'border-emerald-500 focus:ring-emerald-500'
+                      : idStatus && !idStatus.available
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-neutral-300 dark:border-neutral-700 focus:ring-[#ED249B]'
+                  }`}
+                />
+                {idChecking && (
+                  <div className="absolute right-3 top-2.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400" />
+                  </div>
+                )}
+                {!idChecking && idStatus?.available && (
+                  <div className="absolute right-3 top-2.5 text-emerald-500">
+                    <Check className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+              {idStatus && (
+                <div
+                  className={`mt-1 text-[11px] font-medium flex items-center gap-1 ${
+                    idStatus.available ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+                  }`}
+                >
+                  {idStatus.available ? (
+                    <>
+                      <span>✓</span>
+                      <span>{idStatus.message}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⚠</span>
+                      <span>{idStatus.error}</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

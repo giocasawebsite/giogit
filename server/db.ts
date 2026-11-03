@@ -8,6 +8,8 @@ import { hashPassword, verifyPassword, timingSafeCompare } from './middleware/se
 import {
   Booking,
   GamingResource,
+  GameItem,
+  EquipmentSummary,
   AdminBookingFilter,
   Tournament,
   TournamentRegistration,
@@ -31,7 +33,12 @@ import {
   PlayerQueryParams,
   PlayerProfileDetails,
   PlayerTimelineEvent,
+  ContactSettings,
+  DiningReservation,
+  EventReservation,
+  AdminPushSubscription,
 } from './types';
+import { normalizeWhatsAppNumber, formatReadablePhone, DEFAULT_WHATSAPP_NUMBER, DEFAULT_DISPLAY_PHONE } from './utils/phone';
 import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/timezone';
 import { calculateBookingPrice } from './utils/pricing';
 import { INITIAL_TOURNAMENTS, INITIAL_TOURNAMENT_RESULTS, INITIAL_HALL_OF_FAME } from './initialTournaments';
@@ -80,12 +87,14 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 1 (4K 120Hz)',
     category: 'ps5',
     zoneId: 'ps5-arena',
+    floorLocation: 'Basement',
     ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
+    machineIdentifier: 'PS5-01',
     specs: ['PlayStation 5 Console', '55" 4K HDR 120Hz Display', '2 DualSense Controllers', 'EA FC 25, Tekken 8, MK1'],
     image: '/assets/real/ps5_setup.png',
     order: 1,
@@ -95,12 +104,14 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 2 (4K 120Hz)',
     category: 'ps5',
     zoneId: 'ps5-arena',
+    floorLocation: 'Basement',
     ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
+    machineIdentifier: 'PS5-02',
     specs: ['PlayStation 5 Console', '55" 4K HDR 120Hz Display', '2 DualSense Controllers', 'Spider-Man 2, Gran Turismo 7, GTA V'],
     image: '/assets/real/ps5_setup.png',
     order: 2,
@@ -110,12 +121,14 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'PS5 Pro Station 3 (Squad Lounge)',
     category: 'ps5',
     zoneId: 'ps5-arena',
+    floorLocation: 'Basement',
     ratePerHour: 150,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
+    machineIdentifier: 'PS5-03',
     specs: ['PlayStation 5 Console', '55" 4K HDR 120Hz Display', '4 DualSense Controllers', 'It Takes Two, WWE 2K24, Co-op Vault'],
     image: '/assets/real/ps5_setup.png',
     order: 3,
@@ -125,12 +138,14 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'Hot-Shot 8-Ball Slate Championship Pool',
     category: 'pool',
     zoneId: 'hotshot-pool',
+    floorLocation: '1st Floor',
     ratePerHour: 200,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 2, max: 6 },
     active: true,
     isMaintenance: false,
+    machineIdentifier: 'POOL-01',
     specs: ['Italian Slate Bed', 'Aramith Pro Ball Set', 'Precision Ash Cues', 'Spectator Lounge Seating'],
     image: '/assets/real/pool_table.png',
     order: 4,
@@ -140,17 +155,209 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     name: 'Pro Racing Simulator Rig (Force Feedback)',
     category: 'racing',
     zoneId: 'racing-arena',
+    floorLocation: 'Basement',
     ratePerHour: 200,
     minDurationMinutes: 30,
     maxDurationMinutes: 180,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
+    machineIdentifier: 'RACE-01',
     specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
     image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
     order: 5,
   },
 ];
+
+// Initial default games library for GioCasa
+export const INITIAL_GAMES: GameItem[] = [
+  {
+    id: 'game-ea-fc-25',
+    title: 'EA Sports FC 25 (FIFA)',
+    category: 'ps5',
+    genre: 'Sports',
+    description: 'Next-gen football with HyperMotionV, authentic club rosters, and intense split-screen local multiplayer duels.',
+    image: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 4,
+    order: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-tekken-8',
+    title: 'Tekken 8',
+    category: 'ps5',
+    genre: 'Fighting',
+    description: 'Unreal Engine 5 visceral fighting experience featuring the Heat system, high-speed combos, and next-gen stage destruction.',
+    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 2,
+    order: 2,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-mk-1',
+    title: 'Mortal Kombat 1',
+    category: 'ps5',
+    genre: 'Fighting',
+    description: 'Reborn universe created by the Fire God Liu Kang featuring Kameo fighters, cinematic fatalities, and tournament duels.',
+    image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 2,
+    order: 3,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-gta-v',
+    title: 'Grand Theft Auto V',
+    category: 'ps5',
+    genre: 'Action',
+    description: 'Los Santos in ray-traced 4K 60FPS. Fast cars, explosive heist missions, and open-world freedom.',
+    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 1,
+    order: 4,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-spider-man-2',
+    title: "Marvel's Spider-Man 2",
+    category: 'ps5',
+    genre: 'Action',
+    description: 'Peter Parker and Miles Morales swing through Marvel New York with near-instant fast travel and Symbiote powers.',
+    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 1,
+    order: 5,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-gt7',
+    title: 'Gran Turismo 7',
+    category: 'racing',
+    genre: 'Racing',
+    description: 'The Real Driving Simulator. Optimized for force-feedback wheels with dynamic weather and hundreds of precision cars.',
+    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 2,
+    order: 6,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-f1-24',
+    title: 'F1 24 Championship Edition',
+    category: 'racing',
+    genre: 'Racing',
+    description: 'Dynamic handling physics, authentic telemetry, and official 2024 Formula 1 circuits with full sim cockpit integration.',
+    image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 2,
+    order: 7,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-forza-5',
+    title: 'Forza Horizon 5',
+    category: 'racing',
+    genre: 'Racing',
+    description: 'Vibrant open-world Mexican landscapes, supercars, drag strips, and off-road expedition challenges.',
+    image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 1,
+    maxPlayers: 2,
+    order: 8,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-pool-8ball',
+    title: 'Hot-Shot 8-Ball Slate Championship Pool',
+    category: 'pool',
+    genre: 'Billiards',
+    description: 'Tournament-grade Italian slate pool table with true-roll cloth, Aramith pro balls, and custom ash cues.',
+    image: '/assets/real/pool_table.png',
+    isAvailable: true,
+    minPlayers: 2,
+    maxPlayers: 6,
+    order: 9,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-foosball-pro',
+    title: 'Pro Soccer Foosball Table',
+    category: 'foosball',
+    genre: 'Tabletop',
+    description: 'High-speed telescopic rod foosball table with counter-balanced figures and fast ball return.',
+    image: '/assets/real/foosball_lounge.png',
+    isAvailable: true,
+    minPlayers: 2,
+    maxPlayers: 4,
+    order: 10,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-catan',
+    title: 'Catan (Settlers of Catan)',
+    category: 'boardgames',
+    genre: 'Strategy',
+    description: 'Trade, build, and settle the island of Catan. The quintessential modern tabletop strategy masterpiece.',
+    image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 3,
+    maxPlayers: 4,
+    order: 11,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'game-codenames',
+    title: 'Codenames',
+    category: 'boardgames',
+    genre: 'Party',
+    description: 'Two rival spymasters know the secret identities of 25 agents. Teammates must decode one-word clues.',
+    image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=800&q=80',
+    isAvailable: true,
+    minPlayers: 4,
+    maxPlayers: 8,
+    order: 12,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_CONTACT_SETTINGS: ContactSettings = {
+  brandName: 'GioCasa',
+  whatsappNumber: DEFAULT_WHATSAPP_NUMBER,
+  phone: DEFAULT_DISPLAY_PHONE,
+  displayPhone: DEFAULT_DISPLAY_PHONE,
+  email: 'ciao@giocasa.in',
+  addressLine1: 'Civil Lines / Main Hub',
+  addressLine2: 'Ayodhya, Uttar Pradesh 224001',
+  landmark: 'Near City Center',
+  city: 'Ayodhya',
+  state: 'Uttar Pradesh',
+  country: 'India',
+  pincode: '224001',
+  googleMapsUrl: 'https://maps.google.com/?q=Ayodhya+Uttar+Pradesh',
+  instagramHandle: '@giocasa.ayodhya',
+  instagramUrl: 'https://instagram.com',
+};
 
 class DatabaseService {
   private client: MongoClient | null = null;
@@ -163,6 +370,7 @@ class DatabaseService {
   // Fallback in-memory and file store
   private fileBookings: Booking[] = [];
   private fileResources: GamingResource[] = [...INITIAL_RESOURCES];
+  private fileGames: GameItem[] = [...INITIAL_GAMES];
   private fileTournaments: Tournament[] = [...INITIAL_TOURNAMENTS];
   private fileRegistrations: TournamentRegistration[] = [];
   private fileResults: TournamentResult[] = [...INITIAL_TOURNAMENT_RESULTS];
@@ -174,9 +382,13 @@ class DatabaseService {
   private fileAutomationEvents: AutomationEvent[] = [];
   private fileCrmReminders: AdminReminder[] = [];
   private fileCommunicationLogs: CommunicationLog[] = [];
+  private fileDiningReservations: DiningReservation[] = [];
+  private fileEventReservations: EventReservation[] = [];
+  private filePushSubscriptions: AdminPushSubscription[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
+  private gamesFilePath = path.join(DATA_DIR, 'games.json');
   private tournamentsFilePath = path.join(DATA_DIR, 'tournaments.json');
   private registrationsFilePath = path.join(DATA_DIR, 'tournament_registrations.json');
   private resultsFilePath = path.join(DATA_DIR, 'tournament_results.json');
@@ -188,8 +400,12 @@ class DatabaseService {
   private automationEventsFilePath = path.join(DATA_DIR, 'automation_events.json');
   private crmRemindersFilePath = path.join(DATA_DIR, 'crm_reminders.json');
   private communicationLogsFilePath = path.join(DATA_DIR, 'communication_logs.json');
+  private diningReservationsFilePath = path.join(DATA_DIR, 'dining_reservations.json');
+  private eventReservationsFilePath = path.join(DATA_DIR, 'event_reservations.json');
+  private pushSubscriptionsFilePath = path.join(DATA_DIR, 'admin_push_subscriptions.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
+  private cachedContactSettings: ContactSettings | null = null;
 
   async init(): Promise<void> {
     this.isInitializing = true;
@@ -335,11 +551,45 @@ class DatabaseService {
         (async () => {
           const resourcesCol = db.collection<GamingResource>('resources');
           await resourcesCol.createIndex({ id: 1 }, { unique: true });
-          for (const res of INITIAL_RESOURCES) {
-            await resourcesCol.updateOne({ id: res.id }, { $set: res }, { upsert: true });
+          await resourcesCol.createIndex({ category: 1 });
+          const countRes = await resourcesCol.countDocuments();
+          if (countRes === 0) {
+            await resourcesCol.insertMany(INITIAL_RESOURCES);
+          } else {
+            // Seed any initial resources that do not yet exist, preserving user changes & additions
+            for (const res of INITIAL_RESOURCES) {
+              const existing = await resourcesCol.findOne({ id: res.id });
+              if (!existing) {
+                await resourcesCol.insertOne(res);
+              }
+            }
+            // Safely backfill floorLocation on existing MongoDB equipment records without touching pricing/quantities
+            await resourcesCol.updateMany(
+              { category: { $in: ['ps5', 'racing'] }, floorLocation: { $exists: false } },
+              { $set: { floorLocation: 'Basement' } }
+            );
+            await resourcesCol.updateMany(
+              { category: { $nin: ['ps5', 'racing'] }, floorLocation: { $exists: false } },
+              { $set: { floorLocation: '1st Floor' } }
+            );
           }
-          const validIds = INITIAL_RESOURCES.map((r) => r.id);
-          await resourcesCol.updateMany({ id: { $nin: validIds } }, { $set: { active: false } });
+        })(),
+        (async () => {
+          const gamesCol = db.collection<GameItem>('games');
+          await gamesCol.createIndex({ id: 1 }, { unique: true });
+          await gamesCol.createIndex({ category: 1 });
+          await gamesCol.createIndex({ isAvailable: 1 });
+          const countGames = await gamesCol.countDocuments();
+          if (countGames === 0) {
+            await gamesCol.insertMany(INITIAL_GAMES);
+          } else {
+            for (const g of INITIAL_GAMES) {
+              const existing = await gamesCol.findOne({ id: g.id });
+              if (!existing) {
+                await gamesCol.insertOne(g);
+              }
+            }
+          }
         })(),
         (async () => {
           const tournamentsCol = db.collection<Tournament>('tournaments');
@@ -384,6 +634,7 @@ class DatabaseService {
           const playersCol = db.collection<Player>('players');
           await playersCol.createIndex({ id: 1 }, { unique: true });
           await playersCol.createIndex({ gioId: 1 }, { unique: true, sparse: true });
+          await playersCol.createIndex({ normalizedGioId: 1 }, { unique: true, sparse: true });
           await playersCol.createIndex({ referralCode: 1 }, { unique: true, sparse: true });
           await playersCol.createIndex({ normalizedPhone: 1 });
           await playersCol.createIndex({ status: 1 });
@@ -419,6 +670,29 @@ class DatabaseService {
           await commsCol.createIndex({ id: 1 }, { unique: true });
           await commsCol.createIndex({ playerId: 1, createdAt: -1 });
         })(),
+        (async () => {
+          const diningCol = db.collection<DiningReservation>('dining_reservations');
+          await diningCol.createIndex({ id: 1 }, { unique: true });
+          await diningCol.createIndex({ reference: 1 }, { unique: true });
+          await diningCol.createIndex({ phone: 1 });
+          await diningCol.createIndex({ date: 1 });
+          await diningCol.createIndex({ status: 1 });
+          await diningCol.createIndex({ playerId: 1 });
+        })(),
+        (async () => {
+          const eventCol = db.collection<EventReservation>('event_reservations');
+          await eventCol.createIndex({ id: 1 }, { unique: true });
+          await eventCol.createIndex({ reference: 1 }, { unique: true });
+          await eventCol.createIndex({ phone: 1 });
+          await eventCol.createIndex({ date: 1 });
+          await eventCol.createIndex({ status: 1 });
+          await eventCol.createIndex({ playerId: 1 });
+        })(),
+        (async () => {
+          const pushCol = db.collection<AdminPushSubscription>('admin_push_subscriptions');
+          await pushCol.createIndex({ id: 1 }, { unique: true });
+          await pushCol.createIndex({ endpoint: 1 }, { unique: true });
+        })(),
       ]);
 
       // Auto-backfill existing registrations and bookings into player profiles
@@ -437,15 +711,34 @@ class DatabaseService {
       if (fs.existsSync(this.resourcesFilePath)) {
         const raw = fs.readFileSync(this.resourcesFilePath, 'utf-8');
         const parsed: GamingResource[] = JSON.parse(raw);
-        const validIds = new Set(INITIAL_RESOURCES.map((r) => r.id));
-        this.fileResources = [
-          ...INITIAL_RESOURCES,
-          ...parsed.filter((p) => !validIds.has(p.id)).map((p) => ({ ...p, active: false }))
-        ];
-        this.saveResourcesToFile();
+        this.fileResources = parsed && parsed.length > 0 ? parsed : [...INITIAL_RESOURCES];
+        for (const res of INITIAL_RESOURCES) {
+          if (!this.fileResources.some((r) => r.id === res.id)) {
+            this.fileResources.push(res);
+          }
+        }
+        this.fileResources = this.fileResources.map((r) => {
+          if (r.floorLocation) return r;
+          if (r.category === 'ps5' || r.category === 'racing') return { ...r, floorLocation: 'Basement' };
+          return { ...r, floorLocation: '1st Floor' };
+        });
       } else {
         this.fileResources = [...INITIAL_RESOURCES];
         this.saveResourcesToFile();
+      }
+
+      if (fs.existsSync(this.gamesFilePath)) {
+        const raw = fs.readFileSync(this.gamesFilePath, 'utf-8');
+        const parsed: GameItem[] = JSON.parse(raw);
+        this.fileGames = parsed && parsed.length > 0 ? parsed : [...INITIAL_GAMES];
+        for (const g of INITIAL_GAMES) {
+          if (!this.fileGames.some((x) => x.id === g.id)) {
+            this.fileGames.push(g);
+          }
+        }
+      } else {
+        this.fileGames = [...INITIAL_GAMES];
+        this.saveGamesToFile();
       }
 
       if (fs.existsSync(this.bookingsFilePath)) {
@@ -554,6 +847,33 @@ class DatabaseService {
         this.fileCommunicationLogs = [];
         this.saveCommunicationLogsToFile();
       }
+
+      // Load Dining Reservations
+      if (fs.existsSync(this.diningReservationsFilePath)) {
+        const raw = fs.readFileSync(this.diningReservationsFilePath, 'utf-8');
+        this.fileDiningReservations = JSON.parse(raw);
+      } else {
+        this.fileDiningReservations = [];
+        this.saveDiningReservationsToFile();
+      }
+
+      // Load Event Reservations
+      if (fs.existsSync(this.eventReservationsFilePath)) {
+        const raw = fs.readFileSync(this.eventReservationsFilePath, 'utf-8');
+        this.fileEventReservations = JSON.parse(raw);
+      } else {
+        this.fileEventReservations = [];
+        this.saveEventReservationsToFile();
+      }
+
+      // Load Push Subscriptions
+      if (fs.existsSync(this.pushSubscriptionsFilePath)) {
+        const raw = fs.readFileSync(this.pushSubscriptionsFilePath, 'utf-8');
+        this.filePushSubscriptions = JSON.parse(raw);
+      } else {
+        this.filePushSubscriptions = [];
+        this.savePushSubscriptionsToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -569,6 +889,33 @@ class DatabaseService {
       this.fileAutomationEvents = [];
       this.fileCrmReminders = [];
       this.fileCommunicationLogs = [];
+      this.fileDiningReservations = [];
+      this.fileEventReservations = [];
+      this.filePushSubscriptions = [];
+    }
+  }
+
+  private savePushSubscriptionsToFile(): void {
+    try {
+      fs.writeFileSync(this.pushSubscriptionsFilePath, JSON.stringify(this.filePushSubscriptions, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving push subscriptions to file:', err);
+    }
+  }
+
+  private saveDiningReservationsToFile(): void {
+    try {
+      fs.writeFileSync(this.diningReservationsFilePath, JSON.stringify(this.fileDiningReservations, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving dining reservations to file:', err);
+    }
+  }
+
+  private saveEventReservationsToFile(): void {
+    try {
+      fs.writeFileSync(this.eventReservationsFilePath, JSON.stringify(this.fileEventReservations, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving event reservations to file:', err);
     }
   }
 
@@ -577,6 +924,14 @@ class DatabaseService {
       fs.writeFileSync(this.resourcesFilePath, JSON.stringify(this.fileResources, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving resources to file:', err);
+    }
+  }
+
+  private saveGamesToFile(): void {
+    try {
+      fs.writeFileSync(this.gamesFilePath, JSON.stringify(this.fileGames, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving games to file:', err);
     }
   }
 
@@ -694,36 +1049,384 @@ class DatabaseService {
     }
   }
 
-  // ======================== RESOURCES ========================
+  // ======================== RESOURCES & EQUIPMENT ========================
+
+  private ensureFloorLocation(r: GamingResource): GamingResource {
+    if (r.floorLocation) return r;
+    if (r.category === 'ps5' || r.category === 'racing') return { ...r, floorLocation: 'Basement' };
+    return { ...r, floorLocation: '1st Floor' };
+  }
 
   async getResources(): Promise<GamingResource[]> {
     if (this.isMongoConnected && this.db) {
-      return this.db.collection<GamingResource>('resources').find({ active: true }).sort({ order: 1 }).toArray();
+      const items = await this.db.collection<GamingResource>('resources').find({ active: true }).sort({ order: 1 }).toArray();
+      return items.map((r) => this.ensureFloorLocation(r));
     }
-    return this.fileResources.filter((r) => r.active).sort((a, b) => a.order - b.order);
+    return this.fileResources.filter((r) => r.active).map((r) => this.ensureFloorLocation(r)).sort((a, b) => a.order - b.order);
+  }
+
+  async getAllResources(includeInactive = false): Promise<GamingResource[]> {
+    if (this.isMongoConnected && this.db) {
+      const query = includeInactive ? {} : { active: true };
+      const items = await this.db.collection<GamingResource>('resources').find(query).sort({ order: 1 }).toArray();
+      return items.map((r) => this.ensureFloorLocation(r));
+    }
+    if (includeInactive) {
+      return [...this.fileResources].map((r) => this.ensureFloorLocation(r)).sort((a, b) => a.order - b.order);
+    }
+    return this.fileResources.filter((r) => r.active).map((r) => this.ensureFloorLocation(r)).sort((a, b) => a.order - b.order);
   }
 
   async getResourceById(id: string): Promise<GamingResource | null> {
     if (this.isMongoConnected && this.db) {
-      return this.db.collection<GamingResource>('resources').findOne({ id });
+      const item = await this.db.collection<GamingResource>('resources').findOne({ id });
+      return item ? this.ensureFloorLocation(item) : null;
     }
-    return this.fileResources.find((r) => r.id === id) || null;
+    const item = this.fileResources.find((r) => r.id === id) || null;
+    return item ? this.ensureFloorLocation(item) : null;
+  }
+
+  async createResource(resourceData: Partial<GamingResource>): Promise<GamingResource> {
+    const rawId = resourceData.id || `res-${(resourceData.category || 'station')}-${Date.now().toString().slice(-4)}`;
+    const id = rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const now = new Date().toISOString();
+
+    const floorLocation = resourceData.floorLocation || ((resourceData.category === 'ps5' || resourceData.category === 'racing') ? 'Basement' : '1st Floor');
+
+    const resource: GamingResource = {
+      id,
+      name: resourceData.name || 'Gaming Station',
+      category: resourceData.category || 'ps5',
+      zoneId: resourceData.zoneId || `${resourceData.category || 'ps5'}-arena`,
+      floorLocation,
+      ratePerHour: Number(resourceData.ratePerHour) || 150,
+      minDurationMinutes: Number(resourceData.minDurationMinutes) || 30,
+      maxDurationMinutes: Number(resourceData.maxDurationMinutes) || 180,
+      playersCapacity: resourceData.playersCapacity || { min: 1, max: 4 },
+      active: resourceData.active !== undefined ? Boolean(resourceData.active) : true,
+      isMaintenance: Boolean(resourceData.isMaintenance),
+      maintenanceReason: resourceData.maintenanceReason || '',
+      specs: Array.isArray(resourceData.specs) && resourceData.specs.length > 0 ? resourceData.specs : ['High Performance Gaming Station'],
+      image: resourceData.image || '/assets/real/ps5_setup.png',
+      order: Number(resourceData.order) || 10,
+      machineIdentifier: resourceData.machineIdentifier || id.toUpperCase(),
+      availableGames: Array.isArray(resourceData.availableGames) ? resourceData.availableGames : [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<GamingResource>('resources').updateOne(
+        { id: resource.id },
+        { $set: resource },
+        { upsert: true }
+      );
+    }
+
+    const idx = this.fileResources.findIndex((r) => r.id === resource.id);
+    if (idx !== -1) {
+      this.fileResources[idx] = resource;
+    } else {
+      this.fileResources.push(resource);
+    }
+    this.saveResourcesToFile();
+
+    return resource;
   }
 
   async updateResource(id: string, updates: Partial<GamingResource>): Promise<GamingResource | null> {
+    const timestampUpdates = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
     if (this.isMongoConnected && this.db) {
       const res = await this.db.collection<GamingResource>('resources').findOneAndUpdate(
         { id },
-        { $set: updates },
+        { $set: timestampUpdates },
         { returnDocument: 'after' }
       );
       return res || null;
     }
     const idx = this.fileResources.findIndex((r) => r.id === id);
     if (idx === -1) return null;
-    this.fileResources[idx] = { ...this.fileResources[idx], ...updates };
+    this.fileResources[idx] = { ...this.fileResources[idx], ...timestampUpdates };
     this.saveResourcesToFile();
     return this.fileResources[idx];
+  }
+
+  async deleteResource(id: string): Promise<{ success: boolean; error?: string; activeBookingsCount?: number }> {
+    const resource = await this.getResourceById(id);
+    if (!resource) {
+      return { success: false, error: 'Equipment not found.' };
+    }
+
+    // Safety check: Check for active or upcoming bookings
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const allBookings = await this.getBookings({ resourceId: id });
+    const activeOrUpcoming = allBookings.filter(
+      (b) => (b.status === 'confirmed' || b.status === 'active' || b.status === 'pending') && b.date >= today
+    );
+
+    if (activeOrUpcoming.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete equipment "${resource.name}". It has ${activeOrUpcoming.length} active or scheduled booking(s). Please reschedule or complete these bookings first.`,
+        activeBookingsCount: activeOrUpcoming.length,
+      };
+    }
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<GamingResource>('resources').deleteOne({ id });
+    }
+
+    const idx = this.fileResources.findIndex((r) => r.id === id);
+    if (idx !== -1) {
+      this.fileResources.splice(idx, 1);
+      this.saveResourcesToFile();
+    }
+    return { success: true };
+  }
+
+  async adjustCategoryQuantity(
+    category: string,
+    delta: number,
+    templateData?: Partial<GamingResource>
+  ): Promise<{ success: boolean; resource?: GamingResource; error?: string; activeBookingsCount?: number }> {
+    const allResources = await this.getAllResources(true);
+    const categoryResources = allResources.filter((r) => r.category === category && r.active);
+
+    if (delta > 0) {
+      // Increase machine count
+      const existingCount = categoryResources.length;
+      const nextNum = existingCount + 1;
+      const baseTemplate = categoryResources[0] || INITIAL_RESOURCES.find((r) => r.category === category) || {
+        ratePerHour: 150,
+        playersCapacity: { min: 1, max: 4 },
+        minDurationMinutes: 30,
+        maxDurationMinutes: 180,
+        zoneId: `${category}-arena`,
+        specs: [`Standard ${category.toUpperCase()} Setup`],
+        image: '/assets/real/ps5_setup.png',
+      };
+
+      const customName = templateData?.name || `${baseTemplate.name.split(' (')[0].replace(/\d+$/, '').trim()} ${nextNum}`;
+      const customId = templateData?.id || `${category}-station-${Date.now().toString().slice(-4)}`;
+      const customIdentifier = templateData?.machineIdentifier || `${category.toUpperCase()}-${String(nextNum).padStart(2, '0')}`;
+
+      const newResource = await this.createResource({
+        id: customId,
+        name: customName,
+        category: category as any,
+        zoneId: templateData?.zoneId || baseTemplate.zoneId || `${category}-arena`,
+        ratePerHour: templateData?.ratePerHour || baseTemplate.ratePerHour || 150,
+        minDurationMinutes: templateData?.minDurationMinutes || baseTemplate.minDurationMinutes || 30,
+        maxDurationMinutes: templateData?.maxDurationMinutes || baseTemplate.maxDurationMinutes || 180,
+        playersCapacity: templateData?.playersCapacity || baseTemplate.playersCapacity || { min: 1, max: 4 },
+        active: true,
+        isMaintenance: false,
+        specs: templateData?.specs || baseTemplate.specs || [`Standard ${category.toUpperCase()} Unit`],
+        image: templateData?.image || baseTemplate.image || '/assets/real/ps5_setup.png',
+        order: (baseTemplate.order || 1) + nextNum,
+        machineIdentifier: customIdentifier,
+      });
+
+      return { success: true, resource: newResource };
+    } else if (delta < 0) {
+      // Decrease machine count: find an unbooked machine
+      if (categoryResources.length <= 1) {
+        return { success: false, error: `Cannot reduce quantity: Minimum 1 machine required for category ${category}.` };
+      }
+
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const allBookings = await this.getBookings({ category: category as any });
+
+      let targetMachine: GamingResource | null = null;
+      for (let i = categoryResources.length - 1; i >= 0; i--) {
+        const candidate = categoryResources[i];
+        const candidateBookings = allBookings.filter(
+          (b) => b.resourceId === candidate.id &&
+                 (b.status === 'confirmed' || b.status === 'active' || b.status === 'pending') &&
+                 b.date >= today
+        );
+        if (candidateBookings.length === 0) {
+          targetMachine = candidate;
+          break;
+        }
+      }
+
+      if (!targetMachine) {
+        const totalActive = allBookings.filter((b) => (b.status === 'confirmed' || b.status === 'active' || b.status === 'pending') && b.date >= today).length;
+        return {
+          success: false,
+          error: `Cannot reduce machine quantity for ${category}. All ${categoryResources.length} machines have active or upcoming bookings.`,
+          activeBookingsCount: totalActive,
+        };
+      }
+
+      const res = await this.deleteResource(targetMachine.id);
+      return { success: res.success, error: res.error, activeBookingsCount: res.activeBookingsCount };
+    }
+
+    return { success: true };
+  }
+
+  async getEquipmentSummary(): Promise<EquipmentSummary[]> {
+    const allResources = await this.getAllResources(true);
+    const activeResources = allResources.filter((r) => r.active);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const nowTime = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+    
+    // Get today's bookings to calculate active sessions
+    const todayBookings = await this.getBookings({ date: today });
+    const activeSessions = todayBookings.filter(
+      (b) => (b.status === 'active' || b.status === 'confirmed') && b.startTime <= nowTime && b.endTime >= nowTime
+    );
+
+    const categories = Array.from(new Set(activeResources.map((r) => r.category)));
+    
+    const categoryLabels: Record<string, string> = {
+      ps5: 'PlayStation 5 Pro Arena',
+      pool: 'Hot-Shot 8-Ball Slate Pool',
+      racing: 'Pro Racing Simulator Cockpit',
+      foosball: 'Pro Soccer Foosball Table',
+      boardgames: 'Curated Board Games Vault',
+      xbox: 'Xbox Series X Arena',
+      pc: 'PC Gaming Battlestation',
+      snooker: 'Tournament Snooker Table',
+    };
+
+    return categories.map((cat) => {
+      const machines = activeResources.filter((r) => r.category === cat);
+      const maintenanceMachines = machines.filter((r) => r.isMaintenance).length;
+      const bookedMachines = machines.filter((r) => activeSessions.some((b) => b.resourceId === r.id)).length;
+      const availableMachines = machines.filter(
+        (r) => !r.isMaintenance && !activeSessions.some((b) => b.resourceId === r.id)
+      ).length;
+
+      const first = machines[0];
+      return {
+        category: cat,
+        name: categoryLabels[cat] || `${cat.toUpperCase()} Stations`,
+        totalMachines: machines.length,
+        availableMachines: Math.max(0, availableMachines),
+        bookedMachines,
+        maintenanceMachines,
+        ratePerHour: first?.ratePerHour || 150,
+        minPlayers: first?.playersCapacity?.min || 1,
+        maxPlayers: first?.playersCapacity?.max || 4,
+        image: first?.image || '/assets/real/ps5_setup.png',
+        machines,
+      };
+    });
+  }
+
+  // ======================== GAMES LIBRARY ========================
+
+  async getGames(filter?: { category?: string; isAvailable?: boolean }): Promise<GameItem[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (filter?.category && filter.category !== 'all') {
+        query.category = filter.category;
+      }
+      if (filter?.isAvailable !== undefined) {
+        query.isAvailable = filter.isAvailable;
+      }
+      return this.db.collection<GameItem>('games').find(query).sort({ order: 1, title: 1 }).toArray();
+    }
+
+    let games = [...this.fileGames];
+    if (filter?.category && filter.category !== 'all') {
+      games = games.filter((g) => g.category === filter.category);
+    }
+    if (filter?.isAvailable !== undefined) {
+      games = games.filter((g) => g.isAvailable === filter.isAvailable);
+    }
+    return games.sort((a, b) => (a.order || 99) - (b.order || 99));
+  }
+
+  async getGameById(id: string): Promise<GameItem | null> {
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<GameItem>('games').findOne({ id });
+    }
+    return this.fileGames.find((g) => g.id === id) || null;
+  }
+
+  async createGame(gameData: Omit<GameItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<GameItem> {
+    const rawId = gameData.id || `game-${gameData.title.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30)}-${Date.now().toString().slice(-4)}`;
+    const id = rawId.replace(/--+/g, '-');
+    const now = new Date().toISOString();
+
+    const game: GameItem = {
+      id,
+      title: gameData.title.trim(),
+      category: gameData.category || 'ps5',
+      genre: gameData.genre || 'Action',
+      description: gameData.description || '',
+      image: gameData.image || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+      isAvailable: gameData.isAvailable !== undefined ? Boolean(gameData.isAvailable) : true,
+      minPlayers: Number(gameData.minPlayers) || 1,
+      maxPlayers: Number(gameData.maxPlayers) || 2,
+      order: Number(gameData.order) || 50,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<GameItem>('games').updateOne(
+        { id: game.id },
+        { $set: game },
+        { upsert: true }
+      );
+    }
+
+    const idx = this.fileGames.findIndex((g) => g.id === game.id);
+    if (idx !== -1) {
+      this.fileGames[idx] = game;
+    } else {
+      this.fileGames.push(game);
+    }
+    this.saveGamesToFile();
+
+    return game;
+  }
+
+  async updateGame(id: string, updates: Partial<GameItem>): Promise<GameItem | null> {
+    const timestampUpdates = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection<GameItem>('games').findOneAndUpdate(
+        { id },
+        { $set: timestampUpdates },
+        { returnDocument: 'after' }
+      );
+      return res || null;
+    }
+
+    const idx = this.fileGames.findIndex((g) => g.id === id);
+    if (idx === -1) return null;
+    this.fileGames[idx] = { ...this.fileGames[idx], ...timestampUpdates };
+    this.saveGamesToFile();
+    return this.fileGames[idx];
+  }
+
+  async deleteGame(id: string): Promise<{ success: boolean; error?: string }> {
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection<GameItem>('games').deleteOne({ id });
+      if (res.deletedCount === 0) {
+        return { success: false, error: 'Game not found.' };
+      }
+    }
+
+    const idx = this.fileGames.findIndex((g) => g.id === id);
+    if (idx !== -1) {
+      this.fileGames.splice(idx, 1);
+      this.saveGamesToFile();
+    }
+    return { success: true };
   }
 
   // ======================== BOOKINGS ========================
@@ -895,11 +1598,13 @@ class DatabaseService {
   }
 
   /**
-   * Extends an active or upcoming booking if no overlapping booking exists
+   * Extends an active or upcoming booking if no overlapping booking exists.
+   * Tracks extension payments, duration, payment status, and syncs player CRM spending.
    */
   async extendBooking(
     id: string,
-    additionalMinutes: number
+    additionalMinutes: number,
+    options?: { paymentStatus?: PaymentStatus; idempotencyKey?: string; notes?: string }
   ): Promise<{ success: boolean; booking?: Booking; error?: string }> {
     const booking = await this.getBookingById(id);
     if (!booking) {
@@ -908,6 +1613,14 @@ class DatabaseService {
 
     if (booking.status === 'cancelled' || booking.status === 'completed') {
       return { success: false, error: `Cannot extend a ${booking.status} booking.` };
+    }
+
+    // Idempotency check: if an extension with this idempotencyKey already exists on this booking, return existing
+    if (options?.idempotencyKey && Array.isArray(booking.extensions)) {
+      const existingExt = booking.extensions.find((e) => e.idempotencyKey === options.idempotencyKey);
+      if (existingExt) {
+        return { success: true, booking };
+      }
     }
 
     const currentEndMins = timeToMinutes(booking.endTime);
@@ -946,12 +1659,38 @@ class DatabaseService {
         resource?.ratePerHour || 150
       );
 
+      const extensionCost = Math.max(0, newTotal - (booking.totalAmount || 0));
+      const extPaymentStatus: PaymentStatus = options?.paymentStatus || 'paid';
+      const nowIso = new Date().toISOString();
+
+      const extensionRecord: BookingExtension = {
+        id: `ext-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+        extensionMinutes: additionalMinutes,
+        amount: extensionCost,
+        paymentStatus: extPaymentStatus,
+        paidAt: extPaymentStatus === 'paid' ? nowIso : undefined,
+        createdAt: nowIso,
+        idempotencyKey: options?.idempotencyKey,
+        notes: options?.notes || `Extended by ${additionalMinutes} mins`,
+      };
+
+      const existingExtensions = Array.isArray(booking.extensions) ? [...booking.extensions] : [];
+      existingExtensions.push(extensionRecord);
+
+      const originalAmount = booking.originalAmount !== undefined ? booking.originalAmount : booking.totalAmount;
+      const extensionAmount = existingExtensions
+        .filter((e) => e.paymentStatus === 'paid')
+        .reduce((sum, e) => sum + (e.amount || 0), 0);
+
       const updatedBooking: Booking = {
         ...booking,
         endTime: newEndTime,
         durationMinutes: newDuration,
         totalAmount: newTotal,
-        updatedAt: new Date().toISOString(),
+        originalAmount,
+        extensionAmount,
+        extensions: existingExtensions,
+        updatedAt: nowIso,
       };
 
       if (this.isMongoConnected && this.db) {
@@ -962,6 +1701,29 @@ class DatabaseService {
           this.fileBookings[idx] = updatedBooking;
           this.saveBookingsToFile();
         }
+      }
+
+      // Sync and recalculate player spending if player linked
+      let playerId = booking.playerId;
+      if (!playerId) {
+        const norm = this.normalizePhone(booking.phone);
+        if (norm) {
+          const pl = await this.getPlayerByPhone(norm);
+          if (pl) {
+            playerId = pl.id;
+            // Also link player to booking in storage
+            if (this.isMongoConnected && this.db) {
+              await this.db.collection('bookings').updateOne({ id: booking.id }, { $set: { playerId: pl.id } });
+            } else {
+              const bIdx = this.fileBookings.findIndex((b) => b.id === booking.id);
+              if (bIdx !== -1) this.fileBookings[bIdx].playerId = pl.id;
+            }
+          }
+        }
+      }
+
+      if (playerId) {
+        await this.recalculatePlayerStats(playerId);
       }
 
       return { success: true, booking: updatedBooking };
@@ -991,19 +1753,44 @@ class DatabaseService {
     }
 
     if (updated) {
-      if (updates.status === 'completed' && existing?.status !== 'completed') {
+      const isPaid = updated.paymentStatus === 'paid';
+      const isCompleted = updated.status === 'completed';
+      const wasPaid = existing?.paymentStatus === 'paid';
+      const wasCompleted = existing?.status === 'completed';
+
+      // 1. Award loyalty points if newly completed & paid (or if completed booking became paid)
+      if (isCompleted && isPaid && (!wasCompleted || !wasPaid)) {
         try {
           await this.processGamingSessionCompleted(updated);
         } catch (e) {
           console.warn('Error processing gaming session completed loyalty:', e);
         }
       }
-      if (updates.status === 'cancelled' && existing?.status === 'completed') {
+
+      // 2. Reverse loyalty points if cancelled
+      if (updates.status === 'cancelled' && wasCompleted) {
         try {
           await this.processBookingCancelledOrRefunded(updated);
         } catch (e) {
           console.warn('Error reversing loyalty for cancelled booking:', e);
         }
+      }
+
+      // 3. Recalculate player stats immediately so spending/status is always up-to-date in CRM
+      try {
+        let pId = updated.playerId;
+        if (!pId) {
+          const norm = this.normalizePhone(updated.phone);
+          if (norm) {
+            const p = await this.getPlayerByPhone(norm);
+            if (p) pId = p.id;
+          }
+        }
+        if (pId) {
+          await this.recalculatePlayerStats(pId);
+        }
+      } catch (statErr) {
+        console.warn('Error recalculating player stats after booking update:', statErr);
       }
     }
 
@@ -1216,6 +2003,638 @@ class DatabaseService {
       fs.writeFileSync(this.settingsFilePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving settings to file:', err);
+    }
+  }
+
+  // ======================== CONTACT & WHATSAPP SETTINGS ========================
+
+  resetContactSettingsCache(): void {
+    this.cachedContactSettings = null;
+  }
+
+  async getContactSettings(): Promise<ContactSettings> {
+    if (this.cachedContactSettings) {
+      return { ...this.cachedContactSettings };
+    }
+
+    // Try MongoDB
+    if (this.isMongoConnected && this.db) {
+      try {
+        const doc = await this.db.collection('settings').findOne({ key: 'contact_settings' });
+        if (doc && doc.value) {
+          this.cachedContactSettings = {
+            ...DEFAULT_CONTACT_SETTINGS,
+            ...doc.value,
+            whatsappNumber: normalizeWhatsAppNumber(doc.value.whatsappNumber || DEFAULT_CONTACT_SETTINGS.whatsappNumber),
+          };
+          return { ...this.cachedContactSettings };
+        }
+      } catch (err) {
+        console.error('Error fetching contact settings from Mongo:', err);
+      }
+    }
+
+    // Try File store fallback
+    try {
+      if (fs.existsSync(this.settingsFilePath)) {
+        const raw = fs.readFileSync(this.settingsFilePath, 'utf-8');
+        const data = JSON.parse(raw);
+        if (data.contact_settings) {
+          this.cachedContactSettings = {
+            ...DEFAULT_CONTACT_SETTINGS,
+            ...data.contact_settings,
+            whatsappNumber: normalizeWhatsAppNumber(data.contact_settings.whatsappNumber || DEFAULT_CONTACT_SETTINGS.whatsappNumber),
+          };
+          return { ...this.cachedContactSettings };
+        }
+      }
+    } catch (err) {
+      console.error('Error reading contact settings from file:', err);
+    }
+
+    this.cachedContactSettings = { ...DEFAULT_CONTACT_SETTINGS };
+    return { ...this.cachedContactSettings };
+  }
+
+  async updateContactSettings(updates: Partial<ContactSettings>): Promise<ContactSettings> {
+    const current = await this.getContactSettings();
+    const cleanUpdates: Partial<ContactSettings> = {};
+
+    if (updates.whatsappNumber !== undefined) {
+      cleanUpdates.whatsappNumber = normalizeWhatsAppNumber(updates.whatsappNumber);
+    }
+    if (updates.phone !== undefined && typeof updates.phone === 'string') {
+      cleanUpdates.phone = updates.phone.trim();
+      cleanUpdates.displayPhone = formatReadablePhone(cleanUpdates.phone);
+    } else if (cleanUpdates.whatsappNumber) {
+      cleanUpdates.displayPhone = formatReadablePhone(cleanUpdates.whatsappNumber);
+    }
+    if (updates.displayPhone !== undefined && typeof updates.displayPhone === 'string') {
+      cleanUpdates.displayPhone = updates.displayPhone.trim();
+    }
+    if (updates.email !== undefined && typeof updates.email === 'string') {
+      cleanUpdates.email = updates.email.trim();
+    }
+    if (updates.brandName !== undefined && typeof updates.brandName === 'string') {
+      cleanUpdates.brandName = updates.brandName.trim();
+    }
+    if (updates.addressLine1 !== undefined && typeof updates.addressLine1 === 'string') {
+      cleanUpdates.addressLine1 = updates.addressLine1.trim();
+    }
+    if (updates.addressLine2 !== undefined && typeof updates.addressLine2 === 'string') {
+      cleanUpdates.addressLine2 = updates.addressLine2.trim();
+    }
+    if (updates.landmark !== undefined && typeof updates.landmark === 'string') {
+      cleanUpdates.landmark = updates.landmark.trim();
+    }
+    if (updates.city !== undefined && typeof updates.city === 'string') {
+      cleanUpdates.city = updates.city.trim();
+    }
+    if (updates.state !== undefined && typeof updates.state === 'string') {
+      cleanUpdates.state = updates.state.trim();
+    }
+    if (updates.country !== undefined && typeof updates.country === 'string') {
+      cleanUpdates.country = updates.country.trim();
+    }
+    if (updates.pincode !== undefined && typeof updates.pincode === 'string') {
+      cleanUpdates.pincode = updates.pincode.trim();
+    }
+    if (updates.googleMapsUrl !== undefined && typeof updates.googleMapsUrl === 'string') {
+      cleanUpdates.googleMapsUrl = updates.googleMapsUrl.trim();
+    }
+    if (updates.instagramHandle !== undefined && typeof updates.instagramHandle === 'string') {
+      cleanUpdates.instagramHandle = updates.instagramHandle.trim();
+    }
+    if (updates.instagramUrl !== undefined && typeof updates.instagramUrl === 'string') {
+      cleanUpdates.instagramUrl = updates.instagramUrl.trim();
+    }
+
+    const merged: ContactSettings = {
+      ...current,
+      ...cleanUpdates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.cachedContactSettings = merged;
+
+    // 1. Save to MongoDB
+    if (this.isMongoConnected && this.db) {
+      try {
+        await this.db.collection('settings').updateOne(
+          { key: 'contact_settings' },
+          {
+            $set: {
+              key: 'contact_settings',
+              value: merged,
+              updatedAt: merged.updatedAt,
+            },
+          },
+          { upsert: true }
+        );
+      } catch (err) {
+        console.error('Error saving contact settings to Mongo:', err);
+      }
+    }
+
+    // 2. Save to local settings file
+    try {
+      let data: any = {};
+      if (fs.existsSync(this.settingsFilePath)) {
+        try {
+          data = JSON.parse(fs.readFileSync(this.settingsFilePath, 'utf-8'));
+        } catch {}
+      }
+      data.contact_settings = merged;
+      data.updatedAt = merged.updatedAt;
+      fs.writeFileSync(this.settingsFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving contact settings to file:', err);
+    }
+
+    return { ...merged };
+  }
+
+  // =========================================================================
+  // DINING & EVENTS RESERVATIONS SYSTEM
+  // =========================================================================
+
+  async createDiningReservation(payload: {
+    customerName: string;
+    phone: string;
+    whatsappPhone?: string;
+    email?: string;
+    guests: number;
+    date: string;
+    time: string;
+    seatingPreference?: string;
+    specialRequests?: string;
+    additionalRequirements?: string;
+  }): Promise<DiningReservation> {
+    const customerName = (payload.customerName || '').trim();
+    if (!customerName || customerName.length < 2) {
+      throw new Error('Full name is required (at least 2 characters).');
+    }
+    const cleanPhone = (payload.phone || '').replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      throw new Error('A valid 10-digit mobile number is required.');
+    }
+    const normPhone = cleanPhone.slice(-10);
+    const guests = Math.max(1, Number(payload.guests) || 2);
+    if (!payload.date) throw new Error('Reservation date is required.');
+    if (!payload.time) throw new Error('Preferred arrival time is required.');
+
+    const nowIso = new Date().toISOString();
+    const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const reference = `GDR-${hex}`;
+    const id = `gdr-${Date.now()}-${hex.toLowerCase()}`;
+
+    // Match or create Player profile in CRM (Never award loyalty points for dining reservations)
+    let player = await this.getPlayerByPhone(normPhone);
+    if (!player) {
+      try {
+        const cleanGamerTag = customerName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15) || `Guest${hex.slice(0, 4)}`;
+        player = await this.createPlayer({
+          name: customerName,
+          phone: normPhone,
+          email: payload.email?.trim() || undefined,
+          gamerTag: cleanGamerTag,
+          acquisitionSource: 'dining_reservation' as any,
+        });
+      } catch (pErr) {
+        console.warn('Could not auto-create player profile for dining reservation:', pErr);
+      }
+    }
+
+    const reservation: DiningReservation = {
+      id,
+      reference,
+      referenceCode: reference,
+      type: 'dining',
+      customerName,
+      phone: normPhone,
+      whatsappPhone: payload.whatsappPhone ? payload.whatsappPhone.replace(/\D/g, '').slice(-10) : undefined,
+      email: payload.email?.trim() || undefined,
+      guests,
+      date: payload.date,
+      time: payload.time,
+      location: 'GioCasa Dine-in Restaurant — 1st Floor',
+      seatingPreference: payload.seatingPreference || 'Any',
+      specialRequests: payload.specialRequests?.trim() || undefined,
+      additionalRequirements: payload.additionalRequirements?.trim() || undefined,
+      status: 'confirmed',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      playerId: player?.id,
+      gioId: player?.gioId,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<DiningReservation>('dining_reservations').insertOne(reservation);
+    } else {
+      this.fileDiningReservations.push(reservation);
+      this.saveDiningReservationsToFile();
+    }
+
+    if (player) {
+      try {
+        await this.recalculatePlayerStats(player.id);
+      } catch (statErr) {
+        console.warn('Could not recalculate player stats after dining reservation:', statErr);
+      }
+    }
+
+    return reservation;
+  }
+
+  async createEventReservation(payload: {
+    customerName: string;
+    phone: string;
+    whatsappPhone?: string;
+    email: string;
+    eventType: string;
+    date: string;
+    time: string;
+    expectedGuests: number;
+    estimatedBudget?: string;
+    foodRequirements?: string;
+    decorationRequirements?: string;
+    additionalMessage?: string;
+  }): Promise<EventReservation> {
+    const customerName = (payload.customerName || '').trim();
+    if (!customerName || customerName.length < 2) {
+      throw new Error('Full name is required (at least 2 characters).');
+    }
+    const cleanPhone = (payload.phone || '').replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      throw new Error('A valid 10-digit mobile number is required.');
+    }
+    const normPhone = cleanPhone.slice(-10);
+    const email = (payload.email || '').trim();
+    if (!email || !email.includes('@')) {
+      throw new Error('A valid email address is required for event enquiries.');
+    }
+    const expectedGuests = Math.max(1, Number(payload.expectedGuests) || 10);
+    if (!payload.date) throw new Error('Event date is required.');
+    if (!payload.time) throw new Error('Preferred time is required.');
+
+    const nowIso = new Date().toISOString();
+    const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const reference = `GER-${hex}`;
+    const id = `ger-${Date.now()}-${hex.toLowerCase()}`;
+
+    // Match or create Player profile in CRM (Never award loyalty points for event reservations)
+    let player = await this.getPlayerByPhone(normPhone);
+    if (!player) {
+      try {
+        const cleanGamerTag = customerName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15) || `Host${hex.slice(0, 4)}`;
+        player = await this.createPlayer({
+          name: customerName,
+          phone: normPhone,
+          email,
+          gamerTag: cleanGamerTag,
+          acquisitionSource: 'event_reservation' as any,
+        });
+      } catch (pErr) {
+        console.warn('Could not auto-create player profile for event reservation:', pErr);
+      }
+    }
+
+    const reservation: EventReservation = {
+      id,
+      reference,
+      referenceCode: reference,
+      type: 'event',
+      customerName,
+      phone: normPhone,
+      whatsappPhone: payload.whatsappPhone ? payload.whatsappPhone.replace(/\D/g, '').slice(-10) : undefined,
+      email,
+      eventType: payload.eventType || 'Birthday',
+      date: payload.date,
+      time: payload.time,
+      expectedGuests,
+      estimatedBudget: payload.estimatedBudget?.trim() || undefined,
+      foodRequirements: payload.foodRequirements?.trim() || undefined,
+      decorationRequirements: payload.decorationRequirements?.trim() || undefined,
+      additionalMessage: payload.additionalMessage?.trim() || undefined,
+      status: 'pending',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      playerId: player?.id,
+      gioId: player?.gioId,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<EventReservation>('event_reservations').insertOne(reservation);
+    } else {
+      this.fileEventReservations.push(reservation);
+      this.saveEventReservationsToFile();
+    }
+
+    if (player) {
+      try {
+        await this.recalculatePlayerStats(player.id);
+      } catch (statErr) {
+        console.warn('Could not recalculate player stats after event reservation:', statErr);
+      }
+    }
+
+    return reservation;
+  }
+
+  async getDiningReservations(filter?: { status?: string; date?: string; search?: string }): Promise<DiningReservation[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (filter?.status && filter.status !== 'all') query.status = filter.status;
+      if (filter?.date) query.date = filter.date;
+      if (filter?.search) {
+        const regex = new RegExp(filter.search, 'i');
+        query.$or = [{ customerName: regex }, { phone: regex }, { reference: regex }, { id: regex }];
+      }
+      const res = await this.db.collection<DiningReservation>('dining_reservations').find(query).sort({ date: -1, time: -1, createdAt: -1 }).toArray();
+      return res.map(r => ({ ...r, reference: r.reference || (r as any).referenceCode, referenceCode: (r as any).referenceCode || r.reference }));
+    }
+    let list = [...this.fileDiningReservations];
+    if (filter?.status && filter.status !== 'all') list = list.filter((r) => r.status === filter.status);
+    if (filter?.date) list = list.filter((r) => r.date === filter.date);
+    if (filter?.search) {
+      const s = filter.search.toLowerCase();
+      list = list.filter((r) => r.customerName.toLowerCase().includes(s) || r.phone.includes(s) || r.reference.toLowerCase().includes(s) || r.id.toLowerCase().includes(s));
+    }
+    return list.map(r => ({ ...r, reference: r.reference || (r as any).referenceCode, referenceCode: (r as any).referenceCode || r.reference })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getEventReservations(filter?: { status?: string; date?: string; search?: string }): Promise<EventReservation[]> {
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (filter?.status && filter.status !== 'all') query.status = filter.status;
+      if (filter?.date) query.date = filter.date;
+      if (filter?.search) {
+        const regex = new RegExp(filter.search, 'i');
+        query.$or = [{ customerName: regex }, { phone: regex }, { reference: regex }, { eventType: regex }, { id: regex }];
+      }
+      const res = await this.db.collection<EventReservation>('event_reservations').find(query).sort({ date: -1, time: -1, createdAt: -1 }).toArray();
+      return res.map(r => ({ ...r, reference: r.reference || (r as any).referenceCode, referenceCode: (r as any).referenceCode || r.reference }));
+    }
+    let list = [...this.fileEventReservations];
+    if (filter?.status && filter.status !== 'all') list = list.filter((r) => r.status === filter.status);
+    if (filter?.date) list = list.filter((r) => r.date === filter.date);
+    if (filter?.search) {
+      const s = filter.search.toLowerCase();
+      list = list.filter((r) => r.customerName.toLowerCase().includes(s) || r.phone.includes(s) || r.reference.toLowerCase().includes(s) || r.eventType.toLowerCase().includes(s) || r.id.toLowerCase().includes(s));
+    }
+    return list.map(r => ({ ...r, reference: r.reference || (r as any).referenceCode, referenceCode: (r as any).referenceCode || r.reference })).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getDiningReservationById(idOrRef: string): Promise<DiningReservation | null> {
+    let item: DiningReservation | null = null;
+    if (this.isMongoConnected && this.db) {
+      item = await this.db.collection<DiningReservation>('dining_reservations').findOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }, { referenceCode: idOrRef }]
+      });
+    } else {
+      item = this.fileDiningReservations.find((r) => r.id === idOrRef || r.reference === idOrRef || (r as any).referenceCode === idOrRef) || null;
+    }
+    if (!item) return null;
+    return { ...item, reference: item.reference || (item as any).referenceCode, referenceCode: (item as any).referenceCode || item.reference };
+  }
+
+  async getEventReservationById(idOrRef: string): Promise<EventReservation | null> {
+    let item: EventReservation | null = null;
+    if (this.isMongoConnected && this.db) {
+      item = await this.db.collection<EventReservation>('event_reservations').findOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }, { referenceCode: idOrRef }]
+      });
+    } else {
+      item = this.fileEventReservations.find((r) => r.id === idOrRef || r.reference === idOrRef || (r as any).referenceCode === idOrRef) || null;
+    }
+    if (!item) return null;
+    return { ...item, reference: item.reference || (item as any).referenceCode, referenceCode: (item as any).referenceCode || item.reference };
+  }
+
+  async updateDiningReservation(idOrRef: string, updates: Partial<DiningReservation>): Promise<DiningReservation | null> {
+    const nowIso = new Date().toISOString();
+    if (this.isMongoConnected && this.db) {
+      const existing = await this.db.collection<DiningReservation>('dining_reservations').findOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }]
+      });
+      if (!existing) return null;
+      const { _id, id, reference, ...safeUpdates } = updates as any;
+      safeUpdates.updatedAt = nowIso;
+      await this.db.collection<DiningReservation>('dining_reservations').updateOne(
+        { id: existing.id },
+        { $set: safeUpdates }
+      );
+      return { ...existing, ...safeUpdates };
+    }
+    const idx = this.fileDiningReservations.findIndex((r) => r.id === idOrRef || r.reference === idOrRef);
+    if (idx === -1) return null;
+    const updated = { ...this.fileDiningReservations[idx], ...updates, updatedAt: nowIso };
+    this.fileDiningReservations[idx] = updated;
+    this.saveDiningReservationsToFile();
+    return updated;
+  }
+
+  async updateEventReservation(idOrRef: string, updates: Partial<EventReservation>): Promise<EventReservation | null> {
+    const nowIso = new Date().toISOString();
+    if (this.isMongoConnected && this.db) {
+      const existing = await this.db.collection<EventReservation>('event_reservations').findOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }]
+      });
+      if (!existing) return null;
+      const { _id, id, reference, ...safeUpdates } = updates as any;
+      safeUpdates.updatedAt = nowIso;
+      await this.db.collection<EventReservation>('event_reservations').updateOne(
+        { id: existing.id },
+        { $set: safeUpdates }
+      );
+      return { ...existing, ...safeUpdates };
+    }
+    const idx = this.fileEventReservations.findIndex((r) => r.id === idOrRef || r.reference === idOrRef);
+    if (idx === -1) return null;
+    const updated = { ...this.fileEventReservations[idx], ...updates, updatedAt: nowIso };
+    this.fileEventReservations[idx] = updated;
+    this.saveEventReservationsToFile();
+    return updated;
+  }
+
+  async deleteDiningReservation(idOrRef: string): Promise<boolean> {
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection('dining_reservations').deleteOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }]
+      });
+      return res.deletedCount > 0;
+    }
+    const before = this.fileDiningReservations.length;
+    this.fileDiningReservations = this.fileDiningReservations.filter((r) => r.id !== idOrRef && r.reference !== idOrRef);
+    if (this.fileDiningReservations.length !== before) {
+      this.saveDiningReservationsToFile();
+      return true;
+    }
+    return false;
+  }
+
+  async deleteEventReservation(idOrRef: string): Promise<boolean> {
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection('event_reservations').deleteOne({
+        $or: [{ id: idOrRef }, { reference: idOrRef }]
+      });
+      return res.deletedCount > 0;
+    }
+    const before = this.fileEventReservations.length;
+    this.fileEventReservations = this.fileEventReservations.filter((r) => r.id !== idOrRef && r.reference !== idOrRef);
+    if (this.fileEventReservations.length !== before) {
+      this.saveEventReservationsToFile();
+      return true;
+    }
+    return false;
+  }
+
+  // =========================================================================
+  // ADMIN WEB PUSH NOTIFICATIONS & DEVICE SUBSCRIPTIONS
+  // =========================================================================
+
+  async savePushSubscription(payload: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+    deviceName?: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<AdminPushSubscription> {
+    const nowIso = new Date().toISOString();
+    const endpoint = payload.endpoint.trim();
+
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<AdminPushSubscription>('admin_push_subscriptions');
+      const existing = await col.findOne({ endpoint });
+
+      if (existing) {
+        await col.updateOne(
+          { endpoint },
+          {
+            $set: {
+              keys: payload.keys,
+              deviceName: payload.deviceName || existing.deviceName || 'Admin Device',
+              userAgent: payload.userAgent || existing.userAgent,
+              ipAddress: payload.ipAddress || existing.ipAddress,
+              updatedAt: nowIso,
+            },
+          }
+        );
+        const updated = await col.findOne({ endpoint });
+        return updated!;
+      } else {
+        const newSub: AdminPushSubscription = {
+          id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          endpoint,
+          keys: payload.keys,
+          deviceName: payload.deviceName || 'Admin Device',
+          userAgent: payload.userAgent,
+          ipAddress: payload.ipAddress,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        await col.insertOne(newSub);
+        return newSub;
+      }
+    }
+
+    // Disk fallback
+    const idx = this.filePushSubscriptions.findIndex((s) => s.endpoint === endpoint);
+    if (idx !== -1) {
+      const existing = this.filePushSubscriptions[idx];
+      const updated: AdminPushSubscription = {
+        ...existing,
+        keys: payload.keys,
+        deviceName: payload.deviceName || existing.deviceName || 'Admin Device',
+        userAgent: payload.userAgent || existing.userAgent,
+        ipAddress: payload.ipAddress || existing.ipAddress,
+        updatedAt: nowIso,
+      };
+      this.filePushSubscriptions[idx] = updated;
+      this.savePushSubscriptionsToFile();
+      return updated;
+    } else {
+      const newSub: AdminPushSubscription = {
+        id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        endpoint,
+        keys: payload.keys,
+        deviceName: payload.deviceName || 'Admin Device',
+        userAgent: payload.userAgent,
+        ipAddress: payload.ipAddress,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      this.filePushSubscriptions.push(newSub);
+      this.savePushSubscriptionsToFile();
+      return newSub;
+    }
+  }
+
+  async getPushSubscriptions(): Promise<AdminPushSubscription[]> {
+    if (this.isMongoConnected && this.db) {
+      return await this.db
+        .collection<AdminPushSubscription>('admin_push_subscriptions')
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray();
+    }
+    return [...this.filePushSubscriptions].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getPushSubscriptionByEndpoint(endpoint: string): Promise<AdminPushSubscription | null> {
+    const cleanEndpoint = endpoint.trim();
+    if (this.isMongoConnected && this.db) {
+      return await this.db.collection<AdminPushSubscription>('admin_push_subscriptions').findOne({ endpoint: cleanEndpoint });
+    }
+    return this.filePushSubscriptions.find((s) => s.endpoint === cleanEndpoint) || null;
+  }
+
+  async deletePushSubscriptionByEndpoint(endpoint: string): Promise<boolean> {
+    const cleanEndpoint = endpoint.trim();
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection('admin_push_subscriptions').deleteOne({ endpoint: cleanEndpoint });
+      return res.deletedCount > 0;
+    }
+    const before = this.filePushSubscriptions.length;
+    this.filePushSubscriptions = this.filePushSubscriptions.filter((s) => s.endpoint !== cleanEndpoint);
+    if (this.filePushSubscriptions.length !== before) {
+      this.savePushSubscriptionsToFile();
+      return true;
+    }
+    return false;
+  }
+
+  async deletePushSubscriptionById(id: string): Promise<boolean> {
+    const cleanId = id.trim();
+    if (this.isMongoConnected && this.db) {
+      const res = await this.db.collection('admin_push_subscriptions').deleteOne({ id: cleanId });
+      return res.deletedCount > 0;
+    }
+    const before = this.filePushSubscriptions.length;
+    this.filePushSubscriptions = this.filePushSubscriptions.filter((s) => s.id !== cleanId);
+    if (this.filePushSubscriptions.length !== before) {
+      this.savePushSubscriptionsToFile();
+      return true;
+    }
+    return false;
+  }
+
+  async touchPushSubscription(endpoint: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    const cleanEndpoint = endpoint.trim();
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection('admin_push_subscriptions').updateOne(
+        { endpoint: cleanEndpoint },
+        { $set: { lastUsedAt: nowIso } }
+      );
+      return;
+    }
+    const sub = this.filePushSubscriptions.find((s) => s.endpoint === cleanEndpoint);
+    if (sub) {
+      sub.lastUsedAt = nowIso;
+      this.savePushSubscriptionsToFile();
     }
   }
 
@@ -1728,12 +3147,22 @@ class DatabaseService {
       }
     }
 
-    // Award loyalty points on verified check-in
-    if (newStatus === 'checked_in' && oldStatus !== 'checked_in') {
+    // Award loyalty points on verified tournament check-in
+    const wasCheckedIn = oldStatus === 'checked_in';
+    const isCheckedIn = newStatus === 'checked_in';
+    const isPaidOrWaived = updated.paymentStatus !== 'unpaid';
+
+    if (isCheckedIn && !wasCheckedIn && isPaidOrWaived) {
       try {
         await this.processTournamentParticipation(updated);
       } catch (err) {
         console.warn('Error processing tournament participation loyalty:', err);
+      }
+    } else if ((newStatus === 'cancelled' || newStatus === 'rejected') && wasCheckedIn) {
+      try {
+        await this.processTournamentRegistrationCancelled(updated);
+      } catch (err) {
+        console.warn('Error reversing tournament participation loyalty:', err);
       }
     }
 
@@ -2230,17 +3659,57 @@ class DatabaseService {
     return this.filePlayers.find((p) => p.id === id) || null;
   }
 
+  validateCustomGioId(rawId: string): { valid: boolean; error?: string; normalized?: string } {
+    if (!rawId || typeof rawId !== 'string') {
+      return { valid: false, error: 'Gio ID is required.' };
+    }
+    const clean = rawId.trim().toUpperCase();
+    if (!clean.startsWith('GIO')) {
+      return { valid: false, error: 'Custom Player ID must start with GIO (e.g. GIOKING23, GIOPLAYER101).' };
+    }
+    if (clean.length < 6) {
+      return { valid: false, error: 'Custom Player ID must be at least 6 characters long (e.g. GIOFC24).' };
+    }
+    if (clean.length > 20) {
+      return { valid: false, error: 'Custom Player ID cannot exceed 20 characters.' };
+    }
+    const suffix = clean.slice(3);
+    if (!/^[A-Z0-9]+$/.test(suffix)) {
+      return { valid: false, error: 'Only uppercase letters and numbers are allowed after GIO (no spaces or special characters).' };
+    }
+    return { valid: true, normalized: clean };
+  }
+
+  async isGioIdAvailable(rawId: string): Promise<{ available: boolean; error?: string; normalized?: string }> {
+    const val = this.validateCustomGioId(rawId);
+    if (!val.valid) {
+      return { available: false, error: val.error };
+    }
+    const normalized = val.normalized!;
+    const existing = await this.getPlayerByGioId(normalized);
+    if (existing) {
+      return { available: false, error: 'This Gio ID is already taken. Please choose another.', normalized };
+    }
+    return { available: true, normalized };
+  }
+
   async getPlayerByGioId(gioId: string): Promise<Player | null> {
     if (!gioId) return null;
     const clean = gioId.trim().toUpperCase();
     if (this.isMongoConnected && this.db) {
       return this.db.collection<Player>('players').findOne({
-        $or: [{ gioId: clean }, { gioId: clean.startsWith('GIO-') ? clean : `GIO-${clean}` }]
+        $or: [
+          { gioId: clean },
+          { normalizedGioId: clean },
+          { gioId: clean.startsWith('GIO-') ? clean : `GIO-${clean}` },
+          { gioId: { $regex: new RegExp(`^${clean.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } }
+        ]
       });
     }
     return this.filePlayers.find((p) => {
       const pId = p.gioId?.toUpperCase();
-      return pId === clean || pId === (clean.startsWith('GIO-') ? clean : `GIO-${clean}`);
+      const pNorm = (p as any).normalizedGioId?.toUpperCase();
+      return pId === clean || pNorm === clean || pId === (clean.startsWith('GIO-') ? clean : `GIO-${clean}`);
     }) || null;
   }
 
@@ -2677,7 +4146,28 @@ class DatabaseService {
     const nowIso = new Date().toISOString();
     const id = `ply-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
     const gamerTag = data.gamerTag && data.gamerTag.trim() ? data.gamerTag.trim() : data.name.trim().split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900);
-    const gioId = data.gioId || await this.generateUniqueGioId();
+    
+    let gioId: string;
+    let normalizedGioId: string;
+
+    if (data.gioId && data.gioId.trim()) {
+      const val = this.validateCustomGioId(data.gioId.trim());
+      if (!val.valid) {
+        throw new Error(val.error || 'Invalid custom Gio ID.');
+      }
+      const cleanId = val.normalized!;
+      // Lock on the specific Gio ID to prevent concurrent duplicate registrations
+      const existingWithId = await this.getPlayerByGioId(cleanId);
+      if (existingWithId && existingWithId.status !== 'archived') {
+        throw new Error('This Gio ID is already taken. Please choose another.');
+      }
+      gioId = cleanId;
+      normalizedGioId = cleanId;
+    } else {
+      gioId = await this.generateUniqueGioId();
+      normalizedGioId = gioId.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    }
+
     const referralCode = data.referralCode || await this.generateUniqueReferralCode();
 
     const initialNotes: StaffNote[] = [];
@@ -2697,6 +4187,7 @@ class DatabaseService {
     const player: Player = {
       id,
       gioId,
+      normalizedGioId,
       referralCode,
       name: data.name.trim(),
       gamerTag,
@@ -3080,6 +4571,38 @@ class DatabaseService {
         .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
     }
 
+    // 2b. Linked dining reservations
+    let diningReservations: DiningReservation[] = [];
+    if (this.isMongoConnected && this.db) {
+      diningReservations = await this.db
+        .collection<DiningReservation>('dining_reservations')
+        .find({
+          $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+        })
+        .sort({ date: -1, time: -1, createdAt: -1 })
+        .toArray();
+    } else {
+      diningReservations = this.fileDiningReservations
+        .filter((r) => r.playerId === player.id || r.phone === player.phone || this.normalizePhone(r.phone) === norm)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    // 2c. Linked event enquiries/reservations
+    let eventReservations: EventReservation[] = [];
+    if (this.isMongoConnected && this.db) {
+      eventReservations = await this.db
+        .collection<EventReservation>('event_reservations')
+        .find({
+          $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+        })
+        .sort({ date: -1, time: -1, createdAt: -1 })
+        .toArray();
+    } else {
+      eventReservations = this.fileEventReservations
+        .filter((r) => r.playerId === player.id || r.phone === player.phone || this.normalizePhone(r.phone) === norm)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
     // 3. Linked tournament results / wins
     const wins: Array<{
       id: string;
@@ -3232,15 +4755,114 @@ class DatabaseService {
       });
     }
 
+    // 6. Linked referrals
+    const referrals = await this.getReferralsForPlayer(player.id);
+
+    // Add booking extensions to activity timeline
+    for (const b of bookings) {
+      if (Array.isArray(b.extensions)) {
+        for (const ext of b.extensions) {
+          activityTimeline.push({
+            id: `act-ext-${ext.id}`,
+            type: 'booking',
+            title: `Session Extended: +${ext.extensionMinutes} mins (${b.resourceName || 'Station'})`,
+            description: `Ref #${b.id} • Extra ₹${ext.amount} • Payment: ${ext.paymentStatus.toUpperCase()}`,
+            date: ext.paidAt || ext.createdAt || `${b.date}T${b.startTime}:00.000Z`,
+            badge: `+${ext.extensionMinutes}M EXT`,
+            metadata: { bookingId: b.id, extensionId: ext.id, amount: ext.amount, paymentStatus: ext.paymentStatus },
+          });
+        }
+      }
+    }
+
+    // Add referrals to activity timeline
+    for (const ref of referrals) {
+      const isReferrer = ref.referrerPlayerId === player.id;
+      activityTimeline.push({
+        id: `act-ref-${ref.id}`,
+        type: 'referral',
+        title: isReferrer
+          ? `Referral: Invited @${ref.referredGioId} (${ref.referredPlayerName || ref.referredName})`
+          : `Signed up via Referral Code: ${ref.referralCode || ref.referralCodeUsed}`,
+        description: `Status: ${ref.status.toUpperCase()} ${ref.status === 'qualified' ? `• +${ref.pointsAwarded || 200} pts awarded` : '• Awaiting first qualifying activity'}`,
+        date: ref.qualifiedAt || ref.createdAt || player.createdAt,
+        badge: ref.status.toUpperCase(),
+        metadata: { referralId: ref.id, status: ref.status },
+      });
+    }
+
+    // Add dining reservations to activity timeline
+    for (const d of diningReservations) {
+      activityTimeline.push({
+        id: `act-din-${d.id}`,
+        type: 'dining' as any,
+        title: `🍽️ Dining Table: #${d.reference} (1st Floor)`,
+        description: `${d.guests} Guests • ${d.date} at ${d.time} • Status: ${d.status.toUpperCase()}`,
+        date: d.createdAt,
+        badge: 'DINING',
+        metadata: { reservationId: d.id, reference: d.reference, guests: d.guests, status: d.status },
+      });
+    }
+
+    // Add event enquiries to activity timeline
+    for (const ev of eventReservations) {
+      activityTimeline.push({
+        id: `act-ev-${ev.id}`,
+        type: 'event' as any,
+        title: `🎉 ${ev.eventType}: #${ev.reference}`,
+        description: `${ev.expectedGuests} Guests • ${ev.date} at ${ev.time} • Status: ${ev.status.toUpperCase()}`,
+        date: ev.createdAt,
+        badge: 'EVENT',
+        metadata: { reservationId: ev.id, reference: ev.reference, eventType: ev.eventType, status: ev.status },
+      });
+    }
+
     // Sort timeline descending by date safely
     activityTimeline.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    // Compute paymentSummary from actual MongoDB booking & extension records
+    const validBookings = bookings.filter((b) => b.status !== 'cancelled');
+    let originalBookingsSpend = 0;
+    let extensionsSpend = 0;
+    let confirmedExtensionsCount = 0;
+
+    for (const b of validBookings) {
+      if (b.paymentStatus === 'paid') {
+        const orig = b.originalAmount !== undefined ? b.originalAmount : b.totalAmount;
+        originalBookingsSpend += (orig || 0);
+      }
+      if (Array.isArray(b.extensions)) {
+        for (const ext of b.extensions) {
+          if (ext.paymentStatus === 'paid') {
+            extensionsSpend += (ext.amount || 0);
+            confirmedExtensionsCount++;
+          }
+        }
+      }
+    }
+
+    const lifetimeSpend = originalBookingsSpend + extensionsSpend;
+
+    const paymentSummary: PlayerPaymentSummary = {
+      lifetimeSpend,
+      originalBookingsSpend,
+      extensionsSpend,
+      confirmedBookingsCount: validBookings.filter((b) => b.paymentStatus === 'paid').length,
+      confirmedExtensionsCount,
+    };
 
     return {
       player,
       registrations,
       bookings,
+      diningReservations,
+      eventReservations,
+      diningCount: diningReservations.length,
+      eventCount: eventReservations.length,
       wins,
       loyaltyLedger,
+      referrals,
+      paymentSummary,
       activityTimeline,
     };
   }
@@ -3294,9 +4916,27 @@ class DatabaseService {
     const completedBookingsCount = uniqueBookings.filter((b) => b.status === 'completed').length;
     const tournamentCount = uniqueRegs.length;
 
-    // Compute spend and hours from non-cancelled bookings
+    // Compute spend and hours from non-cancelled bookings with confirmed payment tracking
     const validBookings = uniqueBookings.filter((b) => b.status !== 'cancelled');
-    const totalSpend = validBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+
+    let originalBookingSpend = 0;
+    let extensionSpend = 0;
+
+    for (const b of validBookings) {
+      if (b.paymentStatus === 'paid') {
+        const orig = b.originalAmount !== undefined ? b.originalAmount : b.totalAmount;
+        originalBookingSpend += (orig || 0);
+      }
+      if (Array.isArray(b.extensions)) {
+        for (const ext of b.extensions) {
+          if (ext.paymentStatus === 'paid') {
+            extensionSpend += (ext.amount || 0);
+          }
+        }
+      }
+    }
+
+    const totalSpend = originalBookingSpend + extensionSpend;
     const totalHoursPlayed = Number(
       validBookings.reduce((sum, b) => sum + (b.durationMinutes || 60) / 60, 0).toFixed(1)
     );
@@ -3335,6 +4975,28 @@ class DatabaseService {
     );
     if (bookingsCount > 0) sourcesSet.add('gaming_booking');
     if (tournamentCount > 0) sourcesSet.add('tournament_registration');
+
+    // Count dining and event reservations
+    let diningCount = 0;
+    let eventCount = 0;
+    if (this.isMongoConnected && this.db) {
+      diningCount = await this.db.collection('dining_reservations').countDocuments({
+        $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+      });
+      eventCount = await this.db.collection('event_reservations').countDocuments({
+        $or: [{ playerId: player.id }, { phone: player.phone }, { phone: norm }],
+      });
+    } else {
+      diningCount = this.fileDiningReservations.filter(
+        (r) => r.playerId === player.id || r.phone === player.phone || (norm && this.normalizePhone(r.phone) === norm)
+      ).length;
+      eventCount = this.fileEventReservations.filter(
+        (r) => r.playerId === player.id || r.phone === player.phone || (norm && this.normalizePhone(r.phone) === norm)
+      ).length;
+    }
+
+    if (diningCount > 0) sourcesSet.add('dining_reservation' as any);
+    if (eventCount > 0) sourcesSet.add('event_reservation' as any);
     const sources = Array.from(sourcesSet);
 
     // Update tags
@@ -3343,6 +5005,8 @@ class DatabaseService {
     if (bookingsCount > 0) tagsSet.add('Station Guest');
     if (tournamentCount >= 2) tagsSet.add('Tournament Regular');
     else if (tournamentCount > 0) tagsSet.add('Tournament Registrant');
+    if (diningCount > 0) tagsSet.add('Dining Guest');
+    if (eventCount > 0) tagsSet.add('Event Host');
     const tags = Array.from(tagsSet);
 
     const updated = await this.updatePlayer(player.id, {
@@ -3353,6 +5017,10 @@ class DatabaseService {
         tournamentCount,
         totalHoursPlayed,
         totalSpend,
+        originalBookingSpend,
+        extensionSpend,
+        diningCount,
+        eventCount,
         firstVisitDate,
         lastVisitDate,
         lastActivityDate,
@@ -3615,6 +5283,10 @@ class DatabaseService {
 
   async processGamingSessionCompleted(booking: Booking): Promise<void> {
     if (!booking) return;
+    // Strict requirement: Never award points for cancelled, unpaid, or incomplete activities.
+    if (booking.status !== 'completed' || booking.paymentStatus !== 'paid') {
+      return;
+    }
     const rules = await this.getLoyaltyRules();
     if (!rules.rulesEnabled.gamingSession) return;
 
@@ -3643,6 +5315,7 @@ class DatabaseService {
 
     // Qualify referral if player has pending referral
     await this.qualifyReferral(player.id);
+    await this.recalculatePlayerStats(player.id);
 
     // Record automation event
     await this.recordAutomationEvent({
@@ -3661,6 +5334,13 @@ class DatabaseService {
 
   async processTournamentParticipation(registration: TournamentRegistration): Promise<void> {
     if (!registration) return;
+    // Strict requirement: Never award points for cancelled, unpaid, or incomplete activities.
+    if (registration.status === 'cancelled' || registration.status === 'rejected' || registration.status === 'waitlisted') {
+      return;
+    }
+    const isQualifying = registration.status === 'checked_in' && registration.paymentStatus !== 'unpaid';
+    if (!isQualifying) return;
+
     const rules = await this.getLoyaltyRules();
     if (!rules.rulesEnabled.tournamentParticipation) return;
 
@@ -3689,6 +5369,7 @@ class DatabaseService {
 
     // Qualify referral
     await this.qualifyReferral(player.id);
+    await this.recalculatePlayerStats(player.id);
 
     // Record automation event
     await this.recordAutomationEvent({
@@ -3704,6 +5385,33 @@ class DatabaseService {
       },
       idempotencyKey: `auto_tourn_checkin_${registration.id}`,
     });
+  }
+
+  async processTournamentRegistrationCancelled(registration: TournamentRegistration): Promise<void> {
+    if (!registration) return;
+    const origKey = `tournament_participation_${registration.id}`;
+    const reversalKey = `reversal_tourn_part_${registration.id}`;
+
+    const origLedger = this.isMongoConnected && this.db
+      ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: origKey })
+      : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === origKey);
+
+    if (origLedger && origLedger.points > 0) {
+      const existingReversal = this.isMongoConnected && this.db
+        ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: reversalKey })
+        : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === reversalKey);
+
+      if (!existingReversal) {
+        await this.adjustPlayerLoyalty(
+          origLedger.playerId,
+          -origLedger.points,
+          'adjustment',
+          `Reversal: Tournament registration #${registration.id} cancelled/rejected`,
+          registration.id,
+          reversalKey
+        );
+      }
+    }
   }
 
   async processTournamentResultsFinalized(result: TournamentResult): Promise<void> {
@@ -3985,7 +5693,67 @@ class DatabaseService {
       }
     }
 
+    // Award referrer bonus points when referral is verified/qualified
+    if (status === 'qualified' && existing.status !== 'qualified') {
+      const rules = await this.getLoyaltyRules();
+      if (rules.rulesEnabled.referral && rules.referralPoints > 0) {
+        const referrerKey = `referral_reward_referrer_${existing.id}`;
+        await this.adjustPlayerLoyalty(
+          existing.referrerPlayerId,
+          rules.referralPoints,
+          'bonus',
+          `Referral Reward (Verified referral for Player @${existing.referredGioId})`,
+          existing.id,
+          referrerKey
+        );
+      }
+      const referrer = await this.getPlayerById(existing.referrerPlayerId);
+      if (referrer) {
+        await this.updatePlayer(referrer.id, {
+          successfulReferralCount: (referrer.successfulReferralCount || 0) + 1,
+        } as any);
+      }
+    }
+
+    // Reversal if verified referral is cancelled/reversed
+    if ((status === 'reversed' || status === 'rejected') && existing.status === 'qualified') {
+      const origKey = `referral_reward_referrer_${existing.id}`;
+      const revKey = `reversal_ref_reward_${existing.id}`;
+      const origLedger = this.isMongoConnected && this.db
+        ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: origKey })
+        : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === origKey);
+
+      if (origLedger && origLedger.points > 0) {
+        const existingRev = this.isMongoConnected && this.db
+          ? await this.db.collection<LoyaltyLedgerEntry>('loyalty_ledger').findOne({ idempotencyKey: revKey })
+          : this.fileLoyaltyLedger.find((l) => l.idempotencyKey === revKey);
+
+        if (!existingRev) {
+          await this.adjustPlayerLoyalty(
+            existing.referrerPlayerId,
+            -origLedger.points,
+            'adjustment',
+            `Reversal: Referral #${existing.id} rejected/reversed`,
+            existing.id,
+            revKey
+          );
+        }
+      }
+    }
+
     return updated;
+  }
+
+  async getReferralsForPlayer(playerId: string): Promise<Referral[]> {
+    if (!playerId) return [];
+    if (this.isMongoConnected && this.db) {
+      return this.db.collection<Referral>('referrals').find({
+        $or: [{ referrerPlayerId: playerId }, { referredPlayerId: playerId }],
+      }).sort({ createdAt: -1 }).toArray();
+    }
+    return this.fileReferrals
+      .filter((r) => r.referrerPlayerId === playerId || r.referredPlayerId === playerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   // ======================== AUTOMATION EVENTS ========================

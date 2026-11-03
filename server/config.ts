@@ -12,6 +12,9 @@ export const config = {
   timezone: 'Asia/Kolkata',
   corsOrigin: process.env.CORS_ORIGIN || '',
   isProduction: isProd,
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+  vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@giocasa.com',
 };
 
 if (isProd && !process.env.ADMIN_PASSCODE) {

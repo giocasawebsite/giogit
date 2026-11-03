@@ -31,21 +31,21 @@ export const ExperiencePage: React.FC<ExperiencePageProps> = ({ onNavigate }) =>
       title: 'Morning Brews, Work & Casual Bites',
       vibe: 'Calm, productive, aromatic',
       icon: Sun,
-      description: 'Step into the Hearth basement for steaming Adrak Chai, roasted hazelnut espresso, light background acoustics, and fresh bun makhan or pasta while getting work done.'
+      description: 'Step into the 1st Floor restaurant for steaming Adrak Chai, roasted hazelnut espresso, light background acoustics, and fresh bun makhan or pasta while getting work done.'
     },
     {
       time: '03:00 PM – 07:00 PM',
       title: 'Afternoon Pizza & Casual Pool Frames',
       vibe: 'Social, upbeat, friendly',
       icon: Coffee,
-      description: 'The wood-fired oven reaches peak heat. Groups gather for Margherita sharing platters, chilled strawberry smoothies, and casual games of 8-ball pool or foosball upstairs.'
+      description: 'The wood-fired oven reaches peak heat. Groups gather on the 1st Floor for Margherita sharing platters, chilled strawberry smoothies, and casual games of 8-ball pool.'
     },
     {
       time: '07:00 PM – Late Night',
       title: 'High-Octane Gaming, Tournaments & Feasts',
       vibe: 'Competitive, energetic, electric',
       icon: Moon,
-      description: 'Upstairs turns into Ayodhya’s gaming central. PS5 4K stations light up with Tekken & FC 25 battles, burgers and loaded nachos arrive station-side, and laughter echoes across board game tables.'
+      description: 'The Basement turns into Ayodhya’s gaming central. PS5 4K stations and racing simulators light up with Tekken & FC 25 battles, burgers and loaded nachos arrive station-side, and laughter echoes across the arena.'
     }
   ];
 
@@ -128,21 +128,21 @@ export const ExperiencePage: React.FC<ExperiencePageProps> = ({ onNavigate }) =>
                 Crafted for People Who Love to Stay.
               </h2>
               <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed">
-                We believe the best social spaces are unhurried. At GioCasa, you never have to choose between a phenomenal meal and fun entertainment. Eat downstairs, take your drinks upstairs, and enjoy an evening built around genuine human connection.
+                We believe the best social spaces are unhurried. At GioCasa, you never have to choose between a phenomenal meal and fun entertainment. Enjoy artisanal wood-fired dining and 8-ball pool on the 1st Floor, drop down to the Basement Gaming Arena for high-speed PS5 and racing action, and enjoy an evening built around genuine human connection.
               </p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <div className="p-3 rounded-xl bg-brand-dark/60 border border-brand-border/60 text-xs text-brand-cream flex items-center gap-2">
                   <Flame className="w-4 h-4 text-brand-terracotta shrink-0" />
-                  <span>Wood-Fired Pizza at 450°C</span>
+                  <span>1st Floor • Wood-Fired Pizza at 450°C</span>
                 </div>
                 <div className="p-3 rounded-xl bg-brand-dark/60 border border-brand-border/60 text-xs text-brand-cream flex items-center gap-2">
                   <Gamepad2 className="w-4 h-4 text-brand-gold shrink-0" />
-                  <span>PS5 4K & Hot-Shot Slate Pool</span>
+                  <span>Basement • PS5 4K & Racing Simulators</span>
                 </div>
                 <div className="p-3 rounded-xl bg-brand-dark/60 border border-brand-border/60 text-xs text-brand-cream flex items-center gap-2">
                   <Users className="w-4 h-4 text-brand-terracotta shrink-0" />
-                  <span>50+ Board Game Vault</span>
+                  <span>1st Floor • Hot-Shot Slate Pool Table</span>
                 </div>
                 <div className="p-3 rounded-xl bg-brand-dark/60 border border-brand-border/60 text-xs text-brand-cream flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -152,17 +152,18 @@ export const ExperiencePage: React.FC<ExperiencePageProps> = ({ onNavigate }) =>
 
               <div className="pt-4 flex flex-wrap gap-4">
                 <button
-                  onClick={() => openBookingModal('combo')}
+                  onClick={() => openBookingModal('choice')}
                   className="py-3.5 px-8 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-widest shadow-luxury-ember transition-all flex items-center gap-2"
                 >
                   <CalendarDays className="w-4 h-4" />
-                  <span>Reserve Combo Experience</span>
+                  <span>Reserve Table or Event</span>
                 </button>
                 <button
-                  onClick={() => onNavigate('menu')}
-                  className="py-3.5 px-6 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all"
+                  onClick={() => onNavigate('book')}
+                  className="py-3.5 px-6 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all flex items-center gap-2"
                 >
-                  Explore Food & Drinks
+                  <Gamepad2 className="w-4 h-4 text-brand-gold" />
+                  <span>Book Gaming Slots</span>
                 </button>
               </div>
             </div>
@@ -171,6 +172,8 @@ export const ExperiencePage: React.FC<ExperiencePageProps> = ({ onNavigate }) =>
               <img
                 src="/assets/real/pool_table.png"
                 alt="GioCasa Pool & Social Lounge"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover brightness-95"
               />
             </div>

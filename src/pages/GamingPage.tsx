@@ -34,24 +34,25 @@ export const GamingPage: React.FC<GamingPageProps> = ({ onNavigate }) => {
         {/* Page Header */}
         <div className="text-center max-w-4xl mx-auto space-y-4">
           <span className="text-xs uppercase tracking-[0.25em] text-brand-blue font-semibold block">
-            Level 1 • The Arena
+            Basement (PS5 & Racing Sim) • 1st Floor (Pool Table)
           </span>
           <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-tight">
-            The Gaming Lounge at GioCasa
+            The Gaming Arena at GioCasa
           </h1>
           <p className="font-italic-accent text-xl sm:text-2xl text-brand-pink italic">
-            PS5 4K HDR • Hot-Shot Slate Pool • Pro Foosball • 50+ Board Games
+            PS5 4K HDR • Racing Simulators • Hot-Shot Slate Pool • 50+ Board Games
           </p>
           <p className="text-sm sm:text-base text-brand-subtle font-light max-w-2xl mx-auto leading-relaxed">
-            A state-of-the-art social gaming destination in Ayodhya designed for competitive battles, friendly banter, tournament glory, and food served straight to your controllers.
+            A state-of-the-art social gaming destination in Ayodhya designed for competitive battles, racing hot-laps, tournament glory, and food served straight to your controllers.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
             <button
-              onClick={() => openBookingModal('gaming')}
-              className="py-3 px-6 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-semibold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5"
+              onClick={() => onNavigate('book')}
+              className="py-3 px-6 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-semibold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
             >
-              Reserve Game Station
+              <Gamepad2 className="w-4 h-4" />
+              <span>Book Gaming Slots</span>
             </button>
             <WinnersButton
               onNavigate={onNavigate}
@@ -85,6 +86,8 @@ export const GamingPage: React.FC<GamingPageProps> = ({ onNavigate }) => {
                   <img
                     src={zone.image}
                     alt={zone.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover brightness-90 hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute top-3 left-3">

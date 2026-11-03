@@ -64,6 +64,8 @@ export const EventsPage: React.FC<EventsPageProps> = ({ onNavigate }) => {
                   <img
                     src={evt.image}
                     alt={evt.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover brightness-90 group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute top-4 left-4 flex gap-2">

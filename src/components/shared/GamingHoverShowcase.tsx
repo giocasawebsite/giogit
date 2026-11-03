@@ -78,6 +78,8 @@ export const GamingHoverShowcase: React.FC = () => {
               <img
                 src={currentZone.image}
                 alt={currentZone.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
               />
 
@@ -94,7 +96,9 @@ export const GamingHoverShowcase: React.FC = () => {
                   <Users className="w-3.5 h-3.5 text-brand-pink" />
                   {currentZone.playersCapacity}
                 </span>
-                <span className="text-white font-medium">Ayodhya 1st Floor Lounge</span>
+                <span className="text-white font-medium">
+                  {currentZone.type === 'pool' ? '1st Floor • Restaurant & Pool' : 'Basement • Gaming Arena'}
+                </span>
               </div>
             </div>
 
@@ -153,10 +157,10 @@ export const GamingHoverShowcase: React.FC = () => {
               {/* Action Buttons */}
               <div className="pt-4 border-t border-brand-border/40 flex items-center gap-4">
                 <button
-                  onClick={() => openBookingModal('gaming')}
+                  onClick={() => { window.location.hash = '#/book'; }}
                   className="py-3.5 px-6 rounded-full bg-brand-pink text-white font-semibold text-xs uppercase tracking-widest hover:bg-brand-pinkHover transition-all shadow-luxury-pink flex items-center gap-2 group"
                 >
-                  <span>Book This Zone</span>
+                  <span>Book Gaming Slot</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
 

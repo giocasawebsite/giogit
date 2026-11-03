@@ -36,6 +36,14 @@
     color: var(--color-cream);
     overflow-x: hidden;
     letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Prevent 300ms mobile touch delay & remove tap highlights */
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Custom subtle scrollbar */
@@ -113,6 +121,30 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(232, 228, 226, 0.16);
+  }
+
+  .will-change-transform {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .content-visibility-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 500px;
+  }
+}
+
+/* On mobile phones (<=768px), disable multi-pass backdrop blur to eliminate frame drops & battery drain */
+@media (max-width: 768px) {
+  .backdrop-blur-2xl,
+  .backdrop-blur-xl,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .glass-dark,
+  .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }
 
