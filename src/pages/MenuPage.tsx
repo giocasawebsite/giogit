@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PageRoute, MenuItem } from '../types';
+import { PageRoute, MenuItem, MenuCustomization } from '../types';
 import { menuCategories, menuData } from '../data/menuData';
 import { businessConfig } from '../data/businessConfig';
 import { useOrderCart } from '../context/OrderCartContext';
 import { PizzaFeatureCard } from '../components/shared/PizzaFeatureCard';
 import { MenuItemCard } from '../components/shared/MenuItemCard';
+import { imageUploadService } from '../services/imageUploadService';
 import { 
   Flame, 
   ShoppingBag, 
@@ -24,28 +25,49 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [customizations, setCustomizations] = useState<Record<string, MenuCustomization>>({});
 
   const { cart, openDrawer, totalItems, totalAmount } = useOrderCart();
 
   useEffect(() => {
     document.title = 'GioCasa Menu | Vegetarian Brick-Oven Pizza, Coffee & More';
+    imageUploadService.getMenuCustomizations().then(setCustomizations).catch(() => {});
   }, []);
+
+  // Merge static menu items with any dynamic Cloudinary images/overrides from admin
+  const mergedMenuData = useMemo(() => {
+    return menuData.map((item) => {
+      const custom = customizations[item.id];
+      if (!custom) return item;
+      return {
+        ...item,
+        imageUrl: custom.imageUrl || item.imageUrl,
+        imagePublicId: custom.imagePublicId || item.imagePublicId,
+        image: custom.imageUrl || item.image,
+        name: custom.name || item.name,
+        description: custom.description !== undefined ? custom.description : item.description,
+        price: custom.price !== undefined ? custom.price : item.price,
+        isFeatured: custom.isFeatured !== undefined ? custom.isFeatured : item.isFeatured,
+        spiceLabel: custom.badge || item.spiceLabel,
+      };
+    });
+  }, [customizations]);
 
   // Memoized filtered items to prevent expensive recomputations on mobile
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return menuData.filter(item => {
+    return mergedMenuData.filter((item) => {
       const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
       if (!q) return matchesCategory;
 
       const matchesName = item.name.toLowerCase().includes(q);
       const matchesDesc = item.description ? item.description.toLowerCase().includes(q) : false;
-      const matchesFlavors = item.flavors ? item.flavors.some(f => f.name.toLowerCase().includes(q)) : false;
+      const matchesFlavors = item.flavors ? item.flavors.some((f) => f.name.toLowerCase().includes(q)) : false;
       const matchesCategoryName = item.category.toLowerCase().includes(q);
 
       return matchesCategory && (matchesName || matchesDesc || matchesFlavors || matchesCategoryName);
     });
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, mergedMenuData]);
 
   // Grouped by categories (excluding 'all')
   const categoriesToDisplay = useMemo(() => {

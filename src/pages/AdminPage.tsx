@@ -7,6 +7,8 @@ import { AdminPlayerCRM } from '../components/admin/AdminPlayerCRM';
 import { AdminContactSettings } from '../components/admin/AdminContactSettings';
 import { AdminEquipmentManager } from '../components/admin/AdminEquipmentManager';
 import { AdminReservationsManager } from '../components/admin/AdminReservationsManager';
+import { AdminGuestVerification } from '../components/admin/AdminGuestVerification';
+import { AdminMediaManager } from '../components/admin/AdminMediaManager';
 import { getPricingDescription } from '../utils/pricing';
 import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
 import {
@@ -40,6 +42,7 @@ import {
   MessageCircle,
   Utensils,
   Bell,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface AdminPageProps {
@@ -69,19 +72,23 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Tab Navigation: 'stations' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations'
-  const [selectedTab, setSelectedTab] = useState<'stations' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations'>(() => {
+  // Tab Navigation: 'stations' | 'verify' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'
+  const [selectedTab, setSelectedTab] = useState<'stations' | 'verify' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'>(() => {
+    if (adminTab === 'verify') return 'verify';
     if (adminTab === 'reservations') return 'reservations';
     if (adminTab === 'equipment') return 'equipment';
     if (adminTab === 'players') return 'players';
     if (adminTab === 'hall-of-fame') return 'hall-of-fame';
+    if (adminTab === 'media' || adminTab === 'gallery') return 'media';
     if (adminTab?.startsWith('tournament')) return 'tournaments';
     if (adminTab === 'contact' || adminTab === 'settings') return 'contact';
     return 'stations';
   });
 
   useEffect(() => {
-    if (adminTab === 'reservations') {
+    if (adminTab === 'verify') {
+      setSelectedTab('verify');
+    } else if (adminTab === 'reservations') {
       setSelectedTab('reservations');
     } else if (adminTab === 'equipment') {
       setSelectedTab('equipment');
@@ -89,6 +96,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setSelectedTab('players');
     } else if (adminTab === 'hall-of-fame') {
       setSelectedTab('hall-of-fame');
+    } else if (adminTab === 'media' || adminTab === 'gallery') {
+      setSelectedTab('media');
     } else if (adminTab?.startsWith('tournament')) {
       setSelectedTab('tournaments');
     } else if (adminTab === 'contact' || adminTab === 'settings') {
@@ -631,6 +640,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
             <button
               onClick={() => {
+                setSelectedTab('verify');
+                onNavigate('admin', { adminTab: 'verify' });
+              }}
+              className="px-4 py-2.5 rounded-xl bg-brand-gold/15 hover:bg-brand-gold/25 border border-brand-gold/60 text-brand-gold text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all active:scale-[0.99]"
+            >
+              <ShieldCheck className="w-4 h-4 text-brand-gold" />
+              <span>Verify Guest</span>
+            </button>
+
+            <button
+              onClick={() => {
                 if (resources.length > 0 && !manualForm.resourceId) {
                   setManualForm((prev) => ({ ...prev, resourceId: resources[0].id }));
                 }
@@ -659,6 +679,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           >
             <Gamepad2 className="w-4 h-4" />
             <span>Station Ops & Walk-ins</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('verify');
+              onNavigate('admin', { adminTab: 'verify' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'verify'
+                ? 'border-brand-gold text-brand-gold font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-brand-gold" />
+            <span>Verify Guest (4-Digit)</span>
           </button>
 
           <button
@@ -749,6 +784,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           >
             <Utensils className="w-4 h-4 text-brand-orange" />
             <span>Dining & Events</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('media');
+              onNavigate('admin', { adminTab: 'media' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'media'
+                ? 'border-brand-gold text-brand-gold font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4 text-brand-gold" />
+            <span>Media & Menu Images</span>
           </button>
         </div>
 
@@ -1192,6 +1242,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       </>
     )}
 
+    {/* 4-DIGIT GUEST VERIFICATION & FRONT DESK CHECK-IN */}
+    {selectedTab === 'verify' && (
+      <AdminGuestVerification
+        passcode={passcode}
+        adminUser="GioCasa Admin"
+      />
+    )}
+
     {/* ARENA TOURNAMENTS MANAGER */}
     {selectedTab === 'tournaments' && (
       <AdminTournamentsManager
@@ -1237,6 +1295,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     {/* DINING & EVENTS RESERVATIONS MANAGER */}
     {selectedTab === 'reservations' && (
       <AdminReservationsManager
+        passcode={passcode}
+      />
+    )}
+
+    {/* MEDIA & MENU DISHES MANAGER (CLOUDINARY) */}
+    {selectedTab === 'media' && (
+      <AdminMediaManager
         passcode={passcode}
       />
     )}

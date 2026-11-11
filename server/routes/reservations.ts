@@ -81,8 +81,8 @@ router.post('/dining', reservationSubmitLimiter, async (req: Request, res: Respo
   }
 });
 
-// POST /api/reservations/event - Submit an event enquiry / reservation
-router.post('/event', reservationSubmitLimiter, async (req: Request, res: Response) => {
+// POST /api/reservations/event or /events - Submit an event enquiry / reservation
+router.post(['/event', '/events'], reservationSubmitLimiter, async (req: Request, res: Response) => {
   try {
     const {
       customerName,

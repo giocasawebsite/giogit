@@ -1213,7 +1213,9 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                   <tr>
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Payment Amount</th>
                     <th className="py-3 px-3">Points Delta</th>
+                    <th className="py-3 px-3">Balance Progression</th>
                     <th className="py-3 px-3">Reason / Description</th>
                     <th className="py-3 px-3">Reference</th>
                   </tr>
@@ -1233,10 +1235,24 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
                       <td className="py-3 px-3 uppercase text-brand-pink font-semibold">
                         {tx.type}
                       </td>
+                      <td className="py-3 px-3 font-semibold text-white">
+                        {tx.paymentAmount ? `₹${tx.paymentAmount}` : '—'}
+                      </td>
                       <td className="py-3 px-3">
                         <span className={`font-bold ${tx.points >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {tx.points > 0 ? `+${tx.points}` : tx.points} pts
                         </span>
+                      </td>
+                      <td className="py-3 px-3 text-brand-subtle">
+                        {tx.previousBalance !== undefined && tx.updatedBalance !== undefined ? (
+                          <span className="flex items-center gap-1 font-mono text-[11px]">
+                            <span className="text-brand-muted">{tx.previousBalance}</span>
+                            <span className="text-brand-gold">➔</span>
+                            <span className="text-white font-bold">{tx.updatedBalance} pts</span>
+                          </span>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td className="py-3 px-3 text-white">{tx.reason}</td>
                       <td className="py-3 px-3 text-brand-subtle">{tx.referenceId || 'Manual'}</td>

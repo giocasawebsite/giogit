@@ -353,15 +353,30 @@ export const arenaApi = {
   async uploadAdminImage(
     passcode: string,
     imageBase64: string,
-    filename?: string
-  ): Promise<{ url: string; filename: string }> {
+    filename?: string,
+    folder?: string,
+    previousPublicId?: string
+  ): Promise<{
+    url: string;
+    secureUrl?: string;
+    publicId?: string;
+    thumbnailUrl?: string;
+    filename?: string;
+    storage?: string;
+  }> {
     const res = await fetch(`${API_BASE}/admin/uploads`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-admin-passcode': passcode,
+        Authorization: `Bearer ${passcode}`,
       },
-      body: JSON.stringify({ imageBase64, filename }),
+      body: JSON.stringify({
+        imageBase64,
+        filename,
+        folder: folder || 'tournaments',
+        previousPublicId,
+      }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to upload image');

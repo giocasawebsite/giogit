@@ -18,10 +18,11 @@ class PushNotificationService {
   private isConfigured: boolean = false;
 
   constructor() {
-    this.initVapid();
+    this.subject = config.vapidSubject || 'mailto:admin@giocasa.com';
+    this.initVapidSync();
   }
 
-  private initVapid() {
+  private initVapidSync() {
     try {
       this.subject = config.vapidSubject || 'mailto:admin@giocasa.com';
 
@@ -68,11 +69,58 @@ class PushNotificationService {
       webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
       console.log(`📡 [Push Service] Web Push initialized with VAPID subject: ${this.subject}`);
     } catch (err: any) {
-      console.error('[Push Service] Failed to initialize Web Push VAPID keys:', err?.message || err);
+      console.error('[Push Service] Failed to initialize Web Push VAPID keys synchronously:', err?.message || err);
     }
   }
 
-  public getVapidPublicKey(): string {
+  public async ensureInitialized(): Promise<void> {
+    try {
+      this.subject = config.vapidSubject || 'mailto:admin@giocasa.com';
+
+      // 1. Check if configured in environment variables (Render / production)
+      if (config.vapidPublicKey && config.vapidPrivateKey) {
+        this.publicKey = config.vapidPublicKey.trim();
+        this.privateKey = config.vapidPrivateKey.trim();
+        this.isConfigured = true;
+        webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
+        await dbService.saveVapidKeys({ publicKey: this.publicKey, privateKey: this.privateKey }).catch(() => {});
+        return;
+      }
+
+      // 2. Check MongoDB for persistent keys
+      const mongoKeys = await dbService.getVapidKeys();
+      if (mongoKeys && mongoKeys.publicKey && mongoKeys.privateKey) {
+        this.publicKey = mongoKeys.publicKey.trim();
+        this.privateKey = mongoKeys.privateKey.trim();
+        this.isConfigured = true;
+        webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
+        return;
+      }
+
+      // 3. Fall back to current in-memory / file keys and sync to MongoDB
+      if (this.publicKey && this.privateKey) {
+        await dbService.saveVapidKeys({ publicKey: this.publicKey, privateKey: this.privateKey }).catch(() => {});
+        return;
+      }
+
+      // 4. Generate new keys and persist to both MongoDB and file
+      const keys = webpush.generateVAPIDKeys();
+      this.publicKey = keys.publicKey;
+      this.privateKey = keys.privateKey;
+      this.isConfigured = true;
+      webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
+      await dbService.saveVapidKeys(keys).catch(() => {});
+      try {
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(VAPID_FILE, JSON.stringify(keys, null, 2), 'utf-8');
+      } catch {}
+    } catch (err: any) {
+      console.error('[Push Service] ensureInitialized error:', err?.message || err);
+    }
+  }
+
+  public async getVapidPublicKey(): Promise<string> {
+    await this.ensureInitialized();
     return this.publicKey;
   }
 
@@ -81,6 +129,7 @@ class PushNotificationService {
     failed: number;
     removed: number;
   }> {
+    await this.ensureInitialized();
     if (!this.isConfigured || !this.publicKey || !this.privateKey) {
       console.warn('[Push Service] Cannot send notification: VAPID keys not configured.');
       return { sent: 0, failed: 0, removed: 0 };

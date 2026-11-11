@@ -109,6 +109,44 @@ export const LoyaltyRulesModal: React.FC<LoyaltyRulesModalProps> = ({
               </div>
             )}
 
+            {/* Rule 0: Payment Spend Earning */}
+            <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-white block">Payment Spend Conversion</label>
+                  <span className="text-[11px] text-brand-subtle block">
+                    Automatically awarded on verified payments, partial payments & session extensions.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={rules.rulesEnabled.paymentSpend ?? true}
+                  onChange={(e) =>
+                    setRules({
+                      ...rules,
+                      rulesEnabled: { ...rules.rulesEnabled, paymentSpend: e.target.checked },
+                    })
+                  }
+                  className="w-4 h-4 rounded text-brand-pink"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-brand-subtle font-mono">Points per ₹100 spent:</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={rules.pointsPerHundredRupees ?? 10}
+                  onChange={(e) =>
+                    setRules({ ...rules, pointsPerHundredRupees: parseInt(e.target.value, 10) || 0 })
+                  }
+                  className="w-24 px-3 py-1.5 text-xs font-mono font-bold rounded-xl bg-brand-dark border border-brand-border text-white text-right"
+                />
+                <span className="text-[11px] text-brand-muted font-mono">
+                  (= {((rules.pointsPerHundredRupees ?? 10) / 10).toFixed(1)} pt / ₹10)
+                </span>
+              </div>
+            </div>
+
             {/* Rule 1: Gaming Session Points */}
             <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-2">
               <div className="flex items-center justify-between">

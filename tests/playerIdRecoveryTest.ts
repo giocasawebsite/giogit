@@ -87,7 +87,7 @@ async function runRecoveryTests() {
     assert(phoneJson.success === true, 'Phone recovery returns success: true');
     assert(phoneJson.data.requiresVerification === true, 'Requires identity challenge verification');
     assert(!!phoneJson.data.sessionToken, 'Signed HMAC session token returned');
-    assert(phoneJson.data.maskedContact?.includes('••••'), 'Contact is securely masked', phoneJson.data.maskedContact);
+    assert(phoneJson.data.maskedContact?.includes('**') || phoneJson.data.maskedContact?.includes('••••'), 'Contact is securely masked', phoneJson.data.maskedContact);
     assert(phoneJson.data.gioId === undefined, 'GioCasa Player ID is NOT leaked prior to verification');
 
     const validSessionToken = phoneJson.data.sessionToken;

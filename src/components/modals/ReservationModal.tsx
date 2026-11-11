@@ -33,6 +33,7 @@ export const ReservationModal: React.FC = () => {
   const [mode, setMode] = useState<'choice' | 'dining' | 'event'>('choice');
   const [regModalOpen, setRegModalOpen] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Submissions state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +41,7 @@ export const ReservationModal: React.FC = () => {
   const [submissionSuccess, setSubmissionSuccess] = useState<{
     type: 'dining' | 'event';
     referenceCode: string;
+    guestCode?: string;
     whatsappUrl: string;
     details: {
       name: string;
@@ -211,6 +213,7 @@ Please confirm availability for our table. Thank you!`;
       setSubmissionSuccess({
         type: 'dining',
         referenceCode: res.referenceCode,
+        guestCode: (res as any).guestCode,
         whatsappUrl,
         details: {
           name: res.customerName,
@@ -302,6 +305,7 @@ Please review this event enquiry and provide confirmation/quote. Thank you!`;
       setSubmissionSuccess({
         type: 'event',
         referenceCode: res.referenceCode,
+        guestCode: (res as any).guestCode,
         whatsappUrl,
         details: {
           name: res.customerName,
@@ -339,6 +343,12 @@ Please review this event enquiry and provide confirmation/quote. Thank you!`;
       setCopiedRef(true);
       setTimeout(() => setCopiedRef(false), 2000);
     }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const handleGoToGamingSlots = () => {
@@ -426,6 +436,30 @@ Please review this event enquiry and provide confirmation/quote. Thank you!`;
                   </button>
                 </div>
               </div>
+
+              {/* 4-Digit Guest Verification Code Card */}
+              {submissionSuccess.guestCode && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-brand-surfaceElevated via-brand-dark to-brand-surfaceElevated border-2 border-brand-gold/70 shadow-lg flex items-center justify-between text-left">
+                  <div>
+                    <span className="text-[10px] font-mono text-brand-gold uppercase tracking-wider font-bold block">
+                      ★ 4-Digit Guest Verification Code
+                    </span>
+                    <span className="font-mono text-2xl sm:text-3xl font-extrabold text-white tracking-[0.25em] mt-0.5 block">
+                      {submissionSuccess.guestCode}
+                    </span>
+                    <span className="text-[10px] text-brand-muted block mt-0.5">
+                      Show this 4-digit code on arrival at GioCasa front desk
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleCopyCode(submissionSuccess.guestCode!)}
+                    className="px-3 py-1.5 rounded-xl bg-brand-gold/15 hover:bg-brand-gold/25 border border-brand-gold/60 text-xs font-mono font-bold text-brand-gold transition-colors flex items-center gap-1.5"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+              )}
 
               {/* Reservation summary card */}
               <div className="p-3.5 rounded-2xl bg-brand-dark/60 border border-brand-border text-left text-xs space-y-2">

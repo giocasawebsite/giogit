@@ -236,6 +236,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<boolean>(false);
+  const [copiedGuestCode, setCopiedGuestCode] = useState<boolean>(false);
 
   // Lookup State
   const [lookupQuery, setLookupQuery] = useState<string>('');
@@ -450,6 +451,12 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
     navigator.clipboard.writeText(id);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const copyGuestCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedGuestCode(true);
+    setTimeout(() => setCopiedGuestCode(false), 2000);
   };
 
   // Dynamic category pills based on live resources from MongoDB
@@ -1252,6 +1259,32 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   Your gaming slot is officially locked into our live database.
                 </p>
               </div>
+
+              {/* 4-Digit Guest Verification Code Card */}
+              {confirmedBooking.guestCode && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-brand-surfaceElevated via-brand-dark to-brand-surfaceElevated border-2 border-brand-gold/70 shadow-2xl flex items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-mono text-brand-gold uppercase tracking-[0.2em] font-bold flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-brand-gold" />
+                      <span>Guest Verification Code</span>
+                    </span>
+                    <span className="font-mono text-3xl sm:text-4xl font-extrabold text-white tracking-[0.3em] mt-1 block drop-shadow-md">
+                      {confirmedBooking.guestCode}
+                    </span>
+                    <span className="text-[10px] text-brand-muted block mt-1">
+                      Show this 4-digit code to staff at front desk for instant arrival check-in
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyGuestCode(confirmedBooking.guestCode)}
+                    className="px-3.5 py-2 rounded-xl bg-brand-gold/15 hover:bg-brand-gold/25 border border-brand-gold/60 text-xs font-mono font-bold text-brand-gold transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    {copiedGuestCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedGuestCode ? 'Copied!' : 'Copy Code'}</span>
+                  </button>
+                </div>
+              )}
 
               {/* Booking ID Banner with 1-Click Copy */}
               <div className="p-4 rounded-2xl bg-brand-dark border border-brand-border flex items-center justify-between">

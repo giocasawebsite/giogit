@@ -6,9 +6,9 @@ import { requireAdminAuth } from './admin';
 const router = Router();
 
 // GET /api/admin/push/vapid-public-key - Public key needed by admin browser for service worker subscription
-router.get('/vapid-public-key', (req: Request, res: Response) => {
+router.get('/vapid-public-key', async (req: Request, res: Response) => {
   try {
-    const publicKey = pushNotificationService.getVapidPublicKey();
+    const publicKey = await pushNotificationService.getVapidPublicKey();
     if (!publicKey) {
       return res.status(500).json({ success: false, error: 'VAPID public key not configured on server.' });
     }
@@ -16,6 +16,20 @@ router.get('/vapid-public-key', (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error fetching VAPID public key:', err);
     return res.status(500).json({ success: false, error: 'Failed to retrieve VAPID key.' });
+  }
+});
+
+// GET /api/admin/push/status - Public push configuration health & diagnostic info
+router.get('/status', async (req: Request, res: Response) => {
+  try {
+    const publicKey = await pushNotificationService.getVapidPublicKey();
+    return res.json({
+      success: true,
+      configured: !!publicKey,
+      publicKey,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to retrieve push status.' });
   }
 });
 

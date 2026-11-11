@@ -19,11 +19,13 @@ export interface RouteParams {
   slug?: string;
   registrationId?: string;
   token?: string;
-  adminTab?: 'overview' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations';
+  adminTab?: 'overview' | 'verify' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media';
   adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminTournamentId?: string;
   adminPlayerId?: string;
 }
+
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'refunded' | 'waived';
 
 export type ResourceCategory = 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames' | 'xbox' | 'pc' | 'snooker' | string;
 
@@ -42,6 +44,7 @@ export interface GamingResource {
   maintenanceReason?: string;
   specs: string[];
   image: string;
+  imagePublicId?: string;
   order: number;
   machineIdentifier?: string;
   availableGames?: string[];
@@ -56,6 +59,7 @@ export interface GameItem {
   genre?: string;
   description: string;
   image: string;
+  imagePublicId?: string;
   isAvailable: boolean;
   minPlayers?: number;
   maxPlayers?: number;
@@ -104,6 +108,7 @@ export interface Tournament {
   teamType: 'individual' | 'team';
   teamSize: { min: number; max: number };
   bannerImage: string;
+  bannerPublicId?: string;
   venue: string;
   startDate: string;
   startTime: string;
@@ -161,6 +166,15 @@ export interface TournamentRegistration {
   paymentNotes?: string;
   notes?: string;
   rulesAccepted: boolean;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  auditLogs?: BookingAuditLog[];
   createdAt: string;
   updatedAt: string;
 }
@@ -202,6 +216,7 @@ export interface HallOfFameEntry {
   eventDate: string;
   scoreDescription?: string;
   photoUrl: string;
+  photoPublicId?: string;
   isFeatured: boolean;
   isPublished: boolean;
   order: number;
@@ -211,6 +226,16 @@ export interface HallOfFameEntry {
 
 export type ReservationType = 'choice' | 'dining' | 'event' | 'gaming' | 'combo';
 export type ReservationStatus = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+
+export type CheckInStatus = 'pending' | 'checked_in';
+export type PaymentMethod = 'cash' | 'upi' | 'card' | 'other';
+
+export interface BookingAuditLog {
+  action: 'CHECK_IN' | 'PAYMENT_VERIFIED' | 'STATUS_CHANGE' | 'CREATED' | 'EXTENDED' | 'CANCELLED';
+  timestamp: string;
+  performedBy?: string;
+  details?: Record<string, any>;
+}
 
 export interface DiningReservation {
   id: string; // 'gdr-xxx'
@@ -229,6 +254,17 @@ export interface DiningReservation {
   specialRequests?: string;
   additionalRequirements?: string;
   status: ReservationStatus;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'refunded';
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  totalAmount?: number;
+  auditLogs?: BookingAuditLog[];
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;
@@ -254,11 +290,64 @@ export interface EventReservation {
   decorationRequirements?: string;
   additionalMessage?: string;
   status: ReservationStatus;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'refunded';
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  totalAmount?: number;
+  auditLogs?: BookingAuditLog[];
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;
   playerId?: string;
   gioId?: string;
+}
+
+export interface VerifiedGuestBooking {
+  bookingType: 'gaming' | 'dining' | 'event' | 'tournament';
+  id: string;
+  reference: string;
+  guestCode: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  date: string;
+  time: string;
+  endTime?: string;
+  durationMinutes?: number;
+  resourceName?: string;
+  location?: string;
+  numberOfPeople?: number;
+  guests?: number;
+  expectedGuests?: number;
+  eventType?: string;
+  estimatedBudget?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  remainingBalance?: number;
+  payments?: BookingPayment[];
+  status: string;
+  checkInStatus: CheckInStatus;
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  notes?: string;
+  specialRequests?: string;
+  additionalRequirements?: string;
+  foodRequirements?: string;
+  decorationRequirements?: string;
+  additionalMessage?: string;
+  createdAt: string;
+  auditLogs?: BookingAuditLog[];
 }
 
 export type MenuCategory = 
@@ -308,6 +397,9 @@ export interface MenuItem {
   flaggedForVerification?: boolean;
   verificationNote?: string;
   image?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  isFeatured?: boolean;
   prepTime?: string;
 }
 
@@ -400,6 +492,7 @@ export type LoyaltySourceActivity =
   | 'referral_reward'
   | 'referred_welcome'
   | 'admin_adjustment'
+  | 'booking_payment'
   | 'reversal'
   | 'manual';
 
@@ -416,6 +509,9 @@ export interface LoyaltyLedgerEntry {
   reason: string;
   adminActor?: string;
   referenceId?: string;
+  paymentAmount?: number; // Actual amount received in INR
+  previousBalance?: number; // Balance before this entry
+  updatedBalance?: number; // Balance after this entry
   createdAt: string;
 }
 
@@ -429,12 +525,14 @@ export interface LoyaltyRules {
   };
   referralPoints: number;
   referredWelcomeBonus: number;
+  pointsPerHundredRupees?: number; // Configured conversion rate: default 10 (1 pt per ₹10 spent)
   rulesEnabled: {
     gamingSession: boolean;
     tournamentParticipation: boolean;
     tournamentPlacement: boolean;
     referral: boolean;
     referredWelcome: boolean;
+    paymentSpend?: boolean; // default true
   };
   updatedAt: string;
   updatedBy: string;
@@ -613,11 +711,25 @@ export interface BookingExtension {
   id: string; // 'ext-xxx'
   extensionMinutes: number; // 30, 60
   amount: number; // INR
-  paymentStatus: 'unpaid' | 'pending' | 'paid' | 'refunded';
+  paymentStatus: PaymentStatus;
   paidAt?: string;
   createdAt: string;
   idempotencyKey?: string;
   notes?: string;
+}
+
+export interface BookingPayment {
+  id: string; // 'pay-xxx'
+  amount: number; // INR actual amount received
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paidAt: string;
+  verifiedBy?: string;
+  notes?: string;
+  pointsAwarded?: number;
+  loyaltyLedgerId?: string;
+  idempotencyKey?: string;
 }
 
 export interface Booking {
@@ -628,6 +740,7 @@ export interface Booking {
   resourceId: string;
   resourceName?: string;
   category?: 'ps5' | 'pool' | 'racing' | 'foosball' | 'boardgames';
+  location?: string;
   date: string;
   startTime: string;
   endTime?: string;
@@ -638,8 +751,20 @@ export interface Booking {
   originalAmount?: number;
   extensionAmount?: number;
   extensions?: BookingExtension[];
+  payments?: BookingPayment[];
+  paidAmount?: number;
+  remainingBalance?: number;
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' | 'expired';
   paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'refunded';
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  auditLogs?: BookingAuditLog[];
   notes?: string;
   createdAt: string;
   playerId?: string;
@@ -731,5 +856,41 @@ export interface PushNotificationPayload {
     timestamp?: number;
   };
 }
+
+// ==========================================
+// MENU CUSTOMIZATION & MEDIA GALLERY TYPES
+// ==========================================
+
+export interface MenuCustomization {
+  id: string; // matches menuItemId (e.g. 'chinese-honey-chilli-potato')
+  menuItemId: string;
+  name?: string;
+  category?: string;
+  price?: number | 'MRP';
+  description?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  isFeatured?: boolean;
+  featuredTitle?: string;
+  featuredDescription?: string;
+  badge?: string;
+  updatedAt: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  category: 'food' | 'gaming' | 'ambiance' | 'events' | 'tournaments' | string;
+  imageUrl: string;
+  imagePublicId?: string;
+  thumbnailUrl?: string;
+  description?: string;
+  tags?: string[];
+  isFeatured?: boolean;
+  displayOrder?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 

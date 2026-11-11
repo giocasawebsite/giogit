@@ -42,6 +42,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   }
 
   const inCart = cart.find(i => i.item.id === cartId);
+  const displayImage = item.imageUrl || item.image;
 
   const handleAddToCart = () => {
     const itemToAdd: MenuItem = {
@@ -56,6 +57,18 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   return (
     <div className="p-5 sm:p-6 rounded-2xl bg-brand-surface border border-brand-border hover:border-brand-borderStrong transition-all duration-300 flex flex-col justify-between space-y-4 shadow-md group">
       <div className="space-y-3">
+        {/* Dish Image (Cloudinary or Default) */}
+        {displayImage && (
+          <div className="relative w-full h-40 sm:h-44 rounded-xl overflow-hidden bg-brand-surfaceElevated border border-brand-border/60">
+            <img
+              src={displayImage}
+              alt={item.name}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          </div>
+        )}
+
         {/* Title and Price */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">

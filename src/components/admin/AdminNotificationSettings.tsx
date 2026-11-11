@@ -100,6 +100,34 @@ export const AdminNotificationSettings: React.FC<AdminNotificationSettingsProps>
     }
   };
 
+  // Reset Service Worker & Retry Subscription
+  const handleResetAndRetry = async () => {
+    setActionLoading(true);
+    setFeedback({
+      type: 'info',
+      message: 'Resetting browser service workers and clearing stale push tokens...',
+    });
+    try {
+      await pushApi.resetAndUnregisterAll(passcode);
+      await new Promise((r) => setTimeout(r, 600));
+      const { deviceRecord } = await pushApi.registerAndSubscribe(passcode, customDeviceName);
+      setIsCurrentSubscribed(true);
+      setPermission('granted');
+      setFeedback({
+        type: 'success',
+        message: `Worker reset successful! Push notifications enabled for ${deviceRecord?.deviceName || 'this device'}.`,
+      });
+      await checkStatus();
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Reset failed. Please check browser permissions and network settings.',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Handle Disable Notifications on this device
   const handleDisableCurrentDevice = async () => {
     if (!window.confirm('Disable notifications on this browser? You will stop receiving real-time alerts on this device.')) {
@@ -231,7 +259,7 @@ export const AdminNotificationSettings: React.FC<AdminNotificationSettingsProps>
         {/* Feedback message banner */}
         {feedback && (
           <div
-            className={`p-4 rounded-2xl border text-xs font-mono flex items-center gap-3 transition-all ${
+            className={`p-4 rounded-2xl border text-xs font-mono flex flex-col sm:flex-row sm:items-start gap-3 transition-all ${
               feedback.type === 'success'
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                 : feedback.type === 'error'
@@ -240,19 +268,41 @@ export const AdminNotificationSettings: React.FC<AdminNotificationSettingsProps>
             }`}
           >
             {feedback.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
             ) : feedback.type === 'error' ? (
-              <AlertTriangle className="w-5 h-5 shrink-0 text-red-400" />
+              <AlertTriangle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
             ) : (
-              <Info className="w-5 h-5 shrink-0 text-blue-400" />
+              <Info className="w-5 h-5 shrink-0 text-blue-400 mt-0.5" />
             )}
-            <p className="flex-1">{feedback.message}</p>
-            <button
-              onClick={() => setFeedback(null)}
-              className="text-xs text-brand-subtle hover:text-brand-cream underline ml-2"
-            >
-              Dismiss
-            </button>
+            <div className="flex-1 space-y-2">
+              <p className="whitespace-pre-line leading-relaxed">{feedback.message}</p>
+              {feedback.type === 'error' && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    onClick={handleResetAndRetry}
+                    disabled={actionLoading}
+                    className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 text-[11px] font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? 'animate-spin' : ''}`} />
+                    <span>Reset Worker & Retry</span>
+                  </button>
+                  <button
+                    onClick={() => setFeedback(null)}
+                    className="text-[11px] text-brand-subtle hover:text-brand-cream underline ml-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
+            {feedback.type !== 'error' && (
+              <button
+                onClick={() => setFeedback(null)}
+                className="text-xs text-brand-subtle hover:text-brand-cream underline ml-2 self-start"
+              >
+                Dismiss
+              </button>
+            )}
           </div>
         )}
 

@@ -161,6 +161,38 @@ export const TournamentConfirmationPage: React.FC<TournamentConfirmationPageProp
             </p>
           </div>
 
+          {/* 4-Digit Verification Code Highlight */}
+          {registration.guestCode && (
+            <div className="bg-gradient-to-r from-brand-surfaceElevated via-brand-dark to-brand-surfaceElevated border-2 border-brand-gold/60 rounded-2xl p-5 space-y-2 shadow-lg">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-brand-gold block font-bold">
+                ★ 4-DIGIT GUEST VERIFICATION CODE
+              </span>
+              <div className="flex items-center justify-center gap-3">
+                <span className="font-mono text-3xl sm:text-4xl font-extrabold text-white tracking-[0.25em]">
+                  {registration.guestCode}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(registration.guestCode!);
+                    setCopyFeedback('Code Copied!');
+                    setTimeout(() => setCopyFeedback(null), 2000);
+                  }}
+                  className="p-2 rounded-xl bg-brand-gold/20 border border-brand-gold/60 hover:bg-brand-gold/30 text-brand-gold transition-colors"
+                  title="Copy verification code"
+                >
+                  {copyFeedback === 'Code Copied!' ? (
+                    <Check className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <span className="text-[10px] text-brand-muted block">
+                Show this 4-digit code to staff at the arena desk for instant matchday check-in
+              </span>
+            </div>
+          )}
+
           {/* Reference Badge Highlight */}
           <div className="bg-brand-surfaceElevated border border-brand-pink/40 rounded-2xl p-5 space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-brand-pink block font-bold">

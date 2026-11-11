@@ -19,6 +19,7 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza }) => 
   const activePrice = activeSizeObj ? activeSizeObj.price : (typeof pizza.price === 'number' ? pizza.price : 0);
   const cartItemId = pizza.sizes ? `${pizza.id}-${selectedSize}` : pizza.id;
   const inCart = cart.find(i => i.item.id === cartItemId);
+  const displayImage = pizza.imageUrl || pizza.image;
 
   const handleAddToCart = () => {
     const itemToAdd: MenuItem = {
@@ -57,6 +58,18 @@ export const PizzaFeatureCard: React.FC<PizzaFeatureCardProps> = ({ pizza }) => 
           </span>
         </div>
       </div>
+
+      {/* Pizza Image (Cloudinary or Default) */}
+      {displayImage && (
+        <div className="relative w-full h-48 sm:h-52 overflow-hidden bg-brand-surfaceElevated border-b border-brand-border/40">
+          <img
+            src={displayImage}
+            alt={pizza.name}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+      )}
 
       {/* Card Body */}
       <div className="p-6 flex-1 flex flex-col justify-between space-y-4">

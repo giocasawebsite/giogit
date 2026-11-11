@@ -68,6 +68,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
     challengePrompt: string;
   } | null>(null);
   const [verificationName, setVerificationName] = useState('');
+  const [recoveryPhoneLast4, setRecoveryPhoneLast4] = useState('');
   const [recoverySuccess, setRecoverySuccess] = useState<{
     gioId: string;
     name: string;
@@ -185,6 +186,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
     setRecoveryIdentifier('');
     setRecoveryChallenge(null);
     setVerificationName('');
+    setRecoveryPhoneLast4('');
     setRecoverySuccess(null);
     setError(null);
   };
@@ -207,6 +209,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
     setError(null);
     setRecoverySuccess(null);
     setRecoveryChallenge(null);
+    setRecoveryPhoneLast4('');
 
     try {
       const res = await playerCrmApi.publicRecoverPlayerId({ identifier: cleanInput });
@@ -214,7 +217,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
         setRecoveryChallenge({
           sessionToken: res.sessionToken,
           maskedContact: res.maskedContact || cleanInput,
-          challengePrompt: res.challengePrompt || 'Please enter your registered Full Name or Gamer Tag to confirm your identity.',
+          challengePrompt: res.challengePrompt || 'Please enter the last 4 digits of your registered mobile number to confirm your identity.',
         });
       } else if (res.verified && res.gioId) {
         setRecoverySuccess({
@@ -239,8 +242,8 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
   const handleRecoverChallengeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recoveryChallenge?.sessionToken) return;
-    if (!verificationName.trim()) {
-      setError('Please enter your registered Full Name or Gamer Tag.');
+    if (!recoveryPhoneLast4.trim() || recoveryPhoneLast4.trim().length !== 4) {
+      setError('Please enter the last 4 digits of your registered mobile number.');
       return;
     }
 
@@ -250,25 +253,26 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
     try {
       const res = await playerCrmApi.publicRecoverPlayerId({
         sessionToken: recoveryChallenge.sessionToken,
-        verificationName: verificationName.trim(),
+        phoneLast4: recoveryPhoneLast4.trim(),
       });
 
       if (res.verified && res.gioId) {
         setRecoverySuccess({
           gioId: res.gioId,
-          name: res.name || verificationName.trim(),
+          name: res.name || 'Player',
           gamerTag: res.gamerTag,
           message: res.message,
           player: res.player,
           token: res.token,
         });
         setRecoveryChallenge(null);
+        setRecoveryPhoneLast4('');
         setGioIdInput(res.gioId);
       } else {
-        setError(res.error || 'The name or gamer tag entered does not match this account.');
+        setError(res.error || 'The last 4 digits entered do not match this account.');
       }
     } catch (err: any) {
-      setError(err.message || 'Verification failed. Please check your spelling and try again.');
+      setError(err.message || 'Verification failed. Please check the digits and try again.');
     } finally {
       setRecoverLoading(false);
     }
@@ -356,7 +360,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
             <div>
               <h4 className="text-sm font-bold text-neutral-900 dark:text-white">Verify Your Identity</h4>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Found profile for <strong className="text-neutral-800 dark:text-neutral-200">{lookupResult.player.name}</strong> ({lookupResult.player.gioId})
+                Found profile for <strong className="text-neutral-800 dark:text-neutral-200">{lookupResult.player.name}</strong>
               </p>
             </div>
           </div>
@@ -465,18 +469,21 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Enter registered Full Name or Gamer Tag"
-                value={verificationName}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                placeholder="Last 4 digits (e.g. 1234)"
+                value={recoveryPhoneLast4}
                 onChange={(e) => {
-                  setVerificationName(e.target.value);
+                  setRecoveryPhoneLast4(e.target.value.replace(/\D/g, '').slice(0, 4));
                   setError(null);
                 }}
-                className="flex-1 px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5AA9E6]"
+                className="flex-1 px-3 py-2 text-xs font-mono font-bold tracking-widest text-center rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5AA9E6]"
                 autoFocus
               />
               <button
                 type="submit"
-                disabled={recoverLoading || !verificationName.trim()}
+                disabled={recoverLoading || recoveryPhoneLast4.length !== 4}
                 className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-[#ED249B] to-[#F9A20B] hover:opacity-90 disabled:opacity-50 rounded-xl transition shadow-sm shrink-0"
               >
                 {recoverLoading ? 'Verifying...' : 'Reveal ID'}
@@ -488,6 +495,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
                 type="button"
                 onClick={() => {
                   setRecoveryChallenge(null);
+                  setRecoveryPhoneLast4('');
                   setError(null);
                 }}
                 className="text-[11px] text-neutral-500 hover:underline"

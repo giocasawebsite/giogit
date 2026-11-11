@@ -264,7 +264,7 @@ async function runTests() {
     const publicData = await dbService.lookupPlayerPublic(player1.gioId);
     assert(!('phone' in (publicData.player || {})) || (publicData.player as any).phone === undefined, 'Full phone number NOT exposed in public lookup');
     assert(!('email' in (publicData.player || {})) || (publicData.player as any).email === undefined, 'Email NOT exposed in public lookup');
-    assert(publicData.player?.phoneMasked?.endsWith(phone1.slice(-4)) === true, 'Masked phone number ending in last 4 digits returned for verification');
+    assert(publicData.player?.phoneMasked?.includes('**') === true && !publicData.player?.phoneMasked?.endsWith(phone1.slice(-4)), 'Masked phone number hint does not expose last 4 digits or full phone');
 
     // Summary
     console.log('\n========================================');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAdminLiveSync } from '../../hooks/useAdminLiveSync';
 import { HallOfFameEntry } from '../../types';
 import { arenaApi } from '../../services/arenaApi';
+import { compressImage } from '../../services/imageUploadService';
 import {
   Trophy,
   Plus,
@@ -126,26 +127,32 @@ export const AdminHallOfFameManager: React.FC<AdminHallOfFameManagerProps> = ({ 
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be less than 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be less than 10MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      try {
-        const uploadRes = await arenaApi.uploadAdminImage(passcode, base64, file.name);
-        setFormData((prev) => ({ ...prev, photoUrl: uploadRes.url }));
-      } catch (err: any) {
-        alert(err.message || 'Image upload failed');
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const base64 = await compressImage(file, 1200, 1200, 0.85);
+      const uploadRes = await arenaApi.uploadAdminImage(
+        passcode,
+        base64,
+        file.name,
+        'hall_of_fame',
+        formData.photoPublicId
+      );
+      setFormData((prev) => ({
+        ...prev,
+        photoUrl: uploadRes.secureUrl || uploadRes.url,
+        photoPublicId: uploadRes.publicId || prev.photoPublicId,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Image upload failed');
+    }
   };
 
   return (

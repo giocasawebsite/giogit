@@ -21,10 +21,12 @@ import {
   DollarSign,
   Tag,
   ShieldCheck,
-  Flame
+  Flame,
+  Upload
 } from 'lucide-react';
 import { GamingResource, GameItem, EquipmentSummary } from '../../types';
 import { equipmentApi } from '../../services/equipmentApi';
+import { imageUploadService, compressImage } from '../../services/imageUploadService';
 
 interface AdminEquipmentManagerProps {
   passcode: string;
@@ -87,6 +89,54 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
   const [maintenanceReasonInput, setMaintenanceReasonInput] = useState<string>('');
 
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [machineUploading, setMachineUploading] = useState<boolean>(false);
+  const [gameUploading, setGameUploading] = useState<boolean>(false);
+
+  const handleMachineImageUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be less than 10MB.');
+      return;
+    }
+    setMachineUploading(true);
+    try {
+      const base64 = await compressImage(file, 1600, 1200, 0.85);
+      const res = await imageUploadService.uploadImage({
+        passcode,
+        imageBase64: base64,
+        filename: file.name,
+        folder: 'equipment',
+      });
+      setManualMachineForm((prev) => ({ ...prev, image: res.secureUrl || res.url }));
+    } catch (err: any) {
+      alert(err.message || 'Image upload failed');
+    } finally {
+      setMachineUploading(false);
+    }
+  };
+
+  const handleGameImageUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be less than 10MB.');
+      return;
+    }
+    setGameUploading(true);
+    try {
+      const base64 = await compressImage(file, 1200, 1600, 0.85);
+      const res = await imageUploadService.uploadImage({
+        passcode,
+        imageBase64: base64,
+        filename: file.name,
+        folder: 'equipment',
+      });
+      setGameForm((prev) => ({ ...prev, image: res.secureUrl || res.url }));
+    } catch (err: any) {
+      alert(err.message || 'Game cover upload failed');
+    } finally {
+      setGameUploading(false);
+    }
+  };
 
   // Load data
   const loadData = async (isManualRefresh = false) => {
@@ -1000,14 +1050,30 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
               </div>
 
               <div>
-                <label className="block text-brand-subtle font-mono uppercase mb-1">Display Image URL or Path</label>
-                <input
-                  type="text"
-                  value={machineForm.image}
-                  onChange={(e) => setManualMachineForm({ ...machineForm, image: e.target.value })}
-                  placeholder="/assets/real/ps5_setup.png"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-brand-surface border border-brand-border text-white text-xs focus:outline-none focus:border-brand-blue font-mono"
-                />
+                <label className="block text-brand-subtle font-mono uppercase mb-1">Display Image (Cloudinary or Path)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={machineForm.image}
+                    onChange={(e) => setManualMachineForm({ ...machineForm, image: e.target.value })}
+                    placeholder="/assets/real/ps5_setup.png"
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-brand-surface border border-brand-border text-white text-xs focus:outline-none focus:border-brand-blue font-mono"
+                  />
+                  <label className="px-3 py-2.5 rounded-xl bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-blue border border-brand-blue/40 text-xs font-mono flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{machineUploading ? 'Uploading...' : 'Upload'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={machineUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleMachineImageUpload(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-brand-border/40">
@@ -1127,14 +1193,30 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
               </div>
 
               <div>
-                <label className="block text-brand-subtle font-mono uppercase mb-1">Artwork URL</label>
-                <input
-                  type="text"
-                  value={gameForm.image}
-                  onChange={(e) => setGameForm({ ...gameForm, image: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-brand-surface border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink font-mono"
-                />
+                <label className="block text-brand-subtle font-mono uppercase mb-1">Artwork / Cover (Cloudinary or URL)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={gameForm.image}
+                    onChange={(e) => setGameForm({ ...gameForm, image: e.target.value })}
+                    placeholder="https://..."
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-brand-surface border border-brand-border text-white text-xs focus:outline-none focus:border-brand-pink font-mono"
+                  />
+                  <label className="px-3 py-2.5 rounded-xl bg-brand-pink/20 hover:bg-brand-pink/30 text-brand-pink border border-brand-pink/40 text-xs font-mono flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{gameUploading ? 'Uploading...' : 'Upload'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={gameUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleGameImageUpload(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1">

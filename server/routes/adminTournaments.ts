@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { dbService } from '../db';
 import { requireAdminAuth } from './admin';
 import { Tournament, TournamentRegistration, HallOfFameEntry, TournamentResult } from '../types';
+import { cloudinaryService } from '../services/cloudinary';
+import { config } from '../config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -441,13 +443,44 @@ router.delete('/hall-of-fame/:id', async (req: Request, res: Response) => {
 });
 
 // ==========================================
-// IMAGE UPLOAD HANDLER
+// IMAGE UPLOAD & CLOUDINARY HANDLERS
 // ==========================================
 
-// POST /api/admin/uploads - Upload banner or winner portrait (base64 data URI or raw JSON)
-router.post('/uploads', express.json({ limit: '6mb' }), async (req: Request, res: Response) => {
+// GET /api/admin/uploads/status - Check Cloudinary configuration & health
+router.get('/uploads/status', async (req: Request, res: Response) => {
   try {
-    const { imageBase64, filename } = req.body;
+    const isConfigured = cloudinaryService.isConfigured();
+    const shouldTest = req.query.test === 'true';
+
+    if (shouldTest && isConfigured) {
+      const pingResult = await cloudinaryService.testConnection();
+      return res.json({
+        success: true,
+        data: {
+          configured: isConfigured,
+          cloudName: config.cloudinaryCloudName || null,
+          ping: pingResult,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        configured: isConfigured,
+        cloudName: config.cloudinaryCloudName || null,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error checking uploads status:', err);
+    return res.status(500).json({ success: false, error: 'Failed to verify upload status.' });
+  }
+});
+
+// POST /api/admin/uploads - Upload banner, winner portrait, dish, or gallery image (base64 data URI)
+router.post('/uploads', express.json({ limit: '12mb' }), async (req: Request, res: Response) => {
+  try {
+    const { imageBase64, filename, folder = 'tournaments', previousPublicId } = req.body;
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       return res.status(400).json({ success: false, error: 'Image base64 data is required.' });
     }
@@ -471,14 +504,48 @@ router.post('/uploads', express.json({ limit: '6mb' }), async (req: Request, res
     }
 
     const buffer = Buffer.from(matches[2], 'base64');
-    // Max 5MB size limit
-    if (buffer.length > 5 * 1024 * 1024) {
+    // Max 10MB size limit
+    if (buffer.length > 10 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        error: 'File size exceeds maximum permitted limit of 5MB.',
+        error: 'File size exceeds maximum permitted limit of 10MB.',
       });
     }
 
+    // If Cloudinary is configured, upload to Cloudinary directly
+    if (cloudinaryService.isConfigured()) {
+      const sanitizedFolder = `giocasa/${folder.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+      const uploadResult = await cloudinaryService.uploadImage(imageBase64, {
+        folder: sanitizedFolder,
+      });
+
+      // If an existing image publicId was replaced, delete the old Cloudinary asset
+      if (previousPublicId && typeof previousPublicId === 'string' && previousPublicId !== uploadResult.publicId) {
+        try {
+          await cloudinaryService.deleteImage(previousPublicId);
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up replaced Cloudinary asset:', previousPublicId, cleanupErr);
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: 'Image uploaded to Cloudinary successfully.',
+        data: {
+          url: uploadResult.secureUrl,
+          secureUrl: uploadResult.secureUrl,
+          publicId: uploadResult.publicId,
+          thumbnailUrl: uploadResult.thumbnailUrl,
+          format: uploadResult.format,
+          width: uploadResult.width,
+          height: uploadResult.height,
+          sizeBytes: uploadResult.bytes,
+          storage: 'cloudinary',
+        },
+      });
+    }
+
+    // Fallback: Local filesystem storage (if Cloudinary is not configured)
     const safeFilename = `upload_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${mimeExt}`;
     const filePath = path.join(UPLOADS_DIR, safeFilename);
 
@@ -487,16 +554,38 @@ router.post('/uploads', express.json({ limit: '6mb' }), async (req: Request, res
     const publicUrl = `/assets/uploads/${safeFilename}`;
     return res.status(201).json({
       success: true,
-      message: 'Image uploaded successfully.',
+      message: 'Image uploaded to local storage successfully.',
       data: {
         url: publicUrl,
+        secureUrl: publicUrl,
         filename: safeFilename,
         sizeBytes: buffer.length,
+        storage: 'local',
       },
     });
   } catch (err: any) {
     console.error('Error uploading image in admin:', err);
-    return res.status(500).json({ success: false, error: 'Failed to upload image.' });
+    return res.status(500).json({ success: false, error: err.message || 'Failed to upload image.' });
+  }
+});
+
+// DELETE /api/admin/uploads - Delete an image asset from Cloudinary
+router.delete('/uploads', async (req: Request, res: Response) => {
+  try {
+    const { publicId } = req.body;
+    if (!publicId || typeof publicId !== 'string') {
+      return res.status(400).json({ success: false, error: 'publicId is required to delete an image asset.' });
+    }
+
+    const result = await cloudinaryService.deleteImage(publicId);
+    return res.json({
+      success: true,
+      message: 'Cloudinary asset deleted successfully.',
+      data: result,
+    });
+  } catch (err: any) {
+    console.error('Error deleting image asset:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to delete image asset.' });
   }
 });
 

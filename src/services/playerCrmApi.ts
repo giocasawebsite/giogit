@@ -306,6 +306,7 @@ class PlayerCrmApiClient {
     phone?: string;
     email?: string;
     verificationName?: string;
+    phoneLast4?: string;
     sessionToken?: string;
   }): Promise<{
     found?: boolean;

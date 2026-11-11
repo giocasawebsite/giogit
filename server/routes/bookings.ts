@@ -239,6 +239,10 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
     );
 
     const bookingId = generateBookingId();
+    const guestCode = await dbService.generateUniqueGuestCode();
+    const floorLocation = resource.floorLocation || (resource.category === 'pool' ? '1st Floor' : 'Basement');
+    const nowIso = new Date().toISOString();
+
     const newBooking: Booking = {
       id: bookingId,
       customerName: body.customerName.trim(),
@@ -247,6 +251,9 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
       resourceId: resource.id,
       resourceName: resource.name,
       category: resource.category,
+      location: floorLocation,
+      guestCode,
+      checkInStatus: 'pending',
       date: body.date,
       startTime: body.startTime,
       endTime,
@@ -256,9 +263,17 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
       status: 'confirmed',
       paymentStatus: (body.paymentStatus && ['paid', 'pending', 'unpaid'].includes(body.paymentStatus)) ? body.paymentStatus : 'unpaid',
       notes: body.notes ? body.notes.trim() : undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
       source: 'web',
+      auditLogs: [
+        {
+          action: 'created',
+          timestamp: nowIso,
+          performedBy: 'system',
+          details: `Booking created with Guest Code ${guestCode}`,
+        },
+      ],
     };
 
     // Execute atomic conflict check & insert

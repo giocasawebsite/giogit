@@ -270,10 +270,11 @@ router.post('/recover-id', async (req: Request, res: Response) => {
       });
     }
 
-    const { identifier, phone, email, verificationName, sessionToken } = req.body || {};
+    const { identifier, phone, email, verificationName, sessionToken, phoneLast4, last4, last4Digits } = req.body || {};
     const inputVal = (identifier || phone || email || '').toString().trim();
     const tokenVal = sessionToken ? sessionToken.toString().trim() : undefined;
     const nameVal = verificationName ? verificationName.toString().trim() : undefined;
+    const last4Val = (phoneLast4 || last4 || last4Digits || '').toString().trim() || undefined;
 
     if (!inputVal && !tokenVal) {
       return res.status(400).json({
@@ -288,9 +289,10 @@ router.post('/recover-id', async (req: Request, res: Response) => {
       email: email ? email.toString().trim() : undefined,
       verificationName: nameVal,
       sessionToken: tokenVal,
+      phoneLast4: last4Val,
     });
 
-    if (!result.found) {
+    if (!result.found || result.verified === false) {
       // NOTE: Anti-enumeration & avoid false 404 network alarms. Return 200 with success: false.
       return res.json({
         success: false,

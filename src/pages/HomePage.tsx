@@ -1,5 +1,5 @@
-import React from 'react';
-import { PageRoute } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PageRoute, MenuCustomization } from '../types';
 import { businessConfig } from '../data/businessConfig';
 import { menuData } from '../data/menuData';
 import { upcomingEvents } from '../data/eventsData';
@@ -10,6 +10,7 @@ import { SectionHeader } from '../components/ui/SectionHeader';
 import { DualFloorToggle } from '../components/shared/DualFloorToggle';
 import { PizzaFeatureCard } from '../components/shared/PizzaFeatureCard';
 import { GamingHoverShowcase } from '../components/shared/GamingHoverShowcase';
+import { imageUploadService } from '../services/imageUploadService';
 import { ExperiencePlanner } from '../components/shared/ExperiencePlanner';
 import { EventPackageCalculator } from '../components/shared/EventPackageCalculator';
 import { InstagramGrid } from '../components/shared/InstagramGrid';
@@ -44,7 +45,27 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { openBookingModal } = useBookingModal();
   const { openDrawer } = useOrderCart();
 
-  const signaturePizzas = menuData.filter(i => i.category === 'pizza').slice(0, 3);
+  const [customizations, setCustomizations] = useState<Record<string, MenuCustomization>>({});
+
+  useEffect(() => {
+    imageUploadService.getMenuCustomizations().then(setCustomizations).catch(() => {});
+  }, []);
+
+  const signaturePizzas = useMemo(() => {
+    return menuData
+      .filter((i) => i.category === 'pizza')
+      .slice(0, 3)
+      .map((pizza) => {
+        const custom = customizations[pizza.id];
+        if (!custom) return pizza;
+        return {
+          ...pizza,
+          imageUrl: custom.imageUrl || pizza.imageUrl,
+          imagePublicId: custom.imagePublicId || pizza.imagePublicId,
+          image: custom.imageUrl || pizza.image,
+        };
+      });
+  }, [customizations]);
 
   return (
     <div className="min-h-screen bg-brand-dark text-white selection:bg-brand-pink selection:text-white">

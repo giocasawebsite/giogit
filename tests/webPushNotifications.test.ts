@@ -353,6 +353,7 @@ async function runWebPushTestSuite() {
     console.log('========================================================================\n');
   } finally {
     server.close();
+    process.exit(0);
   }
 }
 

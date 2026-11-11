@@ -15,6 +15,7 @@ export interface GamingResource {
   maintenanceReason?: string;
   specs: string[];
   image: string;
+  imagePublicId?: string;
   order: number;
   machineIdentifier?: string; // e.g. 'PS5-01', 'RIG-01', 'TABLE-1'
   availableGames?: string[];
@@ -29,6 +30,7 @@ export interface GameItem {
   genre?: string; // 'Sports', 'Fighting', 'Action', 'Racing', 'Co-op', 'Billiards', 'Tabletop'
   description: string;
   image: string;
+  imagePublicId?: string;
   isAvailable: boolean;
   minPlayers?: number;
   maxPlayers?: number;
@@ -65,6 +67,30 @@ export interface BookingExtension {
   notes?: string;
 }
 
+export interface BookingPayment {
+  id: string; // 'pay-xxx'
+  amount: number; // INR actual amount received
+  paymentStatus: PaymentStatus; // 'paid', 'pending', 'unpaid', 'refunded'
+  paymentMethod?: PaymentMethod; // 'cash' | 'upi' | 'card' | 'other'
+  paymentReference?: string; // UPI UTR or receipt number
+  paidAt: string; // ISO timestamp
+  verifiedBy?: string; // Staff member who verified payment
+  notes?: string;
+  pointsAwarded?: number; // Loyalty points awarded for this payment
+  loyaltyLedgerId?: string; // ID of LoyaltyLedgerEntry
+  idempotencyKey?: string;
+}
+
+export type CheckInStatus = 'pending' | 'checked_in';
+export type PaymentMethod = 'cash' | 'upi' | 'card' | 'other';
+
+export interface BookingAuditLog {
+  action: 'CHECK_IN' | 'PAYMENT_VERIFIED' | 'STATUS_CHANGE' | 'CREATED' | 'EXTENDED' | 'CANCELLED';
+  timestamp: string;
+  performedBy?: string;
+  details?: Record<string, any>;
+}
+
 export interface Booking {
   id: string; // 'GC-XXXXXX'
   customerName: string;
@@ -73,6 +99,7 @@ export interface Booking {
   resourceId: string;
   resourceName: string;
   category: ResourceCategory;
+  location?: string;
   date: string; // YYYY-MM-DD (Asia/Kolkata)
   startTime: string; // HH:mm in 24h (e.g. '14:00')
   endTime: string; // HH:mm in 24h (e.g. '15:00')
@@ -82,8 +109,20 @@ export interface Booking {
   originalAmount?: number; // Initial booking cost before extensions
   extensionAmount?: number; // Total confirmed extension payments
   extensions?: BookingExtension[];
+  payments?: BookingPayment[]; // Individual payment installments & extensions
+  paidAmount?: number; // Total amount paid so far in INR
+  remainingBalance?: number; // Remaining balance to be paid
   status: BookingStatus;
   paymentStatus: PaymentStatus;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  auditLogs?: BookingAuditLog[];
   notes?: string;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
@@ -154,6 +193,7 @@ export interface Tournament {
   teamType: 'individual' | 'team';
   teamSize: { min: number; max: number };
   bannerImage: string;
+  bannerPublicId?: string;
   venue: string; // e.g. 'GioCasa Upper Deck Gaming Lounge, Ayodhya'
   startDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
@@ -205,6 +245,15 @@ export interface TournamentRegistration {
   paymentNotes?: string;
   notes?: string;
   rulesAccepted: boolean;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  auditLogs?: BookingAuditLog[];
   createdAt: string;
   updatedAt: string;
   playerId?: string;
@@ -248,6 +297,7 @@ export interface HallOfFameEntry {
   eventDate: string; // YYYY-MM-DD
   scoreDescription?: string;
   photoUrl: string;
+  photoPublicId?: string;
   isFeatured: boolean;
   isPublished: boolean;
   order: number;
@@ -286,6 +336,7 @@ export type LoyaltySourceActivity =
   | 'referral_reward'
   | 'referred_welcome'
   | 'admin_adjustment'
+  | 'booking_payment'
   | 'reversal'
   | 'manual';
 
@@ -302,6 +353,9 @@ export interface LoyaltyLedgerEntry {
   reason: string;
   adminActor?: string;
   referenceId?: string; // backward compat
+  paymentAmount?: number; // Actual amount received in INR
+  previousBalance?: number; // Balance before this entry
+  updatedBalance?: number; // Balance after this entry
   createdAt: string;
 }
 
@@ -315,12 +369,14 @@ export interface LoyaltyRules {
   };
   referralPoints: number;
   referredWelcomeBonus: number;
+  pointsPerHundredRupees?: number; // Configured conversion rate: default 10 (1 pt per ₹10 spent)
   rulesEnabled: {
     gamingSession: boolean;
     tournamentParticipation: boolean;
     tournamentPlacement: boolean;
     referral: boolean;
     referredWelcome: boolean;
+    paymentSpend?: boolean; // default true
   };
   updatedAt: string;
   updatedBy: string;
@@ -554,6 +610,17 @@ export interface DiningReservation {
   specialRequests?: string;
   additionalRequirements?: string;
   status: ReservationStatus;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  totalAmount?: number;
+  auditLogs?: BookingAuditLog[];
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;
@@ -579,11 +646,64 @@ export interface EventReservation {
   decorationRequirements?: string;
   additionalMessage?: string;
   status: ReservationStatus;
+  guestCode?: string; // 4-digit verification code e.g. '4829'
+  checkInStatus?: CheckInStatus; // 'pending' | 'checked_in'
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  totalAmount?: number;
+  auditLogs?: BookingAuditLog[];
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;
   playerId?: string;
   gioId?: string;
+}
+
+export interface VerifiedGuestBooking {
+  bookingType: 'gaming' | 'dining' | 'event' | 'tournament';
+  id: string;
+  reference: string;
+  guestCode: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  date: string;
+  time: string;
+  endTime?: string;
+  durationMinutes?: number;
+  resourceName?: string;
+  location?: string;
+  numberOfPeople?: number;
+  guests?: number;
+  expectedGuests?: number;
+  eventType?: string;
+  estimatedBudget?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  remainingBalance?: number;
+  payments?: BookingPayment[];
+  status: string;
+  checkInStatus: CheckInStatus;
+  checkedInAt?: string;
+  checkedInBy?: string;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedBy?: string;
+  notes?: string;
+  specialRequests?: string;
+  additionalRequirements?: string;
+  foodRequirements?: string;
+  decorationRequirements?: string;
+  additionalMessage?: string;
+  createdAt: string;
+  auditLogs?: BookingAuditLog[];
 }
 
 export interface PlayerProfileDetails {
@@ -668,5 +788,41 @@ export interface PushNotificationPayload {
     timestamp?: number;
   };
 }
+
+// ==========================================
+// MENU CUSTOMIZATION & MEDIA GALLERY TYPES
+// ==========================================
+
+export interface MenuCustomization {
+  id: string; // matches menuItemId (e.g. 'chinese-honey-chilli-potato')
+  menuItemId: string;
+  name?: string;
+  category?: string;
+  price?: number | 'MRP';
+  description?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  isFeatured?: boolean;
+  featuredTitle?: string;
+  featuredDescription?: string;
+  badge?: string;
+  updatedAt: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  category: 'food' | 'gaming' | 'ambiance' | 'events' | 'tournaments' | string;
+  imageUrl: string;
+  imagePublicId?: string;
+  thumbnailUrl?: string;
+  description?: string;
+  tags?: string[];
+  isFeatured?: boolean;
+  displayOrder?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 

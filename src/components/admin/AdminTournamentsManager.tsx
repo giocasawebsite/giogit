@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAdminLiveSync } from '../../hooks/useAdminLiveSync';
 import { Tournament, TournamentRegistration, TournamentResult, TournamentStatus, TournamentRegistrationStatus } from '../../types';
 import { arenaApi } from '../../services/arenaApi';
+import { compressImage } from '../../services/imageUploadService';
 import {
   Trophy,
   Users,
@@ -322,26 +323,32 @@ export const AdminTournamentsManager: React.FC<AdminTournamentsManagerProps> = (
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, targetField: 'bannerImage') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'bannerImage') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be less than 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be less than 10MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      try {
-        const uploadRes = await arenaApi.uploadAdminImage(passcode, base64, file.name);
-        setFormTournament((prev) => ({ ...prev, [targetField]: uploadRes.url }));
-      } catch (err: any) {
-        alert(err.message || 'Image upload failed');
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const base64 = await compressImage(file, 1600, 900, 0.85);
+      const uploadRes = await arenaApi.uploadAdminImage(
+        passcode,
+        base64,
+        file.name,
+        'tournaments',
+        formTournament.bannerPublicId
+      );
+      setFormTournament((prev) => ({
+        ...prev,
+        [targetField]: uploadRes.secureUrl || uploadRes.url,
+        bannerPublicId: uploadRes.publicId || prev.bannerPublicId,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Image upload failed');
+    }
   };
 
   // =========================================================================

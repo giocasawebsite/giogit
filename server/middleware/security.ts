@@ -277,6 +277,13 @@ export const globalApiLimiter = createRateLimiter({
   message: 'Request rate limit exceeded. Please slow down your requests.',
 }).middleware;
 
+// 7. Guest verification code limiter: max 30 code lookups per 5 minutes per IP
+export const guestVerificationLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: 'Too many verification attempts. Please wait 5 minutes before trying again.',
+}).middleware;
+
 // =========================================================================
 // 6. NOSQL INJECTION & PARAMETER SANITIZATION MIDDLEWARE
 // =========================================================================
@@ -346,20 +353,30 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   // Disable dangerous browser APIs
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Cross-Origin Opener Policy: isolate top-level window while allowing customer popups (e.g. WhatsApp)
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  // Cross-Origin Resource Policy: allow cross-origin frontend (Netlify) to consume backend API without CORP blocks
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
-  // Enforce HSTS in production
-  if (process.env.NODE_ENV === 'production') {
+  // Enforce HSTS in production or HTTPS traffic
+  if (
+    process.env.NODE_ENV === 'production' ||
+    req.headers['x-forwarded-proto'] === 'https' ||
+    req.secure
+  ) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
-  // Tested, restrictive Content Security Policy
+  // Tested, restrictive Content Security Policy matching all required GioCasa services
   const cspDirectives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob: https://images.unsplash.com https://*.unsplash.com",
-    "connect-src 'self' https://giogit.onrender.com https://giocasa1.netlify.app https://*.netlify.app http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*",
+    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.unsplash.com",
+    "connect-src 'self' https://giogit.onrender.com https://giocasa1.netlify.app https://*.netlify.app https://res.cloudinary.com http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",

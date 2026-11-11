@@ -22,6 +22,9 @@ import contactRouter from './routes/contact';
 import reservationsRouter from './routes/reservations';
 import adminReservationsRouter from './routes/adminReservations';
 import adminPushRouter from './routes/adminPush';
+import adminVerifyRouter from './routes/adminVerify';
+import menuCustomizationsRouter from './routes/menuCustomizations';
+import galleryRouter from './routes/gallery';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +73,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-passcode', 'x-admin-token'],
   credentials: true,
 }));
+
+// Dedicated body size limit for authenticated admin image uploads (up to 10MB)
+app.use('/api/admin/uploads', express.json({ limit: '10mb' }));
 
 // 4. Request body size limit (1MB default for all general JSON payloads)
 app.use(express.json({ limit: '1mb' }));
@@ -166,6 +172,9 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/hall-of-fame', hallOfFameRouter);
+app.use('/api/menu', menuCustomizationsRouter);
+app.use('/api/gallery', galleryRouter);
+app.use('/api/admin/verify', adminVerifyRouter);
 app.use('/api/admin/push', adminPushRouter);
 app.use('/api/admin/reservations', adminReservationsRouter);
 app.use('/api/admin/players', adminPlayersRouter);

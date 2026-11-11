@@ -37,7 +37,10 @@ import {
   DiningReservation,
   EventReservation,
   AdminPushSubscription,
+  MenuCustomization,
+  GalleryItem,
 } from './types';
+import { cloudinaryService } from './services/cloudinary';
 import { normalizeWhatsAppNumber, formatReadablePhone, DEFAULT_WHATSAPP_NUMBER, DEFAULT_DISPLAY_PHONE } from './utils/phone';
 import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/timezone';
 import { calculateBookingPrice } from './utils/pricing';
@@ -59,6 +62,23 @@ function generateRandomCode(prefix: string, length = 6): string {
   return res;
 }
 
+/**
+ * Masks a phone number hint according to GioCasa privacy rules:
+ * - Shows first 2 digits
+ * - Shows middle 2 digits (digits 5 and 6 of a 10-digit Indian mobile number)
+ * - Masks all other digits with asterisks
+ * Example: "9876543210" -> "98** **43"
+ * Never leaks the last 4 digits or complete phone number.
+ */
+export function formatMaskedPhoneHint(phone?: string): string {
+  if (!phone) return '****';
+  const digits = phone.replace(/\D/g, '');
+  const clean = digits.length >= 10 ? digits.slice(-10) : digits;
+  if (clean.length < 4) return '****';
+  if (clean.length < 10) return `${clean.slice(0, 2)}****`;
+  return `${clean.slice(0, 2)}** **${clean.slice(5, 7)}`;
+}
+
 export const DEFAULT_LOYALTY_RULES: LoyaltyRules = {
   gamingSessionPoints: 50,
   tournamentParticipationPoints: 100,
@@ -69,12 +89,14 @@ export const DEFAULT_LOYALTY_RULES: LoyaltyRules = {
   },
   referralPoints: 200,
   referredWelcomeBonus: 0,
+  pointsPerHundredRupees: 10,
   rulesEnabled: {
     gamingSession: true,
     tournamentParticipation: true,
     tournamentPlacement: true,
     referral: true,
     referredWelcome: false,
+    paymentSpend: true,
   },
   updatedAt: new Date().toISOString(),
   updatedBy: 'System Default',
@@ -385,6 +407,8 @@ class DatabaseService {
   private fileDiningReservations: DiningReservation[] = [];
   private fileEventReservations: EventReservation[] = [];
   private filePushSubscriptions: AdminPushSubscription[] = [];
+  private fileMenuCustomizations: MenuCustomization[] = [];
+  private fileGalleryItems: GalleryItem[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
@@ -403,6 +427,8 @@ class DatabaseService {
   private diningReservationsFilePath = path.join(DATA_DIR, 'dining_reservations.json');
   private eventReservationsFilePath = path.join(DATA_DIR, 'event_reservations.json');
   private pushSubscriptionsFilePath = path.join(DATA_DIR, 'admin_push_subscriptions.json');
+  private menuCustomizationsFilePath = path.join(DATA_DIR, 'menu_customizations.json');
+  private galleryItemsFilePath = path.join(DATA_DIR, 'gallery_items.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
   private cachedContactSettings: ContactSettings | null = null;
@@ -693,6 +719,18 @@ class DatabaseService {
           await pushCol.createIndex({ id: 1 }, { unique: true });
           await pushCol.createIndex({ endpoint: 1 }, { unique: true });
         })(),
+        (async () => {
+          const menuCol = db.collection<MenuCustomization>('menu_customizations');
+          await menuCol.createIndex({ menuItemId: 1 }, { unique: true });
+          await menuCol.createIndex({ isFeatured: 1 });
+        })(),
+        (async () => {
+          const galleryCol = db.collection<GalleryItem>('gallery_items');
+          await galleryCol.createIndex({ id: 1 }, { unique: true });
+          await galleryCol.createIndex({ category: 1 });
+          await galleryCol.createIndex({ isFeatured: 1 });
+          await galleryCol.createIndex({ displayOrder: 1 });
+        })(),
       ]);
 
       // Auto-backfill existing registrations and bookings into player profiles
@@ -874,6 +912,24 @@ class DatabaseService {
         this.filePushSubscriptions = [];
         this.savePushSubscriptionsToFile();
       }
+
+      // Load Menu Customizations
+      if (fs.existsSync(this.menuCustomizationsFilePath)) {
+        const raw = fs.readFileSync(this.menuCustomizationsFilePath, 'utf-8');
+        this.fileMenuCustomizations = JSON.parse(raw);
+      } else {
+        this.fileMenuCustomizations = [];
+        this.saveMenuCustomizationsToFile();
+      }
+
+      // Load Gallery Items
+      if (fs.existsSync(this.galleryItemsFilePath)) {
+        const raw = fs.readFileSync(this.galleryItemsFilePath, 'utf-8');
+        this.fileGalleryItems = JSON.parse(raw);
+      } else {
+        this.fileGalleryItems = [];
+        this.saveGalleryItemsToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -892,6 +948,24 @@ class DatabaseService {
       this.fileDiningReservations = [];
       this.fileEventReservations = [];
       this.filePushSubscriptions = [];
+      this.fileMenuCustomizations = [];
+      this.fileGalleryItems = [];
+    }
+  }
+
+  private saveMenuCustomizationsToFile(): void {
+    try {
+      fs.writeFileSync(this.menuCustomizationsFilePath, JSON.stringify(this.fileMenuCustomizations, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving menu customizations to file:', err);
+    }
+  }
+
+  private saveGalleryItemsToFile(): void {
+    try {
+      fs.writeFileSync(this.galleryItemsFilePath, JSON.stringify(this.fileGalleryItems, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving gallery items to file:', err);
     }
   }
 
@@ -1185,6 +1259,11 @@ class DatabaseService {
       this.fileResources.splice(idx, 1);
       this.saveResourcesToFile();
     }
+
+    if (resource.imagePublicId) {
+      cloudinaryService.deleteImage(resource.imagePublicId).catch(() => {});
+    }
+
     return { success: true };
   }
 
@@ -1414,6 +1493,7 @@ class DatabaseService {
   }
 
   async deleteGame(id: string): Promise<{ success: boolean; error?: string }> {
+    const existing = await this.getGameById(id);
     if (this.isMongoConnected && this.db) {
       const res = await this.db.collection<GameItem>('games').deleteOne({ id });
       if (res.deletedCount === 0) {
@@ -1426,6 +1506,11 @@ class DatabaseService {
       this.fileGames.splice(idx, 1);
       this.saveGamesToFile();
     }
+
+    if (existing?.imagePublicId) {
+      cloudinaryService.deleteImage(existing.imagePublicId).catch(() => {});
+    }
+
     return { success: true };
   }
 
@@ -1470,13 +1555,16 @@ class DatabaseService {
   }
 
   async getBookingById(id: string): Promise<Booking | null> {
-    const cleanId = id.trim().toUpperCase();
+    const rawId = (id || '').trim();
+    const upperId = rawId.toUpperCase();
     let booking: Booking | null = null;
 
     if (this.isMongoConnected && this.db) {
-      booking = await this.db.collection<Booking>('bookings').findOne({ id: cleanId });
+      booking = await this.db.collection<Booking>('bookings').findOne({
+        $or: [{ id: upperId }, { id: rawId }, { id: rawId.toLowerCase() }]
+      });
     } else {
-      booking = this.fileBookings.find((b) => b.id === cleanId) || null;
+      booking = this.fileBookings.find((b) => b.id === upperId || b.id === rawId || b.id.toLowerCase() === rawId.toLowerCase()) || null;
     }
 
     if (booking) {
@@ -1578,7 +1666,33 @@ class DatabaseService {
         };
       }
 
-      // 2. Insert booking
+      // 2. Initialize guestCode and verification attributes
+      if (!booking.guestCode) {
+        booking.guestCode = await this.generateUniqueGuestCode();
+      }
+      if (!booking.checkInStatus) {
+        booking.checkInStatus = 'pending';
+      }
+      if (!booking.paymentStatus) {
+        booking.paymentStatus = 'unpaid';
+      }
+      if (booking.paidAmount === undefined) {
+        booking.paidAmount = booking.paymentStatus === 'paid' ? booking.totalAmount : 0;
+      }
+      if (booking.remainingBalance === undefined) {
+        booking.remainingBalance = booking.paymentStatus === 'paid' ? 0 : Math.max(0, (booking.totalAmount || 0) - (booking.paidAmount || 0));
+      }
+      if (!booking.location) {
+        booking.location = booking.category === 'ps5' || booking.category === 'racing' ? 'Basement' : '1st Floor';
+      }
+      if (!booking.payments) {
+        booking.payments = [];
+      }
+      if (!booking.auditLogs) {
+        booking.auditLogs = [];
+      }
+
+      // 3. Insert booking
       if (this.isMongoConnected && this.db) {
         await this.db.collection<Booking>('bookings').insertOne(booking);
       } else {
@@ -1723,6 +1837,29 @@ class DatabaseService {
       }
 
       if (playerId) {
+        if (extPaymentStatus === 'paid' && extensionCost > 0) {
+          try {
+            const rules = await this.getLoyaltyRules();
+            const extPoints = this.calculatePointsForSpend(extensionCost, rules);
+            if (extPoints > 0) {
+              await this.adjustPlayerLoyalty(
+                playerId,
+                extPoints,
+                'earn',
+                `Extension +${additionalMinutes} mins for Booking #${booking.id}`,
+                booking.id,
+                options?.idempotencyKey || `ext_${extensionRecord.id}`,
+                {
+                  sourceActivityType: 'booking_payment' as any,
+                  paymentAmount: extensionCost,
+                  adminActor: 'Staff',
+                }
+              );
+            }
+          } catch (extPointsErr) {
+            console.warn('Failed to award loyalty points on booking extension:', extPointsErr);
+          }
+        }
         await this.recalculatePlayerStats(playerId);
       }
 
@@ -1731,20 +1868,21 @@ class DatabaseService {
   }
 
   async updateBooking(id: string, updates: Partial<Booking>): Promise<Booking | null> {
-    const cleanId = id.trim().toUpperCase();
-    const existing = await this.getBookingById(cleanId);
+    const rawId = (id || '').trim();
+    const cleanId = rawId.toUpperCase();
+    const existing = await this.getBookingById(rawId);
     const payload = { ...updates, updatedAt: new Date().toISOString() };
 
     let updated: Booking | null = null;
     if (this.isMongoConnected && this.db) {
       const res = await this.db.collection<Booking>('bookings').findOneAndUpdate(
-        { id: cleanId },
+        { $or: [{ id: cleanId }, { id: rawId }, { id: rawId.toLowerCase() }] },
         { $set: payload },
         { returnDocument: 'after' }
       );
       updated = res || null;
     } else {
-      const idx = this.fileBookings.findIndex((b) => b.id === cleanId);
+      const idx = this.fileBookings.findIndex((b) => b.id === cleanId || b.id === rawId || b.id.toLowerCase() === rawId.toLowerCase());
       if (idx !== -1) {
         this.fileBookings[idx] = { ...this.fileBookings[idx], ...payload };
         this.saveBookingsToFile();
@@ -1811,13 +1949,18 @@ class DatabaseService {
   }
 
   async deleteBooking(id: string): Promise<boolean> {
-    const cleanId = id.trim().toUpperCase();
+    const rawId = (id || '').trim();
+    const cleanId = rawId.toUpperCase();
     if (this.isMongoConnected && this.db) {
-      const res = await this.db.collection<Booking>('bookings').deleteOne({ id: cleanId });
+      const res = await this.db.collection<Booking>('bookings').deleteOne({
+        $or: [{ id: cleanId }, { id: rawId }, { id: rawId.toLowerCase() }],
+      });
       return (res.deletedCount || 0) > 0;
     } else {
       const initialLen = this.fileBookings.length;
-      this.fileBookings = this.fileBookings.filter((b) => b.id !== cleanId);
+      this.fileBookings = this.fileBookings.filter(
+        (b) => b.id !== cleanId && b.id !== rawId && b.id.toLowerCase() !== rawId.toLowerCase()
+      );
       if (this.fileBookings.length !== initialLen) {
         this.saveBookingsToFile();
         return true;
@@ -2205,10 +2348,14 @@ class DatabaseService {
       }
     }
 
+    const guestCode = await this.generateUniqueGuestCode();
     const reservation: DiningReservation = {
       id,
       reference,
       referenceCode: reference,
+      guestCode,
+      checkInStatus: 'pending',
+      paymentStatus: 'unpaid',
       type: 'dining',
       customerName,
       phone: normPhone,
@@ -2299,10 +2446,14 @@ class DatabaseService {
       }
     }
 
+    const guestCode = await this.generateUniqueGuestCode();
     const reservation: EventReservation = {
       id,
       reference,
       referenceCode: reference,
+      guestCode,
+      checkInStatus: 'pending',
+      paymentStatus: 'unpaid',
       type: 'event',
       customerName,
       phone: normPhone,
@@ -2805,6 +2956,13 @@ class DatabaseService {
       updates.slug = cleanSlug;
     }
 
+    // If replacing banner image on Cloudinary, clean up previous asset
+    if (existing.bannerPublicId && updates.bannerPublicId && existing.bannerPublicId !== updates.bannerPublicId) {
+      cloudinaryService.deleteImage(existing.bannerPublicId).catch((err) => {
+        console.warn('Failed to delete old tournament banner from Cloudinary:', err);
+      });
+    }
+
     const updated: Tournament = {
       ...existing,
       ...updates,
@@ -2843,6 +3001,13 @@ class DatabaseService {
       this.fileTournaments = this.fileTournaments.filter((t) => t.id !== id);
       this.saveTournamentsToFile();
     }
+
+    if (existing.bannerPublicId) {
+      cloudinaryService.deleteImage(existing.bannerPublicId).catch((err) => {
+        console.warn('Failed to delete tournament banner from Cloudinary:', err);
+      });
+    }
+
     return true;
   }
 
@@ -3386,6 +3551,7 @@ class DatabaseService {
       'eventDate',
       'scoreDescription',
       'photoUrl',
+      'photoPublicId',
       'isFeatured',
       'isPublished',
       'order',
@@ -3406,6 +3572,13 @@ class DatabaseService {
     delete fieldsToSet.id;
     delete fieldsToSet.__v;
     delete fieldsToSet.createdAt;
+
+    // Clean up replaced champion portrait from Cloudinary
+    if (existing.photoPublicId && cleanUpdates.photoPublicId && existing.photoPublicId !== cleanUpdates.photoPublicId) {
+      cloudinaryService.deleteImage(existing.photoPublicId).catch((err) => {
+        console.warn('Failed to delete old champion photo from Cloudinary:', err);
+      });
+    }
 
     if (this.isMongoConnected && this.db) {
       await this.db.collection<HallOfFameEntry>('hall_of_fame').updateOne({ id }, { $set: fieldsToSet });
@@ -3438,12 +3611,23 @@ class DatabaseService {
       this.fileHallOfFame = this.fileHallOfFame.filter((e) => e.id !== id);
       this.saveHallOfFameToFile();
     }
+
+    if (existing.photoPublicId) {
+      cloudinaryService.deleteImage(existing.photoPublicId).catch((err) => {
+        console.warn('Failed to delete champion photo from Cloudinary:', err);
+      });
+    }
+
     return true;
   }
 
   // =========================================================================
   // GIOCASA PLAYER CRM IMPLEMENTATION
   // =========================================================================
+
+  formatMaskedPhoneHint(phone?: string): string {
+    return formatMaskedPhoneHint(phone);
+  }
 
   normalizePhone(rawPhone?: string): string {
     if (!rawPhone) return '';
@@ -3777,9 +3961,7 @@ class DatabaseService {
       };
     }
 
-    const digits = player.phone.replace(/\D/g, '');
-    const last4 = digits.length >= 4 ? digits.slice(-4) : '••••';
-    const phoneMasked = `+91 ••••• ••${last4}`;
+    const phoneMasked = this.formatMaskedPhoneHint(player.phone);
 
     let emailMasked: string | undefined = undefined;
     if (player.email && player.email.includes('@')) {
@@ -3801,7 +3983,7 @@ class DatabaseService {
       },
       challenge: {
         type: 'phone_last_4',
-        prompt: `Confirm the last 4 digits of your registered mobile number ending in ••${last4} to auto-fill your details.`,
+        prompt: `Confirm the last 4 digits of your registered mobile number (${phoneMasked}) to auto-fill your details.`,
       },
     };
   }
@@ -3942,6 +4124,7 @@ class DatabaseService {
     email?: string;
     verificationName?: string;
     sessionToken?: string;
+    phoneLast4?: string;
   } | string): Promise<{
     found: boolean;
     requiresVerification?: boolean;
@@ -3961,6 +4144,7 @@ class DatabaseService {
     const rawIdentifier = payload.identifier || payload.phone || payload.email || '';
     const verificationName = payload.verificationName?.trim();
     const sessionToken = payload.sessionToken?.trim();
+    const phoneLast4Input = payload.phoneLast4?.trim();
 
     // Case 1: Verification step using existing session token
     if (sessionToken) {
@@ -3969,14 +4153,14 @@ class DatabaseService {
         return { found: false, error: sessionResult.error || 'Recovery session expired or invalid.' };
       }
 
-      if (!verificationName) {
+      if (!phoneLast4Input && !verificationName) {
         return {
           found: true,
           requiresVerification: true,
           sessionToken,
           maskedContact: sessionResult.maskedContact,
-          challengePrompt: 'Please enter your registered Full Name or Gamer Tag to complete verification.',
-          error: 'Please enter your Full Name or Gamer Tag to confirm your identity.',
+          challengePrompt: `Please enter the last 4 digits of your registered mobile number (${sessionResult.maskedContact}) to complete verification.`,
+          error: 'Please enter the last 4 digits of your registered mobile number.',
         };
       }
 
@@ -3998,7 +4182,22 @@ class DatabaseService {
         };
       }
 
-      return this.verifyAndReturnRecoveredPlayer(player, verificationName);
+      if (phoneLast4Input) {
+        const playerDigits = player.phone.replace(/\D/g, '');
+        const playerLast4 = playerDigits.slice(-4);
+        if (phoneLast4Input !== playerLast4) {
+          return {
+            found: true,
+            verified: false,
+            error: 'The last 4 digits entered do not match our records. Please verify and try again.',
+          };
+        }
+        return this.verifyAndReturnRecoveredPlayer(player, 'phone_verified');
+      }
+
+      if (verificationName) {
+        return this.verifyAndReturnRecoveredPlayer(player, verificationName);
+      }
     }
 
     // Case 2: Direct lookup or initiating recovery with identifier
@@ -4025,13 +4224,34 @@ class DatabaseService {
     // Search player
     const player = isEmail ? await this.getPlayerByEmail(cleanInput) : await this.getPlayerByPhone(normPhone);
 
-    // Compute masked contact string
+    // Compute masked contact string (strictly formatMaskedPhoneHint for phone to protect last 4 digits)
     let maskedContact = '';
     if (isEmail) {
       const [local, dom] = cleanInput.toLowerCase().split('@');
       maskedContact = `${local[0]}***${local.length > 2 ? local.slice(-1) : ''}@${dom}`;
     } else {
-      maskedContact = `+91 ••••• ••${normPhone.slice(-4)}`;
+      maskedContact = this.formatMaskedPhoneHint(normPhone);
+    }
+
+    // If phoneLast4 was supplied in the initial request (Single-step recovery)
+    if (phoneLast4Input) {
+      if (!player || player.status === 'archived') {
+        return {
+          found: false,
+          verified: false,
+          error: 'The verification details entered do not match our records. If you do not have an ID yet, you can register anytime.',
+        };
+      }
+      const playerDigits = player.phone.replace(/\D/g, '');
+      const playerLast4 = playerDigits.slice(-4);
+      if (phoneLast4Input !== playerLast4) {
+        return {
+          found: true,
+          verified: false,
+          error: 'The last 4 digits entered do not match our records. Please verify and try again.',
+        };
+      }
+      return this.verifyAndReturnRecoveredPlayer(player, 'phone_verified');
     }
 
     // If verification name was supplied in the initial request (Single-step recovery)
@@ -4047,6 +4267,8 @@ class DatabaseService {
     }
 
     // Two-step recovery initiation: Return challenge (Uniform response whether player exists or not for privacy)
+    const challengePrompt = `Please enter the last 4 digits of your registered mobile number (${maskedContact}) to verify your identity and recover your Player ID.`;
+
     if (player && player.status !== 'archived') {
       const token = this.createRecoverySessionToken(player.id, false, maskedContact);
       return {
@@ -4054,7 +4276,7 @@ class DatabaseService {
         requiresVerification: true,
         sessionToken: token,
         maskedContact,
-        challengePrompt: `To protect your identity, please enter your registered Full Name or Gamer Tag associated with ${maskedContact}.`,
+        challengePrompt,
       };
     } else {
       // Dummy session token for unknown contact
@@ -4064,37 +4286,41 @@ class DatabaseService {
         requiresVerification: true,
         sessionToken: token,
         maskedContact,
-        challengePrompt: `To protect your identity, please enter your registered Full Name or Gamer Tag associated with ${maskedContact}.`,
+        challengePrompt,
       };
     }
   }
 
-  private async verifyAndReturnRecoveredPlayer(player: Player, verificationName: string) {
-    const cleanVerification = verificationName.trim().toLowerCase();
-    const verificationWithoutAt = cleanVerification.replace(/^@/, '');
-    const cleanName = player.name.trim().toLowerCase();
-    const cleanGamerTag = (player.gamerTag || '').trim().toLowerCase();
-    const gamerTagWithoutAt = cleanGamerTag.replace(/^@/, '');
+  private async verifyAndReturnRecoveredPlayer(player: Player, verificationNameOrMode: string) {
+    const isPhoneVerified = verificationNameOrMode === 'phone_verified';
 
-    const nameParts = cleanName.split(/\s+/);
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts[nameParts.length - 1] || '';
+    if (!isPhoneVerified) {
+      const cleanVerification = verificationNameOrMode.trim().toLowerCase();
+      const verificationWithoutAt = cleanVerification.replace(/^@/, '');
+      const cleanName = player.name.trim().toLowerCase();
+      const cleanGamerTag = (player.gamerTag || '').trim().toLowerCase();
+      const gamerTagWithoutAt = cleanGamerTag.replace(/^@/, '');
 
-    const isMatch =
-      cleanVerification === cleanName ||
-      verificationWithoutAt === cleanName ||
-      verificationWithoutAt === gamerTagWithoutAt ||
-      cleanVerification === cleanGamerTag ||
-      (verificationWithoutAt.length >= 2 && verificationWithoutAt === firstName) ||
-      (verificationWithoutAt.length >= 3 && verificationWithoutAt === lastName) ||
-      (verificationWithoutAt.length >= 3 && cleanName.includes(verificationWithoutAt));
+      const nameParts = cleanName.split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts[nameParts.length - 1] || '';
 
-    if (!isMatch) {
-      return {
-        found: true,
-        verified: false,
-        error: 'The name or gamer tag entered does not match the profile on record. Please check your spelling.',
-      };
+      const isMatch =
+        cleanVerification === cleanName ||
+        verificationWithoutAt === cleanName ||
+        verificationWithoutAt === gamerTagWithoutAt ||
+        cleanVerification === cleanGamerTag ||
+        (verificationWithoutAt.length >= 2 && verificationWithoutAt === firstName) ||
+        (verificationWithoutAt.length >= 3 && verificationWithoutAt === lastName) ||
+        (verificationWithoutAt.length >= 3 && cleanName.includes(verificationWithoutAt));
+
+      if (!isMatch) {
+        return {
+          found: true,
+          verified: false,
+          error: 'The name or gamer tag entered does not match the profile on record. Please check your spelling.',
+        };
+      }
     }
 
     // Identity verified! Generate authorization token
@@ -4107,7 +4333,7 @@ class DatabaseService {
       payload: {
         gioId: player.gioId,
         name: player.name,
-        verifiedBy: 'name_challenge',
+        verifiedBy: isPhoneVerified ? 'phone_last_4' : 'name_challenge',
       },
       idempotencyKey: `recovery_${player.id}_${Date.now()}`,
     });
@@ -4451,10 +4677,15 @@ class DatabaseService {
   async adjustPlayerLoyalty(
     id: string,
     points: number,
-    type: 'earn' | 'redeem' | 'adjustment' | 'bonus',
+    type: 'earn' | 'redeem' | 'adjustment' | 'bonus' | 'reversal',
     reason: string,
     referenceId?: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    options?: {
+      sourceActivityType?: any;
+      paymentAmount?: number;
+      adminActor?: string;
+    }
   ): Promise<{ player: Player; ledgerEntry: LoyaltyLedgerEntry }> {
     const player = await this.getPlayerById(id);
     if (!player) throw new Error('Player not found.');
@@ -4470,18 +4701,25 @@ class DatabaseService {
       }
     }
 
-    const newBalance = Math.max(0, player.loyalty.pointsBalance + points);
-    const newLifetime = points > 0 ? player.loyalty.lifetimePoints + points : player.loyalty.lifetimePoints;
+    const previousBalance = player.loyalty.pointsBalance || 0;
+    const newBalance = Math.max(0, previousBalance + points);
+    const newLifetime = points > 0 ? (player.loyalty.lifetimePoints || 0) + points : (player.loyalty.lifetimePoints || 0);
     const newTier = this.calculateLoyaltyTier(newLifetime);
 
     const ledgerEntry: LoyaltyLedgerEntry = {
       id: `ledg-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
       playerId: id,
+      gioId: player.gioId,
       points,
-      type,
+      type: type as any,
       reason: reason.trim() || 'Manual Staff Adjustment',
       referenceId,
       idempotencyKey,
+      previousBalance,
+      updatedBalance: newBalance,
+      paymentAmount: options?.paymentAmount,
+      sourceActivityType: options?.sourceActivityType || (type === 'reversal' ? 'manual_reversal' : 'staff_adjustment'),
+      adminActor: options?.adminActor || 'Staff',
       createdAt: new Date().toISOString(),
     };
 
@@ -6260,6 +6498,1012 @@ class DatabaseService {
 
     console.log(`✅ Historical reconciliation complete:`, report);
     return report;
+  }
+
+  // =========================================================================
+  // 4-DIGIT GUEST VERIFICATION & LOYALTY PAYMENT RECONCILIATION
+  // =========================================================================
+
+  async generateUniqueGuestCode(): Promise<string> {
+    let attempts = 0;
+    while (attempts < 50) {
+      attempts++;
+      const candidate = String(crypto.randomInt(1000, 10000));
+      let isColliding = false;
+      if (this.isMongoConnected && this.db) {
+        const [b, d, e, t] = await Promise.all([
+          this.db.collection('bookings').findOne({ guestCode: candidate, status: { $ne: 'cancelled' }, checkInStatus: { $ne: 'checked_in' } }),
+          this.db.collection('dining_reservations').findOne({ guestCode: candidate, status: { $ne: 'cancelled' }, checkInStatus: { $ne: 'checked_in' } }),
+          this.db.collection('event_reservations').findOne({ guestCode: candidate, status: { $ne: 'cancelled' }, checkInStatus: { $ne: 'checked_in' } }),
+          this.db.collection('tournament_registrations').findOne({ guestCode: candidate, status: { $ne: 'cancelled' }, checkInStatus: { $ne: 'checked_in' } }),
+        ]);
+        if (b || d || e || t) isColliding = true;
+      } else {
+        const inB = this.fileBookings.some((b) => b.guestCode === candidate && b.status !== 'cancelled' && b.checkInStatus !== 'checked_in');
+        const inD = this.fileDiningReservations.some((d) => d.guestCode === candidate && d.status !== 'cancelled' && d.checkInStatus !== 'checked_in');
+        const inE = this.fileEventReservations.some((e) => e.guestCode === candidate && e.status !== 'cancelled' && e.checkInStatus !== 'checked_in');
+        const inT = this.fileRegistrations.some((t) => t.guestCode === candidate && t.status !== 'cancelled' && t.checkInStatus !== 'checked_in');
+        if (inB || inD || inE || inT) isColliding = true;
+      }
+      if (!isColliding) return candidate;
+    }
+    return String(crypto.randomInt(1000, 10000));
+  }
+
+  calculatePointsForSpend(amount: number, rules?: LoyaltyRules): number {
+    if (!amount || amount <= 0) return 0;
+    const activeRules = rules || this.fileLoyaltyRules;
+    if (activeRules?.rulesEnabled && activeRules.rulesEnabled.paymentSpend === false) {
+      return 0;
+    }
+    const rate = activeRules?.pointsPerHundredRupees ?? 10;
+    return Math.floor((amount * rate) / 100);
+  }
+
+  async findBookingByGuestCode(rawCode: string): Promise<any | null> {
+    const code = (rawCode || '').trim();
+    if (!code) return null;
+
+    // 1. Gaming Bookings
+    let gaming: Booking | null = null;
+    if (this.isMongoConnected && this.db) {
+      gaming = await this.db.collection<Booking>('bookings').findOne({ guestCode: code });
+    } else {
+      gaming = this.fileBookings.find((b) => b.guestCode === code) || null;
+    }
+
+    if (gaming) {
+      const resource = await this.getResourceById(gaming.resourceId);
+      return {
+        id: gaming.id,
+        bookingType: 'gaming',
+        guestCode: gaming.guestCode,
+        customerName: gaming.customerName,
+        guestName: gaming.customerName,
+        phone: gaming.phone,
+        email: gaming.email,
+        checkInStatus: gaming.checkInStatus || 'pending',
+        checkedInAt: gaming.checkedInAt,
+        checkedInBy: gaming.checkedInBy,
+        paymentStatus: gaming.paymentStatus || 'unpaid',
+        paymentMethod: gaming.paymentMethod,
+        paymentReference: gaming.paymentReference,
+        paymentVerifiedBy: gaming.paymentVerifiedBy,
+        totalAmount: gaming.totalAmount,
+        paidAmount: gaming.paidAmount !== undefined ? gaming.paidAmount : (gaming.paymentStatus === 'paid' ? gaming.totalAmount : 0),
+        remainingBalance: gaming.remainingBalance !== undefined ? gaming.remainingBalance : (gaming.paymentStatus === 'paid' ? 0 : gaming.totalAmount),
+        resourceName: resource?.name || gaming.resourceId,
+        equipmentName: resource?.name || gaming.resourceId,
+        location: gaming.location || (gaming.category === 'ps5' || gaming.category === 'racing' ? 'Basement' : '1st Floor'),
+        date: gaming.date,
+        timeSlot: `${gaming.startTime} - ${gaming.endTime}`,
+        durationMinutes: gaming.durationMinutes,
+        numberOfGuests: gaming.numberOfPeople || 1,
+        numberOfPeople: gaming.numberOfPeople || 1,
+        status: gaming.status,
+        specialRequests: gaming.notes || undefined,
+        notes: gaming.notes,
+        payments: gaming.payments || [],
+        auditLogs: gaming.auditLogs || [],
+      };
+    }
+
+    // 2. Dining Reservations
+    let dining: DiningReservation | null = null;
+    if (this.isMongoConnected && this.db) {
+      dining = await this.db.collection<DiningReservation>('dining_reservations').findOne({ guestCode: code });
+    } else {
+      dining = this.fileDiningReservations.find((d) => d.guestCode === code) || null;
+    }
+
+    if (dining) {
+      return {
+        id: dining.id,
+        bookingType: 'dining',
+        guestCode: dining.guestCode,
+        customerName: dining.customerName,
+        guestName: dining.customerName,
+        phone: dining.phone,
+        email: dining.email,
+        checkInStatus: dining.checkInStatus || 'pending',
+        checkedInAt: dining.checkedInAt,
+        checkedInBy: dining.checkedInBy,
+        paymentStatus: dining.paymentStatus || 'unpaid',
+        paymentMethod: dining.paymentMethod,
+        paymentReference: dining.paymentReference,
+        paymentVerifiedBy: dining.paymentVerifiedBy,
+        totalAmount: 0,
+        paidAmount: 0,
+        remainingBalance: 0,
+        location: 'GioCasa Dine-in Restaurant — 1st Floor',
+        date: dining.date,
+        timeSlot: dining.time,
+        numberOfGuests: dining.guests,
+        numberOfPeople: dining.guests,
+        status: dining.status,
+        specialRequests: dining.specialRequests,
+        notes: dining.additionalRequirements,
+        auditLogs: dining.auditLogs || [],
+      };
+    }
+
+    // 3. Event Reservations
+    let eventRes: EventReservation | null = null;
+    if (this.isMongoConnected && this.db) {
+      eventRes = await this.db.collection<EventReservation>('event_reservations').findOne({ guestCode: code });
+    } else {
+      eventRes = this.fileEventReservations.find((e) => e.guestCode === code) || null;
+    }
+
+    if (eventRes) {
+      return {
+        id: eventRes.id,
+        bookingType: 'event',
+        guestCode: eventRes.guestCode,
+        customerName: eventRes.customerName,
+        guestName: eventRes.customerName,
+        phone: eventRes.phone,
+        email: eventRes.email,
+        checkInStatus: eventRes.checkInStatus || 'pending',
+        checkedInAt: eventRes.checkedInAt,
+        checkedInBy: eventRes.checkedInBy,
+        paymentStatus: eventRes.paymentStatus || 'unpaid',
+        paymentMethod: eventRes.paymentMethod,
+        paymentReference: eventRes.paymentReference,
+        paymentVerifiedBy: eventRes.paymentVerifiedBy,
+        totalAmount: Number(eventRes.estimatedBudget) || 0,
+        paidAmount: 0,
+        remainingBalance: Number(eventRes.estimatedBudget) || 0,
+        location: 'GioCasa 1st Floor & Lounge',
+        date: eventRes.date,
+        timeSlot: eventRes.time,
+        numberOfGuests: eventRes.expectedGuests,
+        numberOfPeople: eventRes.expectedGuests,
+        status: eventRes.status,
+        specialRequests: eventRes.foodRequirements,
+        notes: eventRes.additionalMessage,
+        auditLogs: eventRes.auditLogs || [],
+      };
+    }
+
+    // 4. Tournament Registrations
+    let tourney: TournamentRegistration | null = null;
+    if (this.isMongoConnected && this.db) {
+      tourney = await this.db.collection<TournamentRegistration>('tournament_registrations').findOne({ guestCode: code });
+    } else {
+      tourney = this.fileRegistrations.find((t) => t.guestCode === code) || null;
+    }
+
+    if (tourney) {
+      return {
+        id: tourney.id,
+        bookingType: 'tournament',
+        guestCode: tourney.guestCode,
+        customerName: tourney.participantName,
+        guestName: tourney.participantName,
+        participantName: tourney.participantName,
+        phone: tourney.phone,
+        email: tourney.email,
+        checkInStatus: tourney.checkInStatus || 'pending',
+        checkedInAt: tourney.checkedInAt,
+        checkedInBy: tourney.checkedInBy,
+        paymentStatus: tourney.paymentStatus || 'unpaid',
+        paymentMethod: tourney.paymentMethod,
+        paymentReference: tourney.paymentReference,
+        paymentVerifiedBy: tourney.paymentVerifiedBy,
+        totalAmount: 0,
+        paidAmount: 0,
+        remainingBalance: 0,
+        location: 'GioCasa Arena — Basement Arena',
+        date: tourney.createdAt ? tourney.createdAt.split('T')[0] : '',
+        timeSlot: 'Tournament Matchday',
+        numberOfGuests: 1,
+        numberOfPeople: 1,
+        status: tourney.status,
+        auditLogs: tourney.auditLogs || [],
+      };
+    }
+
+    return null;
+  }
+
+  async checkInGuest(bookingType: string, id: string, staffName: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const nowIso = new Date().toISOString();
+    const staff = staffName.trim() || 'Front Desk Staff';
+
+    if (bookingType === 'gaming') {
+      const booking = await this.getBookingById(id);
+      if (!booking) return { success: false, error: 'Booking not found.' };
+      if (booking.status === 'cancelled') return { success: false, error: 'Booking has been cancelled. Cannot check in.' };
+      if (booking.checkInStatus === 'checked_in') return { success: false, error: 'Guest has already been checked in.' };
+
+      const auditLogs = Array.isArray(booking.auditLogs) ? [...booking.auditLogs] : [];
+      auditLogs.push({
+        action: 'check_in',
+        timestamp: nowIso,
+        performedBy: staff,
+        details: `Guest checked in by ${staff}`,
+      });
+
+      const updatedBooking: Booking = {
+        ...booking,
+        checkInStatus: 'checked_in',
+        checkedInAt: nowIso,
+        checkedInBy: staff,
+        auditLogs,
+        updatedAt: nowIso,
+      };
+
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection('bookings').updateOne({ id: booking.id }, { $set: updatedBooking });
+      } else {
+        const idx = this.fileBookings.findIndex((b) => b.id === booking.id);
+        if (idx !== -1) {
+          this.fileBookings[idx] = updatedBooking;
+          this.saveBookingsToFile();
+        }
+      }
+
+      return { success: true, data: updatedBooking };
+    }
+
+    if (bookingType === 'dining') {
+      let dining: DiningReservation | null = null;
+      if (this.isMongoConnected && this.db) {
+        dining = await this.db.collection<DiningReservation>('dining_reservations').findOne({ id });
+      } else {
+        dining = this.fileDiningReservations.find((d) => d.id === id) || null;
+      }
+      if (!dining) return { success: false, error: 'Dining reservation not found.' };
+      if (dining.status === 'cancelled') return { success: false, error: 'Reservation has been cancelled. Cannot check in.' };
+      if (dining.checkInStatus === 'checked_in') return { success: false, error: 'Guest has already been checked in.' };
+
+      const auditLogs = Array.isArray(dining.auditLogs) ? [...dining.auditLogs] : [];
+      auditLogs.push({
+        action: 'check_in',
+        timestamp: nowIso,
+        performedBy: staff,
+        details: `Dining guest checked in by ${staff}`,
+      });
+
+      const updated = {
+        ...dining,
+        checkInStatus: 'checked_in',
+        checkedInAt: nowIso,
+        checkedInBy: staff,
+        auditLogs,
+        updatedAt: nowIso,
+      };
+
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection('dining_reservations').updateOne({ id }, { $set: updated });
+      } else {
+        const idx = this.fileDiningReservations.findIndex((d) => d.id === id);
+        if (idx !== -1) {
+          this.fileDiningReservations[idx] = updated as any;
+          this.saveDiningReservationsToFile();
+        }
+      }
+      return { success: true, data: updated };
+    }
+
+    if (bookingType === 'event') {
+      let eventRes: EventReservation | null = null;
+      if (this.isMongoConnected && this.db) {
+        eventRes = await this.db.collection<EventReservation>('event_reservations').findOne({ id });
+      } else {
+        eventRes = this.fileEventReservations.find((e) => e.id === id) || null;
+      }
+      if (!eventRes) return { success: false, error: 'Event reservation not found.' };
+      if (eventRes.status === 'cancelled') return { success: false, error: 'Event reservation has been cancelled. Cannot check in.' };
+      if (eventRes.checkInStatus === 'checked_in') return { success: false, error: 'Guest has already been checked in.' };
+
+      const auditLogs = Array.isArray(eventRes.auditLogs) ? [...eventRes.auditLogs] : [];
+      auditLogs.push({
+        action: 'check_in',
+        timestamp: nowIso,
+        performedBy: staff,
+        details: `Event host checked in by ${staff}`,
+      });
+
+      const updated = {
+        ...eventRes,
+        checkInStatus: 'checked_in',
+        checkedInAt: nowIso,
+        checkedInBy: staff,
+        auditLogs,
+        updatedAt: nowIso,
+      };
+
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection('event_reservations').updateOne({ id }, { $set: updated });
+      } else {
+        const idx = this.fileEventReservations.findIndex((e) => e.id === id);
+        if (idx !== -1) {
+          this.fileEventReservations[idx] = updated as any;
+          this.saveEventReservationsToFile();
+        }
+      }
+      return { success: true, data: updated };
+    }
+
+    return { success: false, error: 'Unsupported booking type.' };
+  }
+
+  async processBookingPayment(params: {
+    bookingId: string;
+    amount: number;
+    paymentStatus: PaymentStatus;
+    paymentMethod?: PaymentMethod;
+    paymentReference?: string;
+    staffName?: string;
+    idempotencyKey?: string;
+  }): Promise<{ success: boolean; data?: Booking; pointsAwarded: number; playerLoyaltyBalance?: number; error?: string }> {
+    const booking = await this.getBookingById(params.bookingId);
+    if (!booking) return { success: false, error: 'Booking not found.', pointsAwarded: 0 };
+
+    const nowIso = new Date().toISOString();
+    const payments = Array.isArray(booking.payments) ? [...booking.payments] : [];
+    const staff = params.staffName || 'Staff';
+
+    // Idempotency check: if payment with this idempotencyKey exists, return 0 points to prevent double award
+    if (params.idempotencyKey) {
+      const existingPay = payments.find((p) => p.idempotencyKey === params.idempotencyKey);
+      if (existingPay) {
+        return { success: true, data: booking, pointsAwarded: 0 };
+      }
+    }
+
+    let pointsAwarded = 0;
+    if (params.paymentStatus === 'paid' && params.amount > 0) {
+      const rules = await this.getLoyaltyRules();
+      pointsAwarded = this.calculatePointsForSpend(params.amount, rules);
+    }
+
+    const paymentRecord = {
+      id: `pay-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      amount: params.amount,
+      paymentMethod: params.paymentMethod || 'cash',
+      paymentReference: params.paymentReference,
+      paymentStatus: params.paymentStatus,
+      paidAt: params.paymentStatus === 'paid' ? nowIso : undefined,
+      staffName: staff,
+      idempotencyKey: params.idempotencyKey,
+      pointsAwarded,
+      createdAt: nowIso,
+    };
+    payments.push(paymentRecord);
+
+    const paidAmount = payments
+      .filter((p) => p.paymentStatus === 'paid')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const remainingBalance = Math.max(0, (booking.totalAmount || 0) - paidAmount);
+    const overallPaymentStatus: PaymentStatus =
+      remainingBalance === 0 && paidAmount > 0 ? 'paid' : paidAmount > 0 ? 'pending' : params.paymentStatus;
+
+    const auditLogs = Array.isArray(booking.auditLogs) ? [...booking.auditLogs] : [];
+    auditLogs.push({
+      action: 'payment_update',
+      timestamp: nowIso,
+      performedBy: staff,
+      details: `Payment of ₹${params.amount} marked as ${params.paymentStatus.toUpperCase()} via ${params.paymentMethod || 'cash'} (${pointsAwarded} pts awarded)`,
+    });
+
+    const updatedBooking: Booking = {
+      ...booking,
+      payments,
+      paidAmount,
+      remainingBalance,
+      paymentStatus: overallPaymentStatus,
+      paymentMethod: params.paymentMethod || booking.paymentMethod,
+      paymentReference: params.paymentReference || booking.paymentReference,
+      paymentVerifiedBy: staff,
+      paymentVerifiedAt: nowIso,
+      auditLogs,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection('bookings').updateOne({ id: booking.id }, { $set: updatedBooking });
+    } else {
+      const idx = this.fileBookings.findIndex((b) => b.id === booking.id);
+      if (idx !== -1) {
+        this.fileBookings[idx] = updatedBooking;
+        this.saveBookingsToFile();
+      }
+    }
+
+    // Award loyalty points to player if linked
+    let playerLoyaltyBalance = 0;
+    let playerId = booking.playerId;
+    if (!playerId) {
+      const norm = this.normalizePhone(booking.phone);
+      if (norm) {
+        const pl = await this.getPlayerByPhone(norm);
+        if (pl) playerId = pl.id;
+      }
+    }
+
+    if (playerId) {
+      if (pointsAwarded > 0) {
+        const adj = await this.adjustPlayerLoyalty(
+          playerId,
+          pointsAwarded,
+          'earn',
+          `Payment of ₹${params.amount} for Booking #${booking.id}`,
+          booking.id,
+          params.idempotencyKey || `pay_points_${booking.id}_${paymentRecord.id}`,
+          {
+            sourceActivityType: 'booking_payment' as any,
+            paymentAmount: params.amount,
+            adminActor: staff,
+          }
+        );
+        playerLoyaltyBalance = adj.player.loyalty.pointsBalance;
+      } else {
+        const pl = await this.getPlayerById(playerId);
+        playerLoyaltyBalance = pl?.loyalty.pointsBalance || 0;
+      }
+      await this.recalculatePlayerStats(playerId);
+    }
+
+    return {
+      success: true,
+      data: updatedBooking,
+      pointsAwarded,
+      playerLoyaltyBalance,
+    };
+  }
+
+  async verifyGuestPayment(
+    bookingType: string,
+    id: string,
+    paymentStatus: PaymentStatus,
+    paymentMethod?: PaymentMethod,
+    paymentReference?: string,
+    staffName?: string,
+    amount?: number
+  ): Promise<{ success: boolean; data?: any; pointsAwarded?: number; playerLoyaltyBalance?: number; error?: string }> {
+    const nowIso = new Date().toISOString();
+    const staff = staffName?.trim() || 'Front Desk Staff';
+
+    if (bookingType === 'gaming') {
+      const booking = await this.getBookingById(id);
+      if (!booking) return { success: false, error: 'Booking not found.' };
+
+      // Refund / Reversal Flow
+      if (paymentStatus === 'refunded') {
+        let playerId = booking.playerId;
+        if (!playerId) {
+          const norm = this.normalizePhone(booking.phone);
+          if (norm) {
+            const pl = await this.getPlayerByPhone(norm);
+            if (pl) playerId = pl.id;
+          }
+        }
+
+        let pointsReversed = 0;
+        let playerLoyaltyBalance = 0;
+
+        if (playerId) {
+          const ledger = await this.getPlayerLoyaltyLedger(playerId);
+          const earnEntries = ledger.filter(
+            (l) => l.referenceId === booking.id && l.type === 'earn' && l.points > 0
+          );
+          const totalEarnedOnBooking = earnEntries.reduce((sum, e) => sum + e.points, 0);
+
+          if (totalEarnedOnBooking > 0) {
+            const reversalKey = `rev_pay_${booking.id}_${Date.now()}`;
+            const adj = await this.adjustPlayerLoyalty(
+              playerId,
+              -totalEarnedOnBooking,
+              'reversal' as any,
+              `Refund: Payment of ₹${booking.paidAmount || booking.totalAmount} reversed for Booking #${booking.id}`,
+              booking.id,
+              reversalKey,
+              {
+                sourceActivityType: 'manual_reversal' as any,
+                paymentAmount: booking.paidAmount || booking.totalAmount,
+                adminActor: staff,
+              }
+            );
+            pointsReversed = -totalEarnedOnBooking;
+            playerLoyaltyBalance = adj.player.loyalty.pointsBalance;
+          }
+          await this.recalculatePlayerStats(playerId);
+        }
+
+        const auditLogs = Array.isArray(booking.auditLogs) ? [...booking.auditLogs] : [];
+        auditLogs.push({
+          action: 'payment_update',
+          timestamp: nowIso,
+          performedBy: staff,
+          details: `Payment marked as REFUNDED. Points reversed: ${pointsReversed}`,
+        });
+
+        const updatedBooking: Booking = {
+          ...booking,
+          paymentStatus: 'refunded',
+          paidAmount: 0,
+          remainingBalance: booking.totalAmount || 0,
+          paymentVerifiedBy: staff,
+          paymentVerifiedAt: nowIso,
+          auditLogs,
+          updatedAt: nowIso,
+        };
+
+        if (this.isMongoConnected && this.db) {
+          await this.db.collection('bookings').updateOne({ id: booking.id }, { $set: updatedBooking });
+        } else {
+          const idx = this.fileBookings.findIndex((b) => b.id === booking.id);
+          if (idx !== -1) {
+            this.fileBookings[idx] = updatedBooking;
+            this.saveBookingsToFile();
+          }
+        }
+
+        return {
+          success: true,
+          data: updatedBooking,
+          pointsAwarded: pointsReversed,
+          playerLoyaltyBalance,
+        };
+      }
+
+      // Normal or Partial Payment
+      const paymentAmount =
+        amount !== undefined && amount !== null && amount > 0
+          ? amount
+          : booking.remainingBalance !== undefined && booking.remainingBalance > 0
+          ? booking.remainingBalance
+          : booking.totalAmount || 0;
+
+      return await this.processBookingPayment({
+        bookingId: id,
+        amount: paymentAmount,
+        paymentStatus,
+        paymentMethod,
+        paymentReference,
+        staffName: staff,
+      });
+    }
+
+    if (bookingType === 'dining') {
+      let dining: DiningReservation | null = null;
+      if (this.isMongoConnected && this.db) {
+        dining = await this.db.collection<DiningReservation>('dining_reservations').findOne({ id });
+      } else {
+        dining = this.fileDiningReservations.find((d) => d.id === id) || null;
+      }
+      if (!dining) return { success: false, error: 'Dining reservation not found.' };
+
+      const auditLogs = Array.isArray(dining.auditLogs) ? [...dining.auditLogs] : [];
+      auditLogs.push({
+        action: 'payment_update',
+        timestamp: nowIso,
+        performedBy: staff,
+        details: `Dining payment updated to ${paymentStatus.toUpperCase()} via ${paymentMethod || 'cash'}`,
+      });
+
+      const updated = {
+        ...dining,
+        paymentStatus,
+        paymentMethod: paymentMethod || dining.paymentMethod,
+        paymentReference: paymentReference || dining.paymentReference,
+        paymentVerifiedBy: staff,
+        paymentVerifiedAt: nowIso,
+        auditLogs,
+        updatedAt: nowIso,
+      };
+
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection('dining_reservations').updateOne({ id }, { $set: updated });
+      } else {
+        const idx = this.fileDiningReservations.findIndex((d) => d.id === id);
+        if (idx !== -1) {
+          this.fileDiningReservations[idx] = updated as any;
+          this.saveDiningReservationsToFile();
+        }
+      }
+      return { success: true, data: updated };
+    }
+
+    if (bookingType === 'event') {
+      let eventRes: EventReservation | null = null;
+      if (this.isMongoConnected && this.db) {
+        eventRes = await this.db.collection<EventReservation>('event_reservations').findOne({ id });
+      } else {
+        eventRes = this.fileEventReservations.find((e) => e.id === id) || null;
+      }
+      if (!eventRes) return { success: false, error: 'Event reservation not found.' };
+
+      const auditLogs = Array.isArray(eventRes.auditLogs) ? [...eventRes.auditLogs] : [];
+      auditLogs.push({
+        action: 'payment_update',
+        timestamp: nowIso,
+        performedBy: staff,
+        details: `Event payment updated to ${paymentStatus.toUpperCase()} via ${paymentMethod || 'cash'}`,
+      });
+
+      const updated = {
+        ...eventRes,
+        paymentStatus,
+        paymentMethod: paymentMethod || eventRes.paymentMethod,
+        paymentReference: paymentReference || eventRes.paymentReference,
+        paymentVerifiedBy: staff,
+        paymentVerifiedAt: nowIso,
+        auditLogs,
+        updatedAt: nowIso,
+      };
+
+      if (this.isMongoConnected && this.db) {
+        await this.db.collection('event_reservations').updateOne({ id }, { $set: updated });
+      } else {
+        const idx = this.fileEventReservations.findIndex((e) => e.id === id);
+        if (idx !== -1) {
+          this.fileEventReservations[idx] = updated as any;
+          this.saveEventReservationsToFile();
+        }
+      }
+      return { success: true, data: updated };
+    }
+
+    return { success: false, error: 'Unsupported booking type.' };
+  }
+
+  async getRecentVerifiedBookings(limit = 20): Promise<any[]> {
+    const list: any[] = [];
+    if (this.isMongoConnected && this.db) {
+      const [bks, dins, evts] = await Promise.all([
+        this.db.collection<Booking>('bookings').find({
+          $or: [{ checkInStatus: 'checked_in' }, { paymentStatus: 'paid' }],
+        }).sort({ updatedAt: -1 }).limit(limit).toArray(),
+        this.db.collection<DiningReservation>('dining_reservations').find({
+          $or: [{ checkInStatus: 'checked_in' }, { paymentStatus: 'paid' }],
+        }).sort({ updatedAt: -1 }).limit(limit).toArray(),
+        this.db.collection<EventReservation>('event_reservations').find({
+          $or: [{ checkInStatus: 'checked_in' }, { paymentStatus: 'paid' }],
+        }).sort({ updatedAt: -1 }).limit(limit).toArray(),
+      ]);
+
+      bks.forEach((b) => list.push({
+        id: b.id,
+        bookingType: 'gaming',
+        guestCode: b.guestCode,
+        guestName: b.customerName,
+        phone: b.phone,
+        checkInStatus: b.checkInStatus || 'pending',
+        checkedInAt: b.checkedInAt,
+        paymentStatus: b.paymentStatus || 'unpaid',
+        paymentVerifiedAt: b.paymentVerifiedAt,
+        totalAmount: b.totalAmount,
+        updatedAt: b.updatedAt,
+      }));
+
+      dins.forEach((d) => list.push({
+        id: d.id,
+        bookingType: 'dining',
+        guestCode: d.guestCode,
+        guestName: d.customerName,
+        phone: d.phone,
+        checkInStatus: d.checkInStatus || 'pending',
+        checkedInAt: d.checkedInAt,
+        paymentStatus: d.paymentStatus || 'unpaid',
+        paymentVerifiedAt: d.paymentVerifiedAt,
+        totalAmount: 0,
+        updatedAt: d.updatedAt,
+      }));
+
+      evts.forEach((e) => list.push({
+        id: e.id,
+        bookingType: 'event',
+        guestCode: e.guestCode,
+        guestName: e.customerName,
+        phone: e.phone,
+        checkInStatus: e.checkInStatus || 'pending',
+        checkedInAt: e.checkedInAt,
+        paymentStatus: e.paymentStatus || 'unpaid',
+        paymentVerifiedAt: e.paymentVerifiedAt,
+        totalAmount: Number(e.estimatedBudget) || 0,
+        updatedAt: e.updatedAt,
+      }));
+    } else {
+      this.fileBookings
+        .filter((b) => b.checkInStatus === 'checked_in' || b.paymentStatus === 'paid')
+        .forEach((b) => list.push({
+          id: b.id,
+          bookingType: 'gaming',
+          guestCode: b.guestCode,
+          guestName: b.customerName,
+          phone: b.phone,
+          checkInStatus: b.checkInStatus || 'pending',
+          checkedInAt: b.checkedInAt,
+          paymentStatus: b.paymentStatus || 'unpaid',
+          paymentVerifiedAt: b.paymentVerifiedAt,
+          totalAmount: b.totalAmount,
+          updatedAt: b.updatedAt,
+        }));
+
+      this.fileDiningReservations
+        .filter((d) => d.checkInStatus === 'checked_in' || d.paymentStatus === 'paid')
+        .forEach((d) => list.push({
+          id: d.id,
+          bookingType: 'dining',
+          guestCode: d.guestCode,
+          guestName: d.customerName,
+          phone: d.phone,
+          checkInStatus: d.checkInStatus || 'pending',
+          checkedInAt: d.checkedInAt,
+          paymentStatus: d.paymentStatus || 'unpaid',
+          paymentVerifiedAt: d.paymentVerifiedAt,
+          totalAmount: 0,
+          updatedAt: d.updatedAt,
+        }));
+
+      this.fileEventReservations
+        .filter((e) => e.checkInStatus === 'checked_in' || e.paymentStatus === 'paid')
+        .forEach((e) => list.push({
+          id: e.id,
+          bookingType: 'event',
+          guestCode: e.guestCode,
+          guestName: e.customerName,
+          phone: e.phone,
+          checkInStatus: e.checkInStatus || 'pending',
+          checkedInAt: e.checkedInAt,
+          paymentStatus: e.paymentStatus || 'unpaid',
+          paymentVerifiedAt: e.paymentVerifiedAt,
+          totalAmount: Number(e.estimatedBudget) || 0,
+          updatedAt: e.updatedAt,
+        }));
+    }
+
+    list.sort((a, b) => (b.checkedInAt || b.paymentVerifiedAt || b.updatedAt).localeCompare(a.checkedInAt || a.paymentVerifiedAt || a.updatedAt));
+    return list.slice(0, limit);
+  }
+
+  // =========================================================================
+  // VAPID PUSH KEYS
+  // =========================================================================
+
+  async getVapidKeys(): Promise<{ publicKey: string; privateKey: string } | null> {
+    if (this.isMongoConnected && this.db) {
+      const doc = await this.db.collection('settings').findOne({ id: 'vapid_keys' });
+      if (doc && doc.publicKey && doc.privateKey) {
+        return { publicKey: doc.publicKey, privateKey: doc.privateKey };
+      }
+    }
+    const vapidPath = path.join(DATA_DIR, 'vapid.json');
+    if (fs.existsSync(vapidPath)) {
+      try {
+        const raw = fs.readFileSync(vapidPath, 'utf8');
+        return JSON.parse(raw);
+      } catch {}
+    }
+    return null;
+  }
+
+  async saveVapidKeys(keys: { publicKey: string; privateKey: string }): Promise<void> {
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection('settings').updateOne(
+        { id: 'vapid_keys' },
+        { $set: { id: 'vapid_keys', publicKey: keys.publicKey, privateKey: keys.privateKey, updatedAt: new Date().toISOString() } },
+        { upsert: true }
+      );
+    }
+    const vapidPath = path.join(DATA_DIR, 'vapid.json');
+    try {
+      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(vapidPath, JSON.stringify(keys, null, 2), 'utf8');
+    } catch {}
+  }
+
+  // =========================================================================
+  // MENU CUSTOMIZATIONS & FEATURED DISHES (CLOUDINARY POWERED)
+  // =========================================================================
+
+  async getMenuCustomizations(): Promise<MenuCustomization[]> {
+    if (this.isMongoConnected && this.db) {
+      return await this.db.collection<MenuCustomization>('menu_customizations').find({}).toArray();
+    }
+    return [...this.fileMenuCustomizations];
+  }
+
+  async getMenuCustomization(menuItemId: string): Promise<MenuCustomization | null> {
+    const cleanId = (menuItemId || '').trim().toLowerCase();
+    if (this.isMongoConnected && this.db) {
+      return await this.db.collection<MenuCustomization>('menu_customizations').findOne({ menuItemId: cleanId });
+    }
+    return this.fileMenuCustomizations.find((m) => m.menuItemId.toLowerCase() === cleanId) || null;
+  }
+
+  async setMenuCustomization(menuItemId: string, data: Partial<MenuCustomization>): Promise<MenuCustomization> {
+    const cleanId = (menuItemId || '').trim().toLowerCase();
+    const existing = await this.getMenuCustomization(cleanId);
+    const nowIso = new Date().toISOString();
+
+    // If an image is being replaced with a new Cloudinary asset, delete old Cloudinary asset
+    if (existing?.imagePublicId && data.imagePublicId && existing.imagePublicId !== data.imagePublicId) {
+      cloudinaryService.deleteImage(existing.imagePublicId).catch((err) => {
+        console.warn('Failed to delete replaced menu image from Cloudinary:', err);
+      });
+    }
+
+    const updated: MenuCustomization = {
+      id: cleanId,
+      menuItemId: cleanId,
+      name: data.name !== undefined ? data.name : existing?.name,
+      category: data.category !== undefined ? data.category : existing?.category,
+      price: data.price !== undefined ? data.price : existing?.price,
+      description: data.description !== undefined ? data.description : existing?.description,
+      imageUrl: data.imageUrl !== undefined ? data.imageUrl : existing?.imageUrl,
+      imagePublicId: data.imagePublicId !== undefined ? data.imagePublicId : existing?.imagePublicId,
+      isFeatured: data.isFeatured !== undefined ? Boolean(data.isFeatured) : existing?.isFeatured,
+      featuredTitle: data.featuredTitle !== undefined ? data.featuredTitle : existing?.featuredTitle,
+      featuredDescription: data.featuredDescription !== undefined ? data.featuredDescription : existing?.featuredDescription,
+      badge: data.badge !== undefined ? data.badge : existing?.badge,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updated as any;
+      await this.db
+        .collection<MenuCustomization>('menu_customizations')
+        .updateOne({ menuItemId: cleanId }, { $set: fieldsToSet }, { upsert: true });
+    } else {
+      const idx = this.fileMenuCustomizations.findIndex((m) => m.menuItemId.toLowerCase() === cleanId);
+      if (idx !== -1) {
+        this.fileMenuCustomizations[idx] = updated;
+      } else {
+        this.fileMenuCustomizations.push(updated);
+      }
+      this.saveMenuCustomizationsToFile();
+    }
+
+    return updated;
+  }
+
+  async deleteMenuCustomization(menuItemId: string): Promise<boolean> {
+    const cleanId = (menuItemId || '').trim().toLowerCase();
+    const existing = await this.getMenuCustomization(cleanId);
+    if (!existing) return false;
+
+    if (existing.imagePublicId) {
+      cloudinaryService.deleteImage(existing.imagePublicId).catch((err) => {
+        console.warn('Failed to delete menu image from Cloudinary:', err);
+      });
+    }
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<MenuCustomization>('menu_customizations').deleteOne({ menuItemId: cleanId });
+    } else {
+      this.fileMenuCustomizations = this.fileMenuCustomizations.filter((m) => m.menuItemId.toLowerCase() !== cleanId);
+      this.saveMenuCustomizationsToFile();
+    }
+
+    return true;
+  }
+
+  // =========================================================================
+  // MEDIA GALLERY (CAFE, FOOD, GAMING & TOURNAMENTS)
+  // =========================================================================
+
+  async getGalleryItems(filter?: { category?: string; featuredOnly?: boolean }): Promise<GalleryItem[]> {
+    let items: GalleryItem[] = [];
+
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (filter?.category && filter.category !== 'all') {
+        query.category = filter.category;
+      }
+      if (filter?.featuredOnly) {
+        query.isFeatured = true;
+      }
+      items = await this.db
+        .collection<GalleryItem>('gallery_items')
+        .find(query)
+        .sort({ displayOrder: 1, createdAt: -1 })
+        .toArray();
+    } else {
+      items = [...this.fileGalleryItems];
+      if (filter?.category && filter.category !== 'all') {
+        items = items.filter((g) => g.category === filter.category);
+      }
+      if (filter?.featuredOnly) {
+        items = items.filter((g) => g.isFeatured);
+      }
+      items.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    }
+
+    return items;
+  }
+
+  async getGalleryItem(id: string): Promise<GalleryItem | null> {
+    if (this.isMongoConnected && this.db) {
+      return await this.db.collection<GalleryItem>('gallery_items').findOne({ id });
+    }
+    return this.fileGalleryItems.find((g) => g.id === id) || null;
+  }
+
+  async createGalleryItem(data: Omit<GalleryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<GalleryItem> {
+    const nowIso = new Date().toISOString();
+    const id = `gal_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+
+    const newItem: GalleryItem = {
+      ...data,
+      id,
+      title: data.title || 'GioCasa Moment',
+      category: data.category || 'ambiance',
+      imageUrl: data.imageUrl,
+      imagePublicId: data.imagePublicId,
+      thumbnailUrl: data.thumbnailUrl || data.imageUrl,
+      description: data.description || '',
+      isFeatured: Boolean(data.isFeatured),
+      displayOrder: Number(data.displayOrder) || 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<GalleryItem>('gallery_items').insertOne(newItem);
+    } else {
+      this.fileGalleryItems.push(newItem);
+      this.saveGalleryItemsToFile();
+    }
+
+    return newItem;
+  }
+
+  async updateGalleryItem(id: string, updates: Partial<GalleryItem>): Promise<GalleryItem | null> {
+    const existing = await this.getGalleryItem(id);
+    if (!existing) return null;
+
+    // Clean up replaced Cloudinary asset
+    if (existing.imagePublicId && updates.imagePublicId && existing.imagePublicId !== updates.imagePublicId) {
+      cloudinaryService.deleteImage(existing.imagePublicId).catch((err) => {
+        console.warn('Failed to delete old gallery image from Cloudinary:', err);
+      });
+    }
+
+    const updated: GalleryItem = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const { _id, ...fieldsToSet } = updated as any;
+      await this.db.collection<GalleryItem>('gallery_items').updateOne({ id }, { $set: fieldsToSet });
+    } else {
+      const idx = this.fileGalleryItems.findIndex((g) => g.id === id);
+      if (idx !== -1) {
+        this.fileGalleryItems[idx] = updated;
+        this.saveGalleryItemsToFile();
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteGalleryItem(id: string): Promise<boolean> {
+    const existing = await this.getGalleryItem(id);
+    if (!existing) return false;
+
+    // Permanently delete asset from Cloudinary
+    if (existing.imagePublicId) {
+      cloudinaryService.deleteImage(existing.imagePublicId).catch((err) => {
+        console.warn('Failed to delete gallery image from Cloudinary:', err);
+      });
+    }
+
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection<GalleryItem>('gallery_items').deleteOne({ id });
+    } else {
+      this.fileGalleryItems = this.fileGalleryItems.filter((g) => g.id !== id);
+      this.saveGalleryItemsToFile();
+    }
+
+    return true;
   }
 
   async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {

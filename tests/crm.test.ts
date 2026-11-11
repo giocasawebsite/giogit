@@ -74,7 +74,7 @@ async function runAllTests() {
   console.log('\nTEST 3: Masked public lookup');
   const publicData = await dbService.lookupPlayerPublic(player1.gioId);
   assert(publicData !== null, 'Public lookup returned profile data');
-  assert(publicData.player.phoneMasked.includes('••') && !publicData.player.phoneMasked.includes(testPhone1), 'Phone is masked and never leaks the full phone number');
+  assert((publicData.player.phoneMasked.includes('**') || publicData.player.phoneMasked.includes('••')) && !publicData.player.phoneMasked.includes(testPhone1) && !publicData.player.phoneMasked.includes(testPhone1.slice(-4)), 'Phone is masked and never leaks full number or last 4 digits');
   assert(publicData.challenge.type === 'phone_last_4', 'Identity challenge type is phone_last_4');
 
   // -------------------------------------------------------------------------
@@ -98,11 +98,14 @@ async function runAllTests() {
   // TEST 6: Phone recovery of Player ID
   // -------------------------------------------------------------------------
   console.log('\nTEST 6: Phone recovery of Player ID');
-  const recoveryResult = await dbService.recoverPlayerId(testPhone1);
-  assert(recoveryResult.gioId === player1.gioId, 'Player ID recovered successfully from registered phone number');
+  const challengeOnly = await dbService.recoverPlayerId(testPhone1);
+  assert(challengeOnly.requiresVerification === true && !challengeOnly.gioId, 'Step 1 recovery returns challenge and never exposes Player ID without verification');
 
-  const unknownRecovery = await dbService.recoverPlayerId('9000000000');
-  assert(unknownRecovery.found === false && !unknownRecovery.gioId, 'Recovery cleanly fails for unregistered phone number');
+  const recoveryResult = await dbService.recoverPlayerId({ phone: testPhone1, phoneLast4: testPhone1.slice(-4) });
+  assert(recoveryResult.gioId === player1.gioId, 'Player ID recovered successfully from registered phone number after last 4 digits verification');
+
+  const unknownRecovery = await dbService.recoverPlayerId({ phone: '9000000000', phoneLast4: '0000' });
+  assert((unknownRecovery.found === false || unknownRecovery.verified === false) && !unknownRecovery.gioId, 'Recovery cleanly fails for unregistered phone number');
 
   // -------------------------------------------------------------------------
   // TEST 7: Booking creation awards 0 points
