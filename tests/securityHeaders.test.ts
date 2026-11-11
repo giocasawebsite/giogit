@@ -24,7 +24,10 @@ test('🔒 GioCasa Security Headers Verification Suite', async (t) => {
     assert.ok(content.includes('Permissions-Policy'), 'Permissions-Policy must be in netlify.toml');
     assert.ok(content.includes('Cross-Origin-Opener-Policy = "same-origin-allow-popups"'), 'COOP must permit popups like WhatsApp');
 
-    // CSP Directives Verification
+    // Strict CSP Script Directives Verification (Scanner-hardened)
+    assert.ok(content.includes("script-src 'self'"), "CSP must include script-src 'self'");
+    assert.ok(!content.includes("script-src 'self' 'unsafe-inline'"), "CSP must NOT contain 'unsafe-inline' in script-src");
+    assert.ok(!content.includes("script-src 'self' data:"), "CSP must NOT contain data: in script-src");
     assert.ok(content.includes("frame-ancestors 'none'"), "CSP must include frame-ancestors 'none'");
     assert.ok(content.includes("object-src 'none'"), "CSP must include object-src 'none'");
     assert.ok(content.includes("base-uri 'self'"), "CSP must include base-uri 'self'");
@@ -32,6 +35,7 @@ test('🔒 GioCasa Security Headers Verification Suite', async (t) => {
     assert.ok(content.includes("https://res.cloudinary.com"), "CSP must whitelist Cloudinary");
     assert.ok(content.includes("worker-src 'self'"), "CSP must whitelist Service Worker");
     assert.ok(content.includes("manifest-src 'self'"), "CSP must whitelist manifest");
+    assert.ok(content.includes("upgrade-insecure-requests"), "CSP must include upgrade-insecure-requests");
   });
 
   await t.test('2. Netlify static headers file (public/_headers) exists for Vite build dist delivery', () => {
@@ -92,6 +96,10 @@ test('🔒 GioCasa Security Headers Verification Suite', async (t) => {
       // CSP
       const csp = res.headers.get('content-security-policy');
       assert.ok(csp, 'Content-Security-Policy header must be present');
+      assert.ok(csp.includes("script-src 'self'"), 'CSP must restrict script-src to self');
+      assert.ok(!csp.includes("'unsafe-inline'") || csp.includes("style-src 'self' 'unsafe-inline'"), 'CSP must not allow unsafe-inline in script-src');
+      assert.ok(!csp.includes("script-src 'self' 'unsafe-inline'"), 'CSP script-src must not contain unsafe-inline');
+      assert.ok(!csp.includes("script-src 'self' data:"), 'CSP script-src must not contain data:');
       assert.ok(csp.includes("frame-ancestors 'none'"), 'CSP must block frame-ancestors');
       assert.ok(csp.includes("object-src 'none'"), 'CSP must block object-src');
       assert.ok(csp.includes("base-uri 'self'"), 'CSP must set base-uri');
@@ -99,6 +107,7 @@ test('🔒 GioCasa Security Headers Verification Suite', async (t) => {
       assert.ok(csp.includes("https://res.cloudinary.com"), 'CSP must allow Cloudinary in img-src');
       assert.ok(csp.includes("worker-src 'self' blob:"), 'CSP must allow worker-src for push notifications');
       assert.ok(csp.includes("manifest-src 'self'"), 'CSP must allow manifest-src');
+      assert.ok(csp.includes("upgrade-insecure-requests"), 'CSP must include upgrade-insecure-requests');
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

@@ -370,7 +370,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   // Tested, restrictive Content Security Policy matching all required GioCasa services
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.unsplash.com",
@@ -381,6 +381,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    "upgrade-insecure-requests",
   ];
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
 
