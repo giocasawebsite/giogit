@@ -565,7 +565,14 @@ router.post('/uploads', express.json({ limit: '12mb' }), async (req: Request, re
     });
   } catch (err: any) {
     console.error('Error uploading image in admin:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Failed to upload image.' });
+    let safeMsg = err.message || 'Failed to upload image.';
+    if (config.cloudinaryApiKey) {
+      safeMsg = safeMsg.split(config.cloudinaryApiKey).join('[REDACTED_KEY]');
+    }
+    if (config.cloudinaryApiSecret) {
+      safeMsg = safeMsg.split(config.cloudinaryApiSecret).join('[REDACTED_SECRET]');
+    }
+    return res.status(500).json({ success: false, error: safeMsg });
   }
 });
 

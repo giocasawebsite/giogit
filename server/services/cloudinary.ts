@@ -7,11 +7,15 @@ import { config } from '../config';
  * never exposed to client code.
  */
 function initCloudinary() {
-  if (config.cloudinaryCloudName && config.cloudinaryApiKey && config.cloudinaryApiSecret) {
+  const cloudName = (config.cloudinaryCloudName || '').trim();
+  const apiKey = (config.cloudinaryApiKey || '').trim();
+  const apiSecret = (config.cloudinaryApiSecret || '').trim();
+
+  if (cloudName && apiKey && apiSecret) {
     cloudinary.config({
-      cloud_name: config.cloudinaryCloudName,
-      api_key: config.cloudinaryApiKey,
-      api_secret: config.cloudinaryApiSecret,
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
       secure: true,
     });
   }
@@ -77,10 +81,17 @@ class CloudinaryService {
       };
     } catch (err: any) {
       console.error('Cloudinary connection test failed:', err);
+      let safeMsg = err.message || 'Failed to ping Cloudinary API.';
+      if (config.cloudinaryApiKey) {
+        safeMsg = safeMsg.split(config.cloudinaryApiKey).join('[REDACTED_KEY]');
+      }
+      if (config.cloudinaryApiSecret) {
+        safeMsg = safeMsg.split(config.cloudinaryApiSecret).join('[REDACTED_SECRET]');
+      }
       return {
         ok: false,
         cloudName: config.cloudinaryCloudName,
-        message: err.message || 'Failed to ping Cloudinary API.',
+        message: safeMsg,
       };
     }
   }
@@ -150,7 +161,17 @@ class CloudinaryService {
       };
     } catch (err: any) {
       console.error('Error uploading image to Cloudinary:', err);
-      throw new Error(err.message || 'Cloudinary upload failed.');
+      let safeMsg = err.message || 'Cloudinary upload failed.';
+      if (config.cloudinaryApiKey) {
+        safeMsg = safeMsg.split(config.cloudinaryApiKey).join('[REDACTED_KEY]');
+      }
+      if (config.cloudinaryApiSecret) {
+        safeMsg = safeMsg.split(config.cloudinaryApiSecret).join('[REDACTED_SECRET]');
+      }
+      if (safeMsg.toLowerCase().includes('invalid api_key')) {
+        safeMsg = 'Authentication with Cloudinary image storage failed. Please check your credentials in Render.';
+      }
+      throw new Error(safeMsg);
     }
   }
 

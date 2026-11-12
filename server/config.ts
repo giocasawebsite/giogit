@@ -1,26 +1,32 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const isProd = process.env.NODE_ENV === 'production';
+function cleanEnv(val?: string): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '');
+}
+
+const isProd = cleanEnv(process.env.NODE_ENV) === 'production';
 
 export const config = {
-  port: parseInt(process.env.PORT || '5001', 10),
-  mongoUri: process.env.MONGODB_URI || '',
-  dbName: process.env.MONGODB_DB_NAME || 'giocasa',
-  adminPasscode: process.env.ADMIN_PASSCODE || (isProd ? '' : 'GIOCASA2026'),
-  sessionSecret: process.env.SESSION_SECRET || '',
+  port: parseInt(cleanEnv(process.env.PORT) || '5001', 10),
+  mongoUri: cleanEnv(process.env.MONGODB_URI),
+  dbName: cleanEnv(process.env.MONGODB_DB_NAME) || 'giocasa',
+  adminPasscode: cleanEnv(process.env.ADMIN_PASSCODE) || (isProd ? '' : 'GIOCASA2026'),
+  sessionSecret: cleanEnv(process.env.SESSION_SECRET),
   timezone: 'Asia/Kolkata',
-  corsOrigin: process.env.CORS_ORIGIN || '',
+  corsOrigin: cleanEnv(process.env.CORS_ORIGIN),
   isProduction: isProd,
-  vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
-  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
-  vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@giocasa.com',
-  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
-  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
-  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
+  vapidPublicKey: cleanEnv(process.env.VAPID_PUBLIC_KEY),
+  vapidPrivateKey: cleanEnv(process.env.VAPID_PRIVATE_KEY),
+  vapidSubject: cleanEnv(process.env.VAPID_SUBJECT) || 'mailto:admin@giocasa.com',
+  cloudinaryCloudName: cleanEnv(process.env.CLOUDINARY_CLOUD_NAME),
+  cloudinaryApiKey: cleanEnv(process.env.CLOUDINARY_API_KEY),
+  cloudinaryApiSecret: cleanEnv(process.env.CLOUDINARY_API_SECRET),
 };
 
-if (isProd && !process.env.ADMIN_PASSCODE) {
+if (isProd && !config.adminPasscode) {
   console.warn('⚠️ [SECURITY WARNING] ADMIN_PASSCODE environment variable is not set in production. Please set it in Render dashboard.');
 }
+
 
