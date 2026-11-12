@@ -1,4 +1,6 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 import { INITIAL_GAMES, dbService } from '../server/db';
 import { parseCurrentRoute, buildRoutePath } from '../src/utils/router';
 import { GameItem } from '../src/types';
@@ -63,6 +65,27 @@ async function runTests() {
       assert.ok(match, `Exact title match failed for "${req}"`);
       assert.ok(match.description.length > 20, `Game "${req}" has empty or insufficient description`);
       assert.ok(match.image.startsWith('http') || match.image.startsWith('/'), `Game "${req}" lacks valid artwork URL`);
+    }
+  });
+
+  test('All 14 games have authentic local cover and widescreen hero assets on disk', () => {
+    for (const req of REQUIRED_14_GAMES) {
+      const match = INITIAL_GAMES.find((g) => g.title === req);
+      assert.ok(match, `Match missing for "${req}"`);
+      assert.ok(match.image && match.image.startsWith('/assets/games/'), `Game "${req}" image is not local asset: ${match.image}`);
+      assert.ok(match.heroImage && match.heroImage.startsWith('/assets/games/'), `Game "${req}" heroImage is not local asset: ${match.heroImage}`);
+
+      const coverPath = path.join(process.cwd(), 'public', match.image);
+      const heroPath = path.join(process.cwd(), 'public', match.heroImage);
+
+      assert.ok(fs.existsSync(coverPath), `Cover file missing on disk: ${coverPath}`);
+      assert.ok(fs.existsSync(heroPath), `Hero file missing on disk: ${heroPath}`);
+
+      const coverStat = fs.statSync(coverPath);
+      const heroStat = fs.statSync(heroPath);
+
+      assert.ok(coverStat.size > 15000, `Cover file "${coverPath}" size unexpectedly small (${coverStat.size} bytes)`);
+      assert.ok(heroStat.size > 100000, `Hero file "${heroPath}" size unexpectedly small (${heroStat.size} bytes)`);
     }
   });
 
@@ -197,6 +220,7 @@ async function runTests() {
   if (failed > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runTests().catch((err) => {

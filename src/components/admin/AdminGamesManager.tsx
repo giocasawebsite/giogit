@@ -46,6 +46,7 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
     genre: string;
     description: string;
     image: string;
+    heroImage?: string;
     imagePublicId?: string;
     availabilityStatus: GameAvailabilityStatus;
     isFeatured: boolean;
@@ -62,6 +63,7 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
     genre: 'Action',
     description: '',
     image: '',
+    heroImage: '',
     availabilityStatus: 'available',
     isFeatured: false,
     resourceId: '',
@@ -124,7 +126,8 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
       category: 'ps5',
       genre: 'Action',
       description: '',
-      image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
+      image: '/assets/games/gta-5_cover.jpg',
+      heroImage: '/assets/games/gta-5_hero.jpg',
       availabilityStatus: 'available',
       isFeatured: false,
       resourceId: resources[0]?.id || 'ps5-station-1',
@@ -148,6 +151,7 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
       genre: game.genre || 'Action',
       description: game.description || '',
       image: game.image || '',
+      heroImage: game.heroImage || '',
       imagePublicId: game.imagePublicId,
       availabilityStatus: game.availabilityStatus || (game.isAvailable ? 'available' : 'coming_soon'),
       isFeatured: Boolean(game.isFeatured),
@@ -225,6 +229,7 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
       genre: formData.genre.trim(),
       description: formData.description.trim(),
       image: formData.image.trim(),
+      heroImage: formData.heroImage?.trim() || '',
       imagePublicId: formData.imagePublicId,
       availabilityStatus: formData.availabilityStatus,
       isAvailable: formData.availabilityStatus === 'available',
@@ -620,30 +625,45 @@ export const AdminGamesManager: React.FC<AdminGamesManagerProps> = ({ passcode }
               </div>
 
               {/* Row 4: Artwork Image & Cloudinary Upload */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-brand-subtle uppercase tracking-wider">
-                  Game Artwork Image URL
-                </label>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-brand-subtle uppercase tracking-wider">
+                    Game Cover Art (Portrait)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      placeholder="/assets/games/... or https://"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-brand-darker border border-brand-border text-xs text-white focus:outline-none focus:border-brand-pink font-mono"
+                    />
+                    <label className="py-2.5 px-3.5 rounded-xl bg-brand-surfaceElevated hover:bg-brand-charcoal border border-brand-border text-xs font-semibold text-white cursor-pointer flex items-center gap-1.5 shrink-0 transition-colors">
+                      <Upload className="w-3.5 h-3.5 text-brand-pink" />
+                      <span>{uploadingImage ? '...' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage}
+                        onChange={handleImageFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-brand-subtle uppercase tracking-wider">
+                    Hero / Backdrop Art (Landscape)
+                  </label>
                   <input
                     type="text"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="https://... or upload below"
-                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-brand-darker border border-brand-border text-xs text-white focus:outline-none focus:border-brand-pink font-mono"
+                    value={formData.heroImage || ''}
+                    onChange={(e) => setFormData({ ...formData, heroImage: e.target.value })}
+                    placeholder="/assets/games/... or https://"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-brand-darker border border-brand-border text-xs text-white focus:outline-none focus:border-brand-pink font-mono"
                   />
-                  <label className="py-2.5 px-3.5 rounded-xl bg-brand-surfaceElevated hover:bg-brand-charcoal border border-brand-border text-xs font-semibold text-white cursor-pointer flex items-center gap-1.5 shrink-0 transition-colors">
-                    <Upload className="w-3.5 h-3.5 text-brand-pink" />
-                    <span>{uploadingImage ? 'Uploading...' : 'Upload Image'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingImage}
-                      onChange={handleImageFileChange}
-                      className="hidden"
-                    />
-                  </label>
                 </div>
               </div>
 

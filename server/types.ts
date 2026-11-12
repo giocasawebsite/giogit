@@ -32,6 +32,7 @@ export interface GameItem {
   genre?: string; // 'Action', 'Racing', 'Fighting', 'Sports', 'Adventure', 'Sandbox'
   description: string;
   image: string;
+  heroImage?: string;
   imagePublicId?: string;
   isAvailable: boolean;
   availabilityStatus?: GameAvailabilityStatus;

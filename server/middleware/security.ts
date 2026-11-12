@@ -373,7 +373,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.unsplash.com",
+    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.unsplash.com https://cdn.cloudflare.steamstatic.com https://*.steamstatic.com https://media.rawg.io https://upload.wikimedia.org https://images.igdb.com",
     "connect-src 'self' https://giogit.onrender.com https://giocasa.in https://*.giocasa.in https://giocasa1.netlify.app https://*.netlify.app https://res.cloudinary.com http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

@@ -63,6 +63,7 @@ export interface GameItem {
   genre?: string;
   description: string;
   image: string;
+  heroImage?: string;
   imagePublicId?: string;
   isAvailable: boolean;
   availabilityStatus?: GameAvailabilityStatus;

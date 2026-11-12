@@ -32,7 +32,9 @@ interface GamesPageProps {
 }
 
 // Fallback high-res cover art in case of any network interruption
-const DEFAULT_GAME_ARTWORK = 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80';
+// Fallback high-res cover art in case of any network interruption
+const DEFAULT_GAME_ARTWORK = '/assets/games/gta-5_cover.jpg';
+const DEFAULT_HERO_ARTWORK = '/assets/games/gta-5_hero.jpg';
 
 // Fallback initial list of all 14 games in case backend is loading
 const FALLBACK_14_GAMES: GameItem[] = [
@@ -42,7 +44,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Action',
     description: 'Experience the genre-defining open-world masterpiece in Los Santos. Features ray-traced 4K visuals, 60 FPS performance, fast-paced heist missions, and complete open-world freedom across Franklin, Michael, and Trevor.',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/gta-5_cover.jpg',
+    heroImage: '/assets/games/gta-5_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: true,
@@ -62,7 +65,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Action',
     description: 'The most anticipated open-world spectacle of the generation. Set in the neon-soaked streets and coastal Everglades of Vice City and the state of Leonida. Pre-configured for GioCasa PS5 Pro stations upon launch.',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/gta-6_cover.webp',
+    heroImage: '/assets/games/gta-6_hero.jpg',
     isAvailable: false,
     availabilityStatus: 'coming_soon',
     isFeatured: true,
@@ -82,7 +86,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Fighting',
     description: 'Celebrate 40 years of WrestleMania with legendary icons and modern superstars. Intense 4-player couch multiplayer, Royal Rumble brawls, and precision ring reversals with friends.',
-    image: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/wwe_cover.jpg',
+    heroImage: '/assets/games/wwe_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -102,7 +107,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Fighting',
     description: 'Powered by Unreal Engine 5 with groundbreaking graphics and the aggressive Heat System. High-speed martial arts combat, visceral stage destruction, and tournament-grade competition.',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/tekken-8_cover.jpg',
+    heroImage: '/assets/games/tekken-8_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: true,
@@ -122,7 +128,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Fighting',
     description: 'A reborn universe crafted by Fire God Liu Kang. Features the game-changing Kameo Fighter system, brutal cinematic Fatalities, and razor-sharp local fighting duels on ultra-low latency displays.',
-    image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/mortal-kombat_cover.jpg',
+    heroImage: '/assets/games/mortal-kombat_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -142,7 +149,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Adventure',
     description: 'The critically acclaimed narrative masterpiece. Follow Joel and Ellie across post-pandemic America with breathtaking storytelling, stealth mechanics, and harrowing survival encounters.',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/the-last-of-us_cover.jpg',
+    heroImage: '/assets/games/the-last-of-us_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -162,7 +170,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Sports',
     description: 'Next-generation football action featuring true ball physics, authentic international club rosters, tactical dribbling, and electric 4-player head-to-head match-ups.',
-    image: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/fifa-2k26_cover.jpg',
+    heroImage: '/assets/games/fifa-2k26_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: true,
@@ -182,7 +191,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Action',
     description: 'Fast-paced military tactical shooter. Jump into heart-pounding multiplayer gunfights, objective modes, and precision reflex shooting on high-refresh low-lag displays.',
-    image: 'https://images.unsplash.com/photo-1542751110-97427bbecf20?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/call-of-duty_cover.jpg',
+    heroImage: '/assets/games/call-of-duty_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -202,7 +212,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Action',
     description: 'Peter Parker and Miles Morales swing through Marvel New York with near-instant fast travel, Web Wings across skyscrapers, Symbiote combat, and legendary Marvel villains.',
-    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/spider-man_cover.jpg',
+    heroImage: '/assets/games/spider-man_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: true,
@@ -222,7 +233,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'racing',
     genre: 'Racing',
     description: 'The ultimate open-world automotive adventure. Drive hundreds of the world greatest supercars through vibrant Mexican landscapes, deserts, jungles, and mountain highways.',
-    image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/forza_cover.jpg',
+    heroImage: '/assets/games/forza_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: true,
@@ -242,7 +254,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'racing',
     genre: 'Racing',
     description: 'Step into the cockpit of an official Formula 1 machine. Dynamic tire wear physics, authentic telemetry, and official circuits integrated with the force-feedback simulator cockpit.',
-    image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/f1_cover.jpg',
+    heroImage: '/assets/games/f1_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -262,7 +275,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'racing',
     genre: 'Racing',
     description: 'Hyper-arcade racing thrills with gravity-defying nitro stunts, 360-barrel rolls, licensed hypercars (Ferrari, Porsche, Lamborghini), and lightning-fast arcade velocity.',
-    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/asphalt_cover.jpg',
+    heroImage: '/assets/games/asphalt_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -282,7 +296,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Adventure',
     description: 'Journey across the Nine Realms with Kratos and Atreus as Fimbulwinter tightens its grip. Brutal Leviathan Axe combat, Norse mythological gods, and breathtaking cinematic scale.',
-    image: 'https://images.unsplash.com/photo-1519074069444-1ba4eae16e60?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/god-of-war_cover.jpg',
+    heroImage: '/assets/games/god-of-war_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -302,7 +317,8 @@ const FALLBACK_14_GAMES: GameItem[] = [
     category: 'ps5',
     genre: 'Sandbox',
     description: 'Infinite possibilities. Build magnificent architectural wonders, explore perilous caves, survive the night against mobs, or team up in local split-screen creative building sessions.',
-    image: 'https://images.unsplash.com/photo-1627856013091-fed6e4e30025?auto=format&fit=crop&w=1200&q=80',
+    image: '/assets/games/minecraft_cover.png',
+    heroImage: '/assets/games/minecraft_hero.jpg',
     isAvailable: true,
     availabilityStatus: 'available',
     isFeatured: false,
@@ -491,7 +507,18 @@ export const GamesPage: React.FC<GamesPageProps> = ({ onNavigate }) => {
         {/* ============================================================== */}
         {currentFeatured && (
           <div className="relative rounded-3xl overflow-hidden border border-brand-border/80 bg-brand-surface shadow-2xl">
-            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[420px] sm:min-h-[460px]">
+            {/* Ambient Blurred Artwork Glow */}
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <img
+                src={currentFeatured.heroImage || currentFeatured.image || DEFAULT_HERO_ARTWORK}
+                alt=""
+                aria-hidden="true"
+                className="w-full h-full object-cover opacity-20 blur-3xl scale-125"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-surface via-brand-surface/95 to-brand-surface/70" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[420px] sm:min-h-[460px] relative z-10">
               {/* Left Column: Editorial Info */}
               <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-between relative z-10 space-y-6">
                 <div className="space-y-4">
@@ -577,12 +604,12 @@ export const GamesPage: React.FC<GamesPageProps> = ({ onNavigate }) => {
               {/* Right Column: Hero Artwork */}
               <div className="lg:col-span-5 relative min-h-[260px] lg:min-h-full overflow-hidden bg-brand-charcoalDeep">
                 <img
-                  src={currentFeatured.image || DEFAULT_GAME_ARTWORK}
+                  src={currentFeatured.heroImage || currentFeatured.image || DEFAULT_HERO_ARTWORK}
                   alt={currentFeatured.title}
                   loading="eager"
                   decoding="async"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = DEFAULT_GAME_ARTWORK;
+                    (e.currentTarget as HTMLImageElement).src = currentFeatured.image || DEFAULT_GAME_ARTWORK;
                   }}
                   className="w-full h-full object-cover object-center brightness-95 hover:scale-105 transition-transform duration-700"
                 />
@@ -641,12 +668,12 @@ export const GamesPage: React.FC<GamesPageProps> = ({ onNavigate }) => {
               >
                 <div className="relative aspect-[16/10] overflow-hidden bg-brand-charcoalDeep">
                   <img
-                    src={game.image || DEFAULT_GAME_ARTWORK}
+                    src={game.heroImage || game.image || DEFAULT_HERO_ARTWORK}
                     alt={game.title}
                     loading="lazy"
                     decoding="async"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = DEFAULT_GAME_ARTWORK;
+                      (e.currentTarget as HTMLImageElement).src = game.image || DEFAULT_GAME_ARTWORK;
                     }}
                     className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
                   />
@@ -1078,16 +1105,16 @@ const GameDetailModal: React.FC<GameDetailModalProps> = ({ game, onClose, onBook
           {/* Header Banner Artwork */}
           <div className="relative aspect-[16/9] sm:aspect-[21/9] bg-brand-charcoalDeep overflow-hidden">
             <img
-              src={game.image || DEFAULT_GAME_ARTWORK}
+              src={game.heroImage || game.image || DEFAULT_HERO_ARTWORK}
               alt={game.title}
               loading="eager"
               decoding="async"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = DEFAULT_GAME_ARTWORK;
+                (e.currentTarget as HTMLImageElement).src = game.image || DEFAULT_GAME_ARTWORK;
               }}
               className="w-full h-full object-cover brightness-95"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-brand-surface via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-surface via-brand-surface/40 to-transparent" />
 
             {/* Badges Overlay */}
             <div className="absolute bottom-4 left-6 right-6 flex flex-wrap items-center justify-between gap-2">
@@ -1116,13 +1143,26 @@ const GameDetailModal: React.FC<GameDetailModalProps> = ({ game, onClose, onBook
 
           {/* Modal Content */}
           <div className="p-6 sm:p-8 space-y-6">
-            <div className="space-y-2">
-              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white tracking-tight">
-                {game.title}
-              </h2>
-              <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed">
-                {game.description}
-              </p>
+            <div className="flex flex-col sm:flex-row gap-5 items-start">
+              <div className="w-24 sm:w-28 shrink-0 aspect-[4/5] rounded-xl overflow-hidden border border-brand-border/80 shadow-xl bg-brand-charcoalDeep hidden sm:block">
+                <img
+                  src={game.image || DEFAULT_GAME_ARTWORK}
+                  alt={game.title}
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = DEFAULT_GAME_ARTWORK;
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                  {game.title}
+                </h2>
+                <p className="text-sm sm:text-base text-brand-subtle font-light leading-relaxed">
+                  {game.description}
+                </p>
+              </div>
             </div>
 
             {/* Station / Hardware Mapping */}
