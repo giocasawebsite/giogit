@@ -194,7 +194,9 @@ app.use('/api/contact-settings', contactRouter);
 app.get('/api/games', async (req, res) => {
   try {
     const category = req.query.category as string;
-    const games = await dbService.getGames({ category, isAvailable: true });
+    const isAvailableQuery = req.query.isAvailable;
+    const isAvailable = isAvailableQuery !== undefined ? isAvailableQuery === 'true' : undefined;
+    const games = await dbService.getGames({ category, isAvailable });
     return res.json({ success: true, data: games });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: 'Failed to retrieve games.' });

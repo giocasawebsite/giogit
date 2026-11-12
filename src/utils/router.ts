@@ -22,6 +22,7 @@ export function parseCurrentRoute(): ParsedRoute {
 
   const queryParams = new URLSearchParams(queryString);
   const token = queryParams.get('token') || undefined;
+  const resourceId = queryParams.get('resourceId') || undefined;
 
   // Normalize path segments: remove leading/trailing slashes
   const segments = raw.split('/').filter(Boolean);
@@ -61,6 +62,11 @@ export function parseCurrentRoute(): ParsedRoute {
   // 2. HALL OF FAME
   if (segments[0] === 'hall-of-fame') {
     return { page: 'hall-of-fame', params: {} };
+  }
+
+  // 2.5 GAMING WALL
+  if (segments[0] === 'games' || segments[0] === 'gaming-wall') {
+    return { page: 'games', params: {} };
   }
 
   // 3. ADMIN ROUTES
@@ -109,6 +115,10 @@ export function parseCurrentRoute(): ParsedRoute {
       return { page: 'admin', params: { adminTab: 'hall-of-fame' } };
     }
 
+    if (segments[1] === 'games' || segments[1] === 'gaming-wall') {
+      return { page: 'admin', params: { adminTab: 'games' } };
+    }
+
     if (segments[1] === 'contact' || segments[1] === 'settings' || segments[1] === 'contact-settings') {
       return { page: 'admin', params: { adminTab: 'contact' } };
     }
@@ -125,9 +135,9 @@ export function parseCurrentRoute(): ParsedRoute {
   }
 
   // 4. EXISTING CORE PAGES
-  const corePages: PageRoute[] = ['experience', 'menu', 'gaming', 'events', 'about', 'contact', 'book'];
+  const corePages: PageRoute[] = ['experience', 'menu', 'gaming', 'games', 'events', 'about', 'contact', 'book'];
   if (corePages.includes(segments[0] as PageRoute)) {
-    return { page: segments[0] as PageRoute, params: {} };
+    return { page: segments[0] as PageRoute, params: { resourceId } };
   }
 
   return { page: 'home', params: {} };
@@ -137,6 +147,12 @@ export function buildRoutePath(page: PageRoute, params?: RouteParams): string {
   switch (page) {
     case 'home':
       return '/';
+    case 'games':
+      return '/games';
+    case 'book': {
+      const q = params?.resourceId ? `?resourceId=${encodeURIComponent(params.resourceId)}` : '';
+      return `/book${q}`;
+    }
     case 'tournaments':
       return '/tournaments';
     case 'tournament-detail':
@@ -175,6 +191,7 @@ export function buildRoutePath(page: PageRoute, params?: RouteParams): string {
         return `/admin/tournaments/${params.adminTournamentId}/results`;
       }
       if (params?.adminTab === 'tournaments') return '/admin/tournaments';
+      if (params?.adminTab === 'games') return '/admin/games';
       if (params?.adminTab === 'hall-of-fame') return '/admin/hall-of-fame';
       if (params?.adminTab === 'contact') return '/admin/contact';
       if (params?.adminTab === 'equipment') return '/admin/equipment';

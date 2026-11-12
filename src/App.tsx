@@ -14,6 +14,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m
 const ExperiencePage = lazy(() => import('./pages/ExperiencePage').then((m) => ({ default: m.ExperiencePage })));
 const MenuPage = lazy(() => import('./pages/MenuPage').then((m) => ({ default: m.MenuPage })));
 const GamingPage = lazy(() => import('./pages/GamingPage').then((m) => ({ default: m.GamingPage })));
+const GamesPage = lazy(() => import('./pages/GamesPage').then((m) => ({ default: m.GamesPage })));
 const EventsPage = lazy(() => import('./pages/EventsPage').then((m) => ({ default: m.EventsPage })));
 const AboutPage = lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() => import('./pages/ContactPage').then((m) => ({ default: m.ContactPage })));
@@ -76,6 +77,8 @@ export const App: React.FC = () => {
         return <MenuPage onNavigate={navigateTo} />;
       case 'gaming':
         return <GamingPage onNavigate={navigateTo} />;
+      case 'games':
+        return <GamesPage onNavigate={navigateTo} />;
       case 'events':
         return <EventsPage onNavigate={navigateTo} />;
       case 'about':
@@ -83,7 +86,7 @@ export const App: React.FC = () => {
       case 'contact':
         return <ContactPage onNavigate={navigateTo} />;
       case 'book':
-        return <BookingPage onNavigate={navigateTo} />;
+        return <BookingPage onNavigate={navigateTo} initialResourceId={currentRoute.params.resourceId} />;
       case 'admin':
         return (
           <AdminPage

@@ -644,7 +644,24 @@ router.get('/games', async (req: Request, res: Response) => {
 // POST /api/admin/games - Add a new game
 router.post('/games', async (req: Request, res: Response) => {
   try {
-    const { title, category, description, image, isAvailable, genre, minPlayers, maxPlayers } = req.body;
+    const {
+      title,
+      category,
+      description,
+      image,
+      imagePublicId,
+      isAvailable,
+      availabilityStatus,
+      isFeatured,
+      resourceId,
+      resourceName,
+      playOptions,
+      badge,
+      genre,
+      minPlayers,
+      maxPlayers,
+      order,
+    } = req.body;
     if (!title || !category) {
       return res.status(400).json({ success: false, error: 'Game title and category are required.' });
     }
@@ -654,10 +671,18 @@ router.post('/games', async (req: Request, res: Response) => {
       category,
       description: description || '',
       image: image || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
-      isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
+      imagePublicId,
+      isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : availabilityStatus !== 'unavailable' && availabilityStatus !== 'coming_soon',
+      availabilityStatus: availabilityStatus || (isAvailable === false ? 'coming_soon' : 'available'),
+      isFeatured: Boolean(isFeatured),
+      resourceId: resourceId || '',
+      resourceName: resourceName || '',
+      playOptions: Array.isArray(playOptions) ? playOptions : [],
+      badge: badge || '',
       genre: genre || 'Action',
       minPlayers: Number(minPlayers) || 1,
       maxPlayers: Number(maxPlayers) || 2,
+      order: order !== undefined ? Number(order) : 50,
     });
 
     return res.status(201).json({

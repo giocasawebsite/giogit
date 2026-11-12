@@ -85,6 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const navLinks: { id: PageRoute; label: string }[] = [
     { id: 'menu', label: 'Menu' },
     { id: 'gaming', label: 'Gaming' },
+    { id: 'games', label: 'Gaming Wall' },
     { id: 'tournaments', label: 'Arena' },
     { id: 'events', label: 'Events' },
     { id: 'experience', label: 'Experience' },
@@ -95,11 +96,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
     { id: 'home', label: 'Home', num: '01' },
     { id: 'menu', label: 'Food & Drinks Menu', num: '02' },
     { id: 'gaming', label: 'Gaming Lounge', num: '03' },
-    { id: 'tournaments', label: 'Arena Tournaments', num: '04' },
-    { id: 'experience', label: 'Dual-Floor Experience', num: '05' },
-    { id: 'events', label: 'Private Events', num: '06' },
-    { id: 'about', label: 'Our Story', num: '07' },
-    { id: 'contact', label: 'Contact & Location', num: '08' },
+    { id: 'games', label: 'Gaming Wall', num: '04' },
+    { id: 'tournaments', label: 'Arena Tournaments', num: '05' },
+    { id: 'experience', label: 'Dual-Floor Experience', num: '06' },
+    { id: 'events', label: 'Private Events', num: '07' },
+    { id: 'about', label: 'Our Story', num: '08' },
+    { id: 'contact', label: 'Contact & Location', num: '09' },
   ];
 
   const handleNavClick = (page: PageRoute) => {

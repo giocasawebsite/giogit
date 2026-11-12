@@ -9,6 +9,7 @@ import { AdminEquipmentManager } from '../components/admin/AdminEquipmentManager
 import { AdminReservationsManager } from '../components/admin/AdminReservationsManager';
 import { AdminGuestVerification } from '../components/admin/AdminGuestVerification';
 import { AdminMediaManager } from '../components/admin/AdminMediaManager';
+import { AdminGamesManager } from '../components/admin/AdminGamesManager';
 import { getPricingDescription } from '../utils/pricing';
 import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
 import {
@@ -72,9 +73,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Tab Navigation: 'stations' | 'verify' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'
-  const [selectedTab, setSelectedTab] = useState<'stations' | 'verify' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'>(() => {
+  // Tab Navigation: 'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'
+  const [selectedTab, setSelectedTab] = useState<'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'>(() => {
     if (adminTab === 'verify') return 'verify';
+    if (adminTab === 'games' || adminTab === 'gaming-wall') return 'games';
     if (adminTab === 'reservations') return 'reservations';
     if (adminTab === 'equipment') return 'equipment';
     if (adminTab === 'players') return 'players';
@@ -88,6 +90,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   useEffect(() => {
     if (adminTab === 'verify') {
       setSelectedTab('verify');
+    } else if (adminTab === 'games' || adminTab === 'gaming-wall') {
+      setSelectedTab('games');
     } else if (adminTab === 'reservations') {
       setSelectedTab('reservations');
     } else if (adminTab === 'equipment') {
@@ -698,6 +702,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
           <button
             onClick={() => {
+              setSelectedTab('games');
+              onNavigate('admin', { adminTab: 'games' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'games'
+                ? 'border-brand-pink text-brand-pink font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <Gamepad2 className="w-4 h-4 text-brand-pink" />
+            <span>Gaming Wall (14 Titles)</span>
+          </button>
+
+          <button
+            onClick={() => {
               setSelectedTab('tournaments');
               onNavigate('admin', { adminTab: 'tournaments' });
             }}
@@ -1247,6 +1266,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       <AdminGuestVerification
         passcode={passcode}
         adminUser="GioCasa Admin"
+      />
+    )}
+
+    {/* GAMING WALL CATALOGUE MANAGER */}
+    {selectedTab === 'games' && (
+      <AdminGamesManager
+        passcode={passcode}
       />
     )}
 

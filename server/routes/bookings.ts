@@ -37,11 +37,13 @@ router.get('/resources', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/booking/games - Retrieve all available games from the library
+// GET /api/booking/games - Retrieve all available or public games from the library
 router.get('/games', async (req: Request, res: Response) => {
   try {
     const category = req.query.category as string;
-    const games = await dbService.getGames({ category, isAvailable: true });
+    const isAvailableQuery = req.query.isAvailable;
+    const isAvailable = isAvailableQuery !== undefined ? isAvailableQuery === 'true' : undefined;
+    const games = await dbService.getGames({ category, isAvailable });
     return res.json({ success: true, data: games });
   } catch (err: any) {
     console.error('Error fetching public games:', err);

@@ -48,6 +48,13 @@ export const GamingPage: React.FC<GamingPageProps> = ({ onNavigate }) => {
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
             <button
+              onClick={() => onNavigate('games')}
+              className="py-3 px-6 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-pink text-white text-xs font-semibold uppercase tracking-wider transition-all hover:-translate-y-0.5 flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-brand-pink" />
+              <span>Explore Gaming Wall (14 Games)</span>
+            </button>
+            <button
               onClick={() => onNavigate('book')}
               className="py-3 px-6 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-semibold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
             >

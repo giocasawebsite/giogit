@@ -23,15 +23,23 @@ export interface GamingResource {
   updatedAt?: string;
 }
 
+export type GameAvailabilityStatus = 'available' | 'coming_soon' | 'unavailable' | 'maintenance';
+
 export interface GameItem {
-  id: string; // e.g. 'game-ea-fc-25'
-  title: string; // 'EA Sports FC 25'
+  id: string; // e.g. 'game-gta-5'
+  title: string; // 'GTA 5'
   category: string; // 'ps5', 'xbox', 'pc', 'racing', 'pool', 'foosball', 'boardgames', 'all'
-  genre?: string; // 'Sports', 'Fighting', 'Action', 'Racing', 'Co-op', 'Billiards', 'Tabletop'
+  genre?: string; // 'Action', 'Racing', 'Fighting', 'Sports', 'Adventure', 'Sandbox'
   description: string;
   image: string;
   imagePublicId?: string;
   isAvailable: boolean;
+  availabilityStatus?: GameAvailabilityStatus;
+  isFeatured?: boolean;
+  resourceId?: string;
+  resourceName?: string;
+  playOptions?: string[];
+  badge?: string;
   minPlayers?: number;
   maxPlayers?: number;
   order?: number;

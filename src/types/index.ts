@@ -3,6 +3,7 @@ export type PageRoute =
   | 'experience'
   | 'menu'
   | 'gaming'
+  | 'games'
   | 'events'
   | 'about'
   | 'contact'
@@ -19,7 +20,8 @@ export interface RouteParams {
   slug?: string;
   registrationId?: string;
   token?: string;
-  adminTab?: 'overview' | 'verify' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media';
+  resourceId?: string;
+  adminTab?: 'overview' | 'verify' | 'games' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media';
   adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminTournamentId?: string;
   adminPlayerId?: string;
@@ -52,6 +54,8 @@ export interface GamingResource {
   updatedAt?: string;
 }
 
+export type GameAvailabilityStatus = 'available' | 'coming_soon' | 'unavailable' | 'maintenance';
+
 export interface GameItem {
   id: string;
   title: string;
@@ -61,6 +65,12 @@ export interface GameItem {
   image: string;
   imagePublicId?: string;
   isAvailable: boolean;
+  availabilityStatus?: GameAvailabilityStatus;
+  isFeatured?: boolean;
+  resourceId?: string;
+  resourceName?: string;
+  playOptions?: string[];
+  badge?: string;
   minPlayers?: number;
   maxPlayers?: number;
   order?: number;
