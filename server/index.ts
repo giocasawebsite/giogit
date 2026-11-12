@@ -41,38 +41,71 @@ app.use(enforceHttps);
 app.use(securityHeaders);
 
 // 3. Restrictive CORS configuration
-const allowedOrigins = [
+export const allowedOrigins = [
+  'https://giocasa.in',
+  'https://www.giocasa.in',
   'https://giocasa1.netlify.app',
   ...(config.corsOrigin && config.corsOrigin !== '*'
-    ? config.corsOrigin.split(',').map((o) => o.trim())
+    ? config.corsOrigin.split(',').map((o) => o.trim().replace(/\/$/, ''))
     : []),
 ];
 
-app.use(cors({
+export function isOriginAllowed(origin?: string): boolean {
+  if (!origin) return true; // Allow non-browser callers (server-to-server, curl, mobile native)
+  const clean = origin.trim().replace(/\/$/, '');
+
+  // 1. Explicitly configured production origins
+  if (allowedOrigins.some((o) => o.toLowerCase() === clean.toLowerCase())) {
+    return true;
+  }
+
+  // 2. Apex and any subdomains under giocasa.in
+  if (/^https:\/\/([a-zA-Z0-9-]+\.)*giocasa\.in$/i.test(clean)) {
+    return true;
+  }
+
+  // 3. Netlify production and deploy preview domains
+  if (
+    clean.toLowerCase() === 'https://giocasa1.netlify.app' ||
+    /^https:\/\/[a-z0-9-]+--giocasa1\.netlify\.app$/i.test(clean) ||
+    /^https:\/\/[a-z0-9-]+--giocasa\.netlify\.app$/i.test(clean) ||
+    /^https:\/\/giocasa[a-z0-9-]*\.netlify\.app$/i.test(clean)
+  ) {
+    return true;
+  }
+
+  // 4. Localhost and local IP development
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(clean)) {
+    return true;
+  }
+
+  return false;
+}
+
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser callers (mobile apps, server-to-server, curl, tests)
-    if (!origin) return callback(null, true);
-
-    // Explicitly allowed origins
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-
-    // Localhost in development
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
-
-    // Netlify deploy previews for giocasa1
-    if (/^https:\/\/[a-z0-9-]+--giocasa1\.netlify\.app$/.test(origin)) {
-      return callback(null, true);
-    }
-
-    // Reject all other origins
-    return callback(new Error('CORS Not Allowed: Origin is not permitted.'));
+    return callback(new Error(`CORS Not Allowed: Origin ${origin} is not permitted.`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-passcode', 'x-admin-token'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-admin-passcode',
+    'x-admin-token',
+    'x-requested-with',
+    'Accept',
+    'Origin',
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range', 'ETag'],
   credentials: true,
-}));
+  optionsSuccessStatus: 200,
+  maxAge: 86400, // 24 hours preflight cache
+};
+
+app.use(cors(corsOptions));
 
 // Dedicated body size limit for authenticated admin image uploads (up to 10MB)
 app.use('/api/admin/uploads', express.json({ limit: '10mb' }));
@@ -205,6 +238,13 @@ if (fs.existsSync(distPath)) {
 
 // Global error handler (protects against stack trace & internal error leakage)
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  }
+
   if (err.message && err.message.startsWith('CORS Not Allowed')) {
     return res.status(403).json({ success: false, error: 'Forbidden: Request origin is not permitted.' });
   }
