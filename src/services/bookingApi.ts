@@ -212,7 +212,10 @@ export const bookingApi = {
   // Admin APIs (require passcode header)
   async getAdminOverview(passcode: string): Promise<AdminOverviewData> {
     const res = await fetch(`${API_BASE}/admin/overview`, {
-      headers: { 'x-admin-passcode': passcode },
+      headers: {
+        'x-admin-passcode': passcode,
+        Authorization: `Bearer ${passcode}`,
+      },
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to load admin overview');
@@ -230,7 +233,10 @@ export const bookingApi = {
     if (filters?.search) params.set('search', filters.search);
 
     const res = await fetch(`${API_BASE}/admin/bookings?${params.toString()}`, {
-      headers: { 'x-admin-passcode': passcode },
+      headers: {
+        'x-admin-passcode': passcode,
+        Authorization: `Bearer ${passcode}`,
+      },
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to load bookings');
@@ -284,12 +290,16 @@ export const bookingApi = {
     return json.data;
   },
 
-  async changeAdminPasscode(currentPasscode: string, newPasscode: string): Promise<{ success: boolean; message: string }> {
+  async changeAdminPasscode(
+    currentPasscode: string,
+    newPasscode: string
+  ): Promise<{ success: boolean; message: string; data?: { token: string; expiresAt: string } }> {
     const res = await fetch(`${API_BASE}/admin/change-passcode`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-admin-passcode': currentPasscode,
+        Authorization: `Bearer ${currentPasscode}`,
       },
       body: JSON.stringify({ currentPasscode, newPasscode }),
     });

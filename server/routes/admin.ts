@@ -11,6 +11,7 @@ import {
   createAdminSession,
   validateAdminSession,
   invalidateAdminSession,
+  invalidateAllAdminSessions,
   logSecurityEvent,
   getSecurityAuditLogs,
 } from '../middleware/security';
@@ -39,7 +40,8 @@ router.post('/login', adminLoginLimiter.middleware, async (req: Request, res: Re
     }
 
     adminLoginLimiter.reset(req);
-    const session = createAdminSession(req);
+    const sessionVersion = await dbService.getSessionVersion();
+    const session = createAdminSession(req, sessionVersion);
     return res.json({
       success: true,
       message: 'Admin authentication successful.',
@@ -71,8 +73,10 @@ router.post('/verify', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: 'Admin credentials required.' });
     }
 
-    // 1. Check if token is already an active session
-    if (validateAdminSession(tokenOrPasscode)) {
+    const sessionVersion = await dbService.getSessionVersion();
+
+    // 1. Check if token is already a valid session
+    if (validateAdminSession(tokenOrPasscode, sessionVersion)) {
       return res.json({ success: true, message: 'Passcode verified.' });
     }
 
@@ -80,7 +84,7 @@ router.post('/verify', async (req: Request, res: Response) => {
     const isValid = await dbService.verifyAdminPasscode(tokenOrPasscode);
     if (isValid) {
       adminLoginLimiter.reset(req);
-      const session = createAdminSession(req);
+      const session = createAdminSession(req, sessionVersion);
       return res.json({
         success: true,
         message: 'Passcode verified.',
@@ -124,35 +128,49 @@ export const requireAdminAuth = async (req: Request, res: Response, next: NextFu
   try {
     const authHeader = req.headers['authorization'];
     const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    const passcode = (
+    const credential = (
       bearerToken ||
       req.headers['x-admin-token'] ||
       req.headers['x-admin-passcode'] ||
       req.query.passcode
     ) as string;
 
-    if (!passcode) {
+    if (!credential) {
       logSecurityEvent('AUTH_FAILURE', req, 'Missing admin credentials');
       return res.status(401).json({ success: false, error: 'Unauthorized: Admin authentication required.' });
     }
 
-    // 1. Check if token is an active session
-    if (validateAdminSession(passcode)) {
-      return next();
+    // 1. Check if credential is a valid stateless HMAC session token
+    //    (These start with gio_sec_ and are self-validating — no DB lookup needed
+    //     except for the cached sessionVersion, which is O(1) most of the time)
+    if (credential.startsWith('gio_sec_')) {
+      const sessionVersion = await dbService.getSessionVersion();
+      if (validateAdminSession(credential, sessionVersion)) {
+        return next();
+      }
+      // Session token is invalid or expired — do NOT record as brute-force attempt.
+      // The token was legitimately issued; it may be expired or from another device.
+      logSecurityEvent('AUTH_FAILURE', req, 'Expired or invalidated session token');
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: Session expired. Please log in again.',
+        code: 'SESSION_EXPIRED',
+      });
     }
 
-    // 2. Check if tokenOrPasscode matches raw admin passcode
-    const isPasscodeValid = await dbService.verifyAdminPasscode(passcode);
+    // 2. Check if credential matches raw admin passcode (legacy / direct passcode path)
+    const isPasscodeValid = await dbService.verifyAdminPasscode(credential);
     if (isPasscodeValid) {
       adminLoginLimiter.reset(req);
       return next();
     }
 
+    // 3. Neither — record as a brute-force failure
     adminLoginLimiter.recordFailure(req);
-    logSecurityEvent('AUTH_FAILURE', req, 'Invalid passcode or expired session token');
+    logSecurityEvent('AUTH_FAILURE', req, 'Invalid admin passcode');
     return res.status(401).json({
       success: false,
-      error: 'Unauthorized: Invalid Admin Passcode or session expired.',
+      error: 'Unauthorized: Invalid Admin Passcode.',
       code: 'AUTH_INVALID',
     });
   } catch (err: any) {
@@ -171,7 +189,7 @@ router.get('/security-audit', (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/admin/change-passcode - Update admin passcode
+// POST /api/admin/change-passcode - Update admin passcode and revoke ALL active sessions
 router.post('/change-passcode', async (req: Request, res: Response) => {
   try {
     const { currentPasscode, newPasscode } = req.body || {};
@@ -190,9 +208,26 @@ router.post('/change-passcode', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'New passcode must be at least 8 characters long.' });
     }
 
+    // 1. Save the new passcode
     await dbService.setAdminPasscode(newPasscode.trim());
-    logSecurityEvent('PASSCODE_CHANGED', req, 'Admin passcode changed');
-    return res.json({ success: true, message: 'Admin passcode updated successfully.' });
+
+    // 2. Increment session version — this GLOBALLY INVALIDATES all existing session tokens
+    //    across every device/browser that is currently logged in.
+    const newSessionVersion = await dbService.incrementSessionVersion();
+    invalidateAllAdminSessions(req);
+
+    // 3. Issue a fresh token for the current device so it stays logged in
+    const session = createAdminSession(req, newSessionVersion);
+
+    logSecurityEvent('PASSCODE_CHANGED', req, 'Admin passcode changed — all sessions revoked');
+    return res.json({
+      success: true,
+      message: 'Admin passcode updated. All other devices have been logged out.',
+      data: {
+        token: session.token,
+        expiresAt: session.expiresAt,
+      },
+    });
   } catch (err: any) {
     console.error('Error changing admin passcode:', err);
     return res.status(500).json({ success: false, error: 'Failed to change admin passcode.' });
@@ -345,6 +380,7 @@ router.post('/bookings', async (req: Request, res: Response) => {
     const durationMinutes = body.durationMinutes || 60;
     const startMins = timeToMinutes(body.startTime);
     const endMins = startMins + durationMinutes;
+    const endTime = minutesToTime(endMins); // FIX: was missing — caused "ReferenceError: endTime is not defined"
     const numberOfPeople = body.numberOfPeople || 1;
     const totalAmount =
       body.totalAmount !== undefined

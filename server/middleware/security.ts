@@ -102,62 +102,163 @@ export function verifyPassword(plainText: string, storedHashOrPlain: string): bo
 }
 
 // =========================================================================
-// 4. SECURE ADMIN SESSIONS (Token with 12-hour expiry)
+// 4. STATELESS HMAC-SIGNED ADMIN SESSIONS
+//
+// Tokens are cryptographically self-validating — no server-side Map needed.
+// This means admin sessions survive Render server restarts and sleep cycles.
+//
+// Token format:  gio_sec_<base64url(payload)>.<hmac_hex_32>
+// Payload:       { iat: epochMs, exp: epochMs, v: sessionVersion }
+//
+// Global revocation (password change invalidates ALL devices):
+//   The `v` field (sessionVersion) is stored in MongoDB.
+//   Incrementing it in the DB instantly invalidates every existing token
+//   because their embedded `v` will no longer match the current DB version.
+//
+// Single-device logout:
+//   Token is added to a small in-memory denylist until it expires.
+//   The denylist is cleared on server restart, which is acceptable because
+//   single-device logouts are user-initiated from live sessions.
 // =========================================================================
-interface AdminSession {
-  token: string;
-  createdAt: number;
-  expiresAt: number;
-  ip: string;
-}
-
-const activeSessions = new Map<string, AdminSession>();
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
-// Periodic garbage collection for expired sessions
+// Denylist for explicit single-device logout: token -> expiry timestamp
+const tokenDenylist = new Map<string, number>();
+
+// Auto-clean expired denylist entries every 10 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [token, session] of activeSessions.entries()) {
-    if (session.expiresAt <= now) {
-      activeSessions.delete(token);
-    }
+  for (const [token, exp] of tokenDenylist.entries()) {
+    if (exp <= now) tokenDenylist.delete(token);
   }
-}, 5 * 60 * 1000).unref();
+}, 10 * 60 * 1000).unref();
 
-export function createAdminSession(req: Request): { token: string; expiresAt: string } {
-  const token = `gio_sec_${crypto.randomBytes(32).toString('hex')}`;
-  const now = Date.now();
-  const expiresAt = now + SESSION_TTL_MS;
-
-  activeSessions.set(token, {
-    token,
-    createdAt: now,
-    expiresAt,
-    ip: getClientIp(req),
-  });
-
-  logSecurityEvent('AUTH_SUCCESS', req, 'Admin session issued');
-  return { token, expiresAt: new Date(expiresAt).toISOString() };
+function getSigningSecret(): string {
+  const secret = config.sessionSecret || config.adminPasscode;
+  if (!secret) {
+    console.error(
+      '⚠️  [SECURITY] Neither SESSION_SECRET nor ADMIN_PASSCODE is set. ' +
+      'Admin session signing is insecure. Set SESSION_SECRET in your Render environment dashboard.'
+    );
+    return 'giocasa-fallback-signing-key-v2';
+  }
+  return secret;
 }
 
-export function validateAdminSession(token: string): boolean {
-  if (!token) return false;
-  const session = activeSessions.get(token);
-  if (!session) return false;
-  if (session.expiresAt <= Date.now()) {
-    activeSessions.delete(token);
+interface AdminSessionPayload {
+  iat: number; // issued-at ms
+  exp: number; // expiry ms
+  v: number;   // sessionVersion — must match current DB value
+}
+
+/**
+ * Creates a stateless, HMAC-signed admin session token that encodes its own
+ * expiry and the current sessionVersion. No server-side state is stored.
+ *
+ * @param req            Express request (used for audit logging)
+ * @param sessionVersion Current DB sessionVersion (from dbService.getSessionVersion())
+ */
+export function createAdminSession(
+  req: Request,
+  sessionVersion: number
+): { token: string; expiresAt: string } {
+  const now = Date.now();
+  const exp = now + SESSION_TTL_MS;
+  const payload: AdminSessionPayload = { iat: now, exp, v: sessionVersion };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const secret = getSigningSecret();
+  const sig = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex').slice(0, 32);
+  const token = `gio_sec_${payloadB64}.${sig}`;
+
+  logSecurityEvent('AUTH_SUCCESS', req, `Admin session issued (v${sessionVersion})`);
+  return { token, expiresAt: new Date(exp).toISOString() };
+}
+
+/**
+ * Validates a stateless admin session token.
+ * Returns true only when ALL conditions hold:
+ *   1. HMAC signature is correct
+ *   2. Token has not expired
+ *   3. Embedded sessionVersion matches the current DB version
+ *   4. Token is not in the per-process denylist
+ *
+ * @param token                Token from the request header
+ * @param currentSessionVersion Current DB sessionVersion (from dbService.getSessionVersion())
+ */
+export function validateAdminSession(token: string, currentSessionVersion: number): boolean {
+  if (!token || !token.startsWith('gio_sec_')) return false;
+
+  try {
+    const inner = token.slice('gio_sec_'.length); // "<payloadB64>.<sig>"
+    const lastDot = inner.lastIndexOf('.');
+    if (lastDot === -1) return false;
+
+    const payloadB64 = inner.slice(0, lastDot);
+    const receivedSig = inner.slice(lastDot + 1);
+
+    // 1. Verify HMAC signature (timing-safe)
+    const secret = getSigningSecret();
+    const expectedSig = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex').slice(0, 32);
+    if (!timingSafeCompare(receivedSig, expectedSig)) return false;
+
+    // 2. Decode payload
+    const payload: AdminSessionPayload = JSON.parse(
+      Buffer.from(payloadB64, 'base64url').toString('utf8')
+    );
+
+    // 3. Check expiry
+    if (!payload.exp || payload.exp <= Date.now()) return false;
+
+    // 4. Check session version (global revocation)
+    if (typeof payload.v !== 'number' || payload.v !== currentSessionVersion) return false;
+
+    // 5. Check single-device denylist
+    if (tokenDenylist.has(token)) return false;
+
+    return true;
+  } catch {
     return false;
+  }
+}
+
+/**
+ * Invalidates a single admin session token (browser logout).
+ * Adds the token to the per-process denylist until its natural expiry.
+ */
+export function invalidateAdminSession(token: string, req?: Request): boolean {
+  if (!token || !token.startsWith('gio_sec_')) return false;
+
+  try {
+    const inner = token.slice('gio_sec_'.length);
+    const lastDot = inner.lastIndexOf('.');
+    if (lastDot !== -1) {
+      const payloadB64 = inner.slice(0, lastDot);
+      const payload: AdminSessionPayload = JSON.parse(
+        Buffer.from(payloadB64, 'base64url').toString('utf8')
+      );
+      tokenDenylist.set(token, payload.exp || Date.now() + SESSION_TTL_MS);
+    }
+  } catch {
+    tokenDenylist.set(token, Date.now() + SESSION_TTL_MS);
+  }
+
+  if (req) {
+    logSecurityEvent('LOGOUT', req, 'Admin session revoked (single device)');
   }
   return true;
 }
 
-export function invalidateAdminSession(token: string, req?: Request): boolean {
-  if (!token) return false;
-  const existed = activeSessions.delete(token);
-  if (existed && req) {
-    logSecurityEvent('LOGOUT', req, 'Admin session revoked');
+/**
+ * Invalidates ALL admin sessions globally.
+ * With stateless tokens, global invalidation is done by incrementing the
+ * sessionVersion in the DB (dbService.incrementSessionVersion()).
+ * This function clears the local denylist as housekeeping.
+ */
+export function invalidateAllAdminSessions(req?: Request): void {
+  tokenDenylist.clear();
+  if (req) {
+    logSecurityEvent('PASSCODE_CHANGED', req, 'All admin sessions globally revoked');
   }
-  return existed;
 }
 
 // =========================================================================

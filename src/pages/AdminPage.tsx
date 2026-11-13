@@ -174,6 +174,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       localStorage.removeItem('giocasa_admin_passcode');
     } catch (err: any) {
       setIsAuthenticated(false);
+      // Clear any stale token so the login form is shown immediately
+      sessionStorage.removeItem('giocasa_admin_token');
+      sessionStorage.removeItem('giocasa_admin_passcode');
+      localStorage.removeItem('giocasa_admin_passcode');
       setAuthError('Invalid Admin Passcode or session expired.');
     } finally {
       setLoading(false);
@@ -197,7 +201,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setBookings(bkData);
       setResources(resData);
     } catch (err: any) {
-      if (err?.message?.includes('401') || err?.message?.includes('Unauthorized')) {
+      if (err?.message?.includes('401') || err?.message?.includes('Unauthorized') || err?.message?.includes('Session expired')) {
+        // Clear the stale token immediately so we stop sending dead requests
+        sessionStorage.removeItem('giocasa_admin_token');
+        sessionStorage.removeItem('giocasa_admin_passcode');
+        localStorage.removeItem('giocasa_admin_passcode');
+        setPasscode('');
         setIsAuthenticated(false);
         setAuthError('Session expired. Please log in again.');
       }
@@ -266,20 +275,24 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
     setPasscodeSubmitting(true);
     try {
-      await bookingApi.changeAdminPasscode(currentPasscodeInput.trim(), newPasscodeInput.trim());
-      // Re-login with new passcode to acquire fresh session token
-      const session = await bookingApi.adminLogin(newPasscodeInput.trim());
-      setPasscode(session.token);
-      sessionStorage.setItem('giocasa_admin_token', session.token);
-      localStorage.removeItem('giocasa_admin_passcode');
-      setPasscodeModalSuccess('Admin passcode updated successfully!');
+      // The server changes the passcode, increments the session version (revoking all
+      // other devices), and returns a fresh token for the current device.
+      const result = await bookingApi.changeAdminPasscode(currentPasscodeInput.trim(), newPasscodeInput.trim());
+      const freshToken = result.data?.token;
+      if (freshToken) {
+        // Save the fresh token so this device stays logged in without re-authenticating
+        setPasscode(freshToken);
+        sessionStorage.setItem('giocasa_admin_token', freshToken);
+        localStorage.removeItem('giocasa_admin_passcode');
+      }
+      setPasscodeModalSuccess('Admin passcode updated. All other devices have been logged out.');
       setTimeout(() => {
         setShowPasscodeModal(false);
         setCurrentPasscodeInput('');
         setNewPasscodeInput('');
         setConfirmPasscodeInput('');
         setPasscodeModalSuccess(null);
-      }, 1500);
+      }, 2000);
     } catch (err: any) {
       setPasscodeModalError(err.message || 'Failed to update passcode.');
     } finally {

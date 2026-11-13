@@ -2393,7 +2393,70 @@ class DatabaseService {
     }
   }
 
+  // ======================== SESSION VERSION (Global Admin Session Revocation) ========================
+  //
+  // A monotonically incrementing integer stored in MongoDB.
+  // Every admin session token embeds the sessionVersion at the time of issue.
+  // Incrementing it in the DB instantly invalidates ALL existing tokens across
+  // all devices, because their embedded version will no longer match.
+  // Used by: change-passcode endpoint to revoke all concurrent sessions.
+
+  private cachedSessionVersion: number | null = null;
+  private sessionVersionCacheExpiry: number = 0;
+  private static readonly SESSION_VERSION_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+  async getSessionVersion(): Promise<number> {
+    const now = Date.now();
+    // Serve from cache if still fresh (avoids a DB round-trip on every admin request)
+    if (this.cachedSessionVersion !== null && now < this.sessionVersionCacheExpiry) {
+      return this.cachedSessionVersion;
+    }
+
+    if (this.isMongoConnected && this.db) {
+      try {
+        const doc = await this.db.collection('settings').findOne({ key: 'session_version' });
+        const version = typeof doc?.value === 'number' ? doc.value : 0;
+        this.cachedSessionVersion = version;
+        this.sessionVersionCacheExpiry = now + DatabaseService.SESSION_VERSION_CACHE_TTL_MS;
+        return version;
+      } catch (err) {
+        console.error('Error fetching session version from Mongo:', err);
+      }
+    }
+
+    // Fallback: use cached value if available, else default to 0
+    return this.cachedSessionVersion ?? 0;
+  }
+
+  async incrementSessionVersion(): Promise<number> {
+    let newVersion = 1;
+
+    if (this.isMongoConnected && this.db) {
+      try {
+        const result = await this.db.collection('settings').findOneAndUpdate(
+          { key: 'session_version' },
+          { $inc: { value: 1 }, $set: { updatedAt: new Date().toISOString() } },
+          { upsert: true, returnDocument: 'after' }
+        );
+        newVersion = typeof result?.value === 'number' ? result.value : 1;
+      } catch (err) {
+        console.error('Error incrementing session version in Mongo:', err);
+        // Bump the in-memory version anyway so the current process still revokes
+        newVersion = (this.cachedSessionVersion ?? 0) + 1;
+      }
+    } else {
+      newVersion = (this.cachedSessionVersion ?? 0) + 1;
+    }
+
+    // Update the in-memory cache immediately so the same process validates correctly
+    this.cachedSessionVersion = newVersion;
+    this.sessionVersionCacheExpiry = Date.now() + DatabaseService.SESSION_VERSION_CACHE_TTL_MS;
+    console.log(`[AUTH] Session version incremented to ${newVersion} — all existing admin tokens invalidated.`);
+    return newVersion;
+  }
+
   // ======================== CONTACT & WHATSAPP SETTINGS ========================
+
 
   resetContactSettingsCache(): void {
     this.cachedContactSettings = null;
