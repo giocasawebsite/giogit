@@ -9,13 +9,13 @@ export const businessConfig = {
     addressLine1: "Civil Lines / Main Hub",
     addressLine2: "Ayodhya, Uttar Pradesh 224001",
     landmark: "Near City Center",
-    googleMapsUrl: "https://maps.google.com/?q=Ayodhya+Uttar+Pradesh",
+    googleMapsUrl: "https://www.google.com/maps/place/GioCasa/@26.7855826,82.137547,17z/data=!3m1!4b1!4m6!3m5!1s0x399a07adf7b3c24f:0x8bea469861706a3d!8m2!3d26.7855778!4d82.1401219!16s%2Fg%2F11zgr_h13g?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
     mapEmbedPlaceholder: "Ayodhya, Uttar Pradesh, India"
   },
   contact: {
-    phone: "+91 96960 28522",
-    displayPhone: "+91 96960 28522",
-    whatsappNumber: "919696028522", // Format for wa.me links
+    phone: "+91 7376009646",
+    displayPhone: "+91 7376009646",
+    whatsappNumber: "7376009646", // Format for wa.me links
     email: "ciao@giocasa.in",
     instagramHandle: "@giocasa.ayodhya",
     instagramUrl: "https://instagram.com",

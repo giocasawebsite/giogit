@@ -1,13 +1,13 @@
 import React from 'react';
 import { businessConfig } from '../../data/businessConfig';
-import { 
-  MapPin, 
-  Phone, 
-  Clock, 
-  Navigation, 
-  Car, 
-  Wifi, 
-  Bike, 
+import {
+  MapPin,
+  Phone,
+  Clock,
+  Navigation,
+  Car,
+  Wifi,
+  Bike,
   MessageCircle,
   Sparkles
 } from 'lucide-react';
@@ -105,7 +105,7 @@ export const LocationMapCard: React.FC = () => {
               className="py-3 px-5 rounded-full bg-brand-surfaceElevated hover:bg-brand-surface border border-brand-border text-brand-cream text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
-              <span>Chat Concierge</span>
+              <span>Chat Consierge</span>
             </a>
           </div>
         </div>
@@ -114,7 +114,7 @@ export const LocationMapCard: React.FC = () => {
         <div className="lg:col-span-6 relative min-h-[360px] lg:min-h-full bg-brand-dark overflow-hidden border-t lg:border-t-0 lg:border-l border-brand-border flex items-center justify-center">
           {/* Stylized Architectural Map Graphic */}
           <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#C5A059_1px,transparent_1px)] [background-size:20px_20px]" />
-          
+
           <div className="relative z-10 text-center p-8 max-w-sm space-y-4">
             <div className="w-16 h-16 rounded-full bg-brand-terracotta/20 border border-brand-terracotta/50 flex items-center justify-center mx-auto text-brand-terracotta animate-pulse shadow-glow-subtle">
               <MapPin className="w-8 h-8" />
