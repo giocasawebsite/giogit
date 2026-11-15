@@ -128,7 +128,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </button>
 
           <button
-            onClick={openDrawer}
+            onClick={() => onNavigate('menu')}
             className="w-full sm:w-auto py-3.5 px-6 rounded-full bg-brand-surface hover:bg-brand-surfaceElevated text-white border border-brand-orange/60 hover:border-brand-orange font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl hover:shadow-luxury-orange"
           >
             <ShoppingBag className="w-4 h-4 text-brand-orange" />
@@ -199,7 +199,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </div>
 
             <button
-              onClick={openDrawer}
+              onClick={() => onNavigate('menu')}
               className="py-3 px-6 rounded-full bg-brand-orange hover:bg-brand-orangeHover text-brand-charcoalDeep text-xs font-bold uppercase tracking-wider transition-all shrink-0 shadow-luxury-orange"
             >
               Order Pizza Now
@@ -228,7 +228,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
               <div className="flex flex-wrap gap-4 pt-2">
                 <button
-                  onClick={openDrawer}
+                  onClick={() => onNavigate('menu')}
                   className="py-3.5 px-7 rounded-full bg-brand-orange hover:bg-brand-orangeHover text-brand-charcoalDeep font-bold text-xs uppercase tracking-widest shadow-luxury-orange transition-all flex items-center gap-2"
                 >
                   <ShoppingBag className="w-4 h-4" />

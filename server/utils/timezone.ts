@@ -12,7 +12,11 @@ export function getNowInKolkata(): {
 } {
   const now = new Date();
   
-  // Format to Asia/Kolkata locale string
+  // Format to Asia/Kolkata locale string.
+  // IMPORTANT: Use hourCycle:'h23' (NOT hour12:false) to guarantee midnight
+  // formats as '00' and not '24'. When hour12:false is used with the 'en-CA'
+  // locale on Node.js (V8), the h24 cycle is chosen, which returns '24' for
+  // 00:xx — causing totalMinutes = 1486 and all slots appearing as "passed".
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIMEZONE,
     year: 'numeric',
@@ -21,7 +25,7 @@ export function getNowInKolkata(): {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hourCycle: 'h23', // h23 = 0–23, never returns 24
   });
 
   const parts = formatter.formatToParts(now);
@@ -31,7 +35,9 @@ export function getNowInKolkata(): {
   }
 
   const dateStr = `${partMap.year}-${partMap.month}-${partMap.day}`;
-  const hour = parseInt(partMap.hour || '0', 10);
+  // Defensive: normalize hour 24 → 0 in case the runtime still returns h24
+  const rawHour = parseInt(partMap.hour || '0', 10);
+  const hour = rawHour % 24;
   const minute = parseInt(partMap.minute || '0', 10);
   const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   

@@ -18,7 +18,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({ onNavigate }) 
       <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
         {/* Order Pizza Delivery Button - Refined Card */}
         <button
-          onClick={openDrawer}
+          onClick={() => {
+            if (totalItems > 0) {
+              openDrawer();
+            } else if (onNavigate) {
+              onNavigate('menu');
+            } else {
+              window.location.hash = '#/menu';
+            }
+          }}
           className="relative flex items-center justify-center gap-1.5 py-3 px-3 rounded-full bg-brand-surface/90 border border-brand-border text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition-all hover:border-brand-orange/60"
         >
           <ShoppingBag className="w-4 h-4 text-brand-orange" />

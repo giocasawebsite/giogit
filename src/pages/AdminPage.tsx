@@ -141,7 +141,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
     startTime: '14:00',
     durationMinutes: 60,
-    numberOfPeople: 2,
+    numberOfPeople: 1,
     paymentStatus: 'paid',
     notes: 'Walk-in guest',
   });
@@ -364,7 +364,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
         date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
         startTime: '14:00',
         durationMinutes: 60,
-        numberOfPeople: 2,
+        numberOfPeople: 1,
         paymentStatus: 'paid',
         notes: 'Walk-in guest',
       });

@@ -68,8 +68,8 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     order: 2,
   },
   {
-    id: 'hotshot-pool-table',
-    name: 'Hot-Shot Slate 8-Ball Pool',
+    id: 'pool-table-1',
+    name: '8 Ball Table 1',
     category: 'pool',
     zoneId: 'hotshot-pool',
     ratePerHour: 200,
@@ -78,9 +78,24 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     playersCapacity: { min: 2, max: 6 },
     active: true,
     isMaintenance: false,
-    specs: ['Championship Tournament Slate Bed (Hot-Shot)', 'Custom Balanced Ash Wood & Graphite Cues', 'Aramith Pro Ball Set, Triangle Rack & Chalks', 'Dedicated Warm Directional Canopy Lighting'],
+    specs: ['Championship Tournament Slate Bed', 'Custom Balanced Ash Wood & Graphite Cues', 'Aramith Pro Ball Set, Triangle Rack & Chalks', 'Dedicated Warm Directional Canopy Lighting'],
     image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
     order: 3,
+  },
+  {
+    id: 'pool-table-2',
+    name: '8 Ball Table 2',
+    category: 'pool',
+    zoneId: 'hotshot-pool',
+    ratePerHour: 200,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 120,
+    playersCapacity: { min: 2, max: 6 },
+    active: true,
+    isMaintenance: false,
+    specs: ['Championship Tournament Slate Bed', 'Custom Balanced Ash Wood & Graphite Cues', 'Aramith Pro Ball Set, Triangle Rack & Chalks', 'Premium Overhead Canopy Lighting'],
+    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
+    order: 4,
   },
   {
     id: 'foosball-table',
@@ -213,7 +228,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
   const [customerName, setCustomerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [numberOfPeople, setNumberOfPeople] = useState<number>(2);
+  const [numberOfPeople, setNumberOfPeople] = useState<number>(1);
   const [specialRequests, setSpecialRequests] = useState<string>('');
   const [regModalOpen, setRegModalOpen] = useState<boolean>(false);
 
@@ -266,12 +281,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
     loadResources();
   }, [initialResourceId]);
 
-  // Adjust number of people when resource changes
+  // Reset player count to resource minimum when switching equipment
+  // (prevents stale count from inflating price on resources with different min capacities)
   useEffect(() => {
     if (selectedResource) {
-      setNumberOfPeople(Math.max(selectedResource.playersCapacity.min, Math.min(numberOfPeople, selectedResource.playersCapacity.max)));
+      setNumberOfPeople(selectedResource.playersCapacity.min);
     }
-  }, [selectedResource]);
+  }, [selectedResource?.id]);
 
   // 2. Fetch Slots whenever Resource, Date, or Duration changes
   useEffect(() => {

@@ -157,7 +157,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
   },
   {
     id: 'pool-table-1',
-    name: 'Hot-Shot 8-Ball Slate Championship Pool',
+    name: '8 Ball Table 1',
     category: 'pool',
     zoneId: 'hotshot-pool',
     floorLocation: '1st Floor',
@@ -171,6 +171,23 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     specs: ['Italian Slate Bed', 'Aramith Pro Ball Set', 'Precision Ash Cues', 'Spectator Lounge Seating'],
     image: '/assets/real/pool_table.png',
     order: 4,
+  },
+  {
+    id: 'pool-table-2',
+    name: '8 Ball Table 2',
+    category: 'pool',
+    zoneId: 'hotshot-pool',
+    floorLocation: '1st Floor',
+    ratePerHour: 200,
+    minDurationMinutes: 30,
+    maxDurationMinutes: 180,
+    playersCapacity: { min: 2, max: 6 },
+    active: true,
+    isMaintenance: false,
+    machineIdentifier: 'POOL-02',
+    specs: ['Italian Slate Bed', 'Aramith Pro Ball Set', 'Precision Ash Cues', 'Premium Overhead Lighting'],
+    image: '/assets/real/pool_table.png',
+    order: 5,
   },
   {
     id: 'racing-station-1',
@@ -187,9 +204,10 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     machineIdentifier: 'RACE-01',
     specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
     image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
-    order: 5,
+    order: 6,
   },
 ];
+
 
 // Initial default games library for GioCasa
 // Initial default games library for GioCasa - Featuring all 14 Flagship Gaming Wall Titles
@@ -799,6 +817,36 @@ class DatabaseService {
               { category: { $nin: ['ps5', 'racing'] }, floorLocation: { $exists: false } },
               { $set: { floorLocation: '1st Floor' } }
             );
+
+            // Rename pool tables to canonical names ("8 Ball Table 1" / "8 Ball Table 2")
+            // and handle any dynamically-created duplicate pool tables from Admin Station Scaling
+            await resourcesCol.updateOne(
+              { id: 'pool-table-1' },
+              { $set: { name: '8 Ball Table 1' } }
+            );
+            // Check for any dynamically-created second pool table (e.g. pool-station-2478)
+            const existingSecondPool = await resourcesCol.findOne({
+              id: { $nin: ['pool-table-1', 'pool-table-2'] },
+              category: 'pool',
+              active: true,
+            });
+            if (existingSecondPool) {
+              // Rename the existing dynamic table to "8 Ball Table 2" (preserves its bookings)
+              await resourcesCol.updateOne(
+                { id: existingSecondPool.id },
+                { $set: { name: '8 Ball Table 2' } }
+              );
+              // Remove the seed-inserted pool-table-2 duplicate (if it was just created above)
+              // since the dynamic one already serves as the second table and may have bookings
+              await resourcesCol.deleteOne({ id: 'pool-table-2' });
+              console.log(`[MIGRATION] Renamed ${existingSecondPool.id} → "8 Ball Table 2", removed seed duplicate pool-table-2`);
+            } else {
+              // No dynamic second pool table — use the seed-inserted pool-table-2
+              await resourcesCol.updateOne(
+                { id: 'pool-table-2' },
+                { $set: { name: '8 Ball Table 2' } }
+              );
+            }
           }
         })(),
         (async () => {

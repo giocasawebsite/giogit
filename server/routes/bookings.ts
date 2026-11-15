@@ -89,8 +89,9 @@ router.get('/availability', async (req: Request, res: Response) => {
       const startTimeStr = minutesToTime(slotStart);
       const endTimeStr = minutesToTime(slotEnd);
 
-      // Check if slot has already passed today
-      if (isToday && slotStart <= currentMins) {
+      // Skip slots that have fully passed — a slot that starts at the current
+      // minute is still bookable (player can sit down immediately).
+      if (isToday && slotStart < currentMins) {
         slots.push({
           startTime: startTimeStr,
           endTime: endTimeStr,
@@ -226,7 +227,7 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
       });
     }
 
-    if (body.date === now.dateStr && startMins <= now.totalMinutes) {
+    if (body.date === now.dateStr && startMins < now.totalMinutes) {
       return res.status(400).json({ success: false, error: 'Cannot book a time slot that has already passed.' });
     }
 

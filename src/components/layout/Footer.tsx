@@ -89,7 +89,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <span>Book Gaming Slot</span>
               </button>
               <button
-                onClick={openDrawer}
+                onClick={() => handleNav('menu')}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-orange/20 border border-brand-orange/40 hover:bg-brand-orange text-xs font-semibold uppercase tracking-wider text-white transition-colors"
               >
                 <span>Order Pizza</span>
