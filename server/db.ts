@@ -39,12 +39,14 @@ import {
   AdminPushSubscription,
   MenuCustomization,
   GalleryItem,
+  HeroSlide,
 } from './types';
 import { cloudinaryService } from './services/cloudinary';
 import { normalizeWhatsAppNumber, formatReadablePhone, DEFAULT_WHATSAPP_NUMBER, DEFAULT_DISPLAY_PHONE } from './utils/phone';
 import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/timezone';
 import { calculateBookingPrice } from './utils/pricing';
 import { INITIAL_TOURNAMENTS, INITIAL_TOURNAMENT_RESULTS, INITIAL_HALL_OF_FAME } from './initialTournaments';
+import { INITIAL_HERO_SLIDES } from './initialHeroSlides';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -628,6 +630,7 @@ class DatabaseService {
   private filePushSubscriptions: AdminPushSubscription[] = [];
   private fileMenuCustomizations: MenuCustomization[] = [];
   private fileGalleryItems: GalleryItem[] = [];
+  private fileHeroSlides: HeroSlide[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
@@ -648,6 +651,7 @@ class DatabaseService {
   private pushSubscriptionsFilePath = path.join(DATA_DIR, 'admin_push_subscriptions.json');
   private menuCustomizationsFilePath = path.join(DATA_DIR, 'menu_customizations.json');
   private galleryItemsFilePath = path.join(DATA_DIR, 'gallery_items.json');
+  private heroSlidesFilePath = path.join(DATA_DIR, 'hero_slides.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
   private cachedContactSettings: ContactSettings | null = null;
@@ -994,6 +998,15 @@ class DatabaseService {
           await galleryCol.createIndex({ isFeatured: 1 });
           await galleryCol.createIndex({ displayOrder: 1 });
         })(),
+        (async () => {
+          const heroCol = db.collection<HeroSlide>('hero_slides');
+          await heroCol.createIndex({ id: 1 }, { unique: true });
+          await heroCol.createIndex({ order: 1 });
+          const count = await heroCol.countDocuments();
+          if (count === 0) {
+            await heroCol.insertMany(INITIAL_HERO_SLIDES);
+          }
+        })(),
       ]);
 
       // Auto-backfill existing registrations and bookings into player profiles
@@ -1211,6 +1224,15 @@ class DatabaseService {
         this.fileGalleryItems = [];
         this.saveGalleryItemsToFile();
       }
+
+      // Load Hero Slides
+      if (fs.existsSync(this.heroSlidesFilePath)) {
+        const raw = fs.readFileSync(this.heroSlidesFilePath, 'utf-8');
+        this.fileHeroSlides = JSON.parse(raw);
+      } else {
+        this.fileHeroSlides = [...INITIAL_HERO_SLIDES];
+        this.saveHeroSlidesToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -1231,6 +1253,7 @@ class DatabaseService {
       this.filePushSubscriptions = [];
       this.fileMenuCustomizations = [];
       this.fileGalleryItems = [];
+      this.fileHeroSlides = [...INITIAL_HERO_SLIDES];
     }
   }
 
@@ -1247,6 +1270,14 @@ class DatabaseService {
       fs.writeFileSync(this.galleryItemsFilePath, JSON.stringify(this.fileGalleryItems, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving gallery items to file:', err);
+    }
+  }
+
+  private saveHeroSlidesToFile(): void {
+    try {
+      fs.writeFileSync(this.heroSlidesFilePath, JSON.stringify(this.fileHeroSlides, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving hero slides to file:', err);
     }
   }
 
@@ -7859,6 +7890,77 @@ class DatabaseService {
     }
 
     return true;
+  }
+
+  // ==========================================
+  // HERO CAROUSEL METHODS
+  // ==========================================
+
+  async getHeroSlides(includeInactive = false): Promise<HeroSlide[]> {
+    let slides: HeroSlide[] = [];
+    if (this.isMongoConnected && this.db) {
+      const query = includeInactive ? {} : { isActive: true };
+      slides = await this.db
+        .collection<HeroSlide>('hero_slides')
+        .find(query)
+        .sort({ order: 1 })
+        .toArray();
+    } else {
+      slides = [...this.fileHeroSlides];
+      if (!includeInactive) {
+        slides = slides.filter((s) => s.isActive);
+      }
+      slides.sort((a, b) => a.order - b.order);
+    }
+
+    // Fallback if none exist yet
+    if (slides.length === 0) {
+      slides = [...INITIAL_HERO_SLIDES];
+    }
+
+    return slides;
+  }
+
+  async saveHeroSlides(slides: HeroSlide[]): Promise<HeroSlide[]> {
+    const nowIso = new Date().toISOString();
+    const cleanSlides = slides.map((s, idx) => ({
+      ...s,
+      order: s.order || idx + 1,
+      updatedAt: nowIso,
+    }));
+
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<HeroSlide>('hero_slides');
+      for (const slide of cleanSlides) {
+        const { _id, ...fieldsToSet } = slide as any;
+        await col.updateOne({ id: slide.id }, { $set: fieldsToSet }, { upsert: true });
+      }
+    } else {
+      this.fileHeroSlides = cleanSlides;
+      this.saveHeroSlidesToFile();
+    }
+
+    return cleanSlides;
+  }
+
+  async updateHeroSlide(id: string, updates: Partial<HeroSlide>): Promise<HeroSlide | null> {
+    const nowIso = new Date().toISOString();
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<HeroSlide>('hero_slides');
+      const existing = await col.findOne({ id });
+      if (!existing) return null;
+      const updated = { ...existing, ...updates, updatedAt: nowIso };
+      const { _id, ...fieldsToSet } = updated as any;
+      await col.updateOne({ id }, { $set: fieldsToSet });
+      return updated;
+    } else {
+      const idx = this.fileHeroSlides.findIndex((s) => s.id === id);
+      if (idx === -1) return null;
+      const updated = { ...this.fileHeroSlides[idx], ...updates, updatedAt: nowIso };
+      this.fileHeroSlides[idx] = updated;
+      this.saveHeroSlidesToFile();
+      return updated;
+    }
   }
 
   async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {

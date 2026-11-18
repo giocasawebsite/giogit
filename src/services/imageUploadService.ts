@@ -104,7 +104,7 @@ export const imageUploadService = {
     passcode: string;
     imageBase64: string;
     filename?: string;
-    folder?: 'tournaments' | 'hall_of_fame' | 'menu' | 'gallery' | 'equipment';
+    folder?: 'tournaments' | 'hall_of_fame' | 'menu' | 'gallery' | 'equipment' | 'hero';
     previousPublicId?: string;
   }): Promise<UploadImageResult> {
     const url = buildApiUrl('/admin/uploads');

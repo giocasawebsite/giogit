@@ -133,6 +133,21 @@
     content-visibility: auto;
     contain-intrinsic-size: 1px 500px;
   }
+
+  /* Zero-JS Compositor Animation for Idle Letters */
+  @keyframes subtleFloat {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  .animate-subtle-float {
+    animation: subtleFloat 3.8s ease-in-out infinite;
+    will-change: transform;
+  }
 }
 
 /* On mobile phones (<=768px), disable multi-pass backdrop blur to eliminate frame drops & battery drain */

@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import confetti from 'canvas-confetti';
 
 interface LetterItem {
   char: string;
@@ -50,7 +49,7 @@ const IndividualInteractiveLetter: React.FC<IndividualLetterProps> = ({ char, in
     }, 2000);
   };
 
-  const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleTap = async (e: React.MouseEvent | React.TouchEvent) => {
     if (isExploded) return;
 
     const newCount = tapCount + 1;
@@ -69,20 +68,25 @@ const IndividualInteractiveLetter: React.FC<IndividualLetterProps> = ({ char, in
         }));
       }
 
-      // Trigger Confetti Blast from Exact Letter Position
+      // Trigger Confetti Blast from Exact Letter Position (Dynamically Loaded)
       if (spanRef.current) {
         const rect = spanRef.current.getBoundingClientRect();
         const originX = (rect.left + rect.width / 2) / window.innerWidth;
         const originY = (rect.top + rect.height / 2) / window.innerHeight;
 
-        confetti({
-          particleCount: 90,
-          spread: 85,
-          origin: { x: originX, y: originY },
-          colors: ['#C85A32', '#C5A059', '#FBF8F3', '#FF3B30', '#53624D', '#FFA500'],
-          startVelocity: 35,
-          scalar: 1.15,
-        });
+        try {
+          const { default: confetti } = await import('canvas-confetti');
+          confetti({
+            particleCount: 90,
+            spread: 85,
+            origin: { x: originX, y: originY },
+            colors: ['#C85A32', '#C5A059', '#FBF8F3', '#FF3B30', '#53624D', '#FFA500'],
+            startVelocity: 35,
+            scalar: 1.15,
+          });
+        } catch {
+          // graceful fallback
+        }
       }
 
       // Respawn letter after explosion
@@ -137,8 +141,15 @@ const IndividualInteractiveLetter: React.FC<IndividualLetterProps> = ({ char, in
     return 'drop-shadow(0 2px 10px rgba(0,0,0,0.4))';
   };
 
+  const isInteracting = isHovered || isPressed || tapCount > 0 || isExploded || isRespawning;
+
   return (
-    <div className="relative inline-flex items-center justify-center">
+    <div
+      className={`relative inline-flex items-center justify-center ${
+        !isInteracting ? 'animate-subtle-float' : ''
+      }`}
+      style={!isInteracting ? { animationDelay: `${(index % 4) * 0.35}s` } : undefined}
+    >
       {/* Main Interactive Living Letter with Feeling & Explosion Physics */}
       <motion.span
         ref={spanRef}
@@ -189,7 +200,7 @@ const IndividualInteractiveLetter: React.FC<IndividualLetterProps> = ({ char, in
             : {
                 scaleX: 1 + tapCount * 0.02,
                 scaleY: 1 + tapCount * 0.02,
-                y: tapCount > 0 ? 0 : [0, -4, 0],
+                y: 0,
                 x: shakeArray,
                 color: getLetterColor(),
                 filter: getGlowFilter(),
@@ -203,12 +214,7 @@ const IndividualInteractiveLetter: React.FC<IndividualLetterProps> = ({ char, in
             : isHovered || isPressed || tapCount > 0
             ? springTransition
             : {
-                y: {
-                  repeat: Infinity,
-                  duration: 3.5 + (index % 3) * 0.4,
-                  ease: 'easeInOut',
-                  delay: index * 0.15,
-                },
+                duration: 0.2,
                 scaleX: springTransition,
                 scaleY: springTransition,
                 color: { duration: 0.2 },

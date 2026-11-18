@@ -833,5 +833,28 @@ export interface GalleryItem {
   updatedAt: string;
 }
 
+// ==========================================
+// HERO CAROUSEL TYPES
+// ==========================================
+
+export interface HeroSlide {
+  id: string; // 'slide-1', 'slide-2', ...
+  order: number; // 1 to 5
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  desktopImageUrl: string;
+  desktopPublicId?: string;
+  tabletImageUrl?: string;
+  tabletPublicId?: string;
+  mobileImageUrl: string;
+  mobilePublicId?: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+
 
 

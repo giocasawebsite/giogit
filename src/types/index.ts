@@ -21,7 +21,7 @@ export interface RouteParams {
   registrationId?: string;
   token?: string;
   resourceId?: string;
-  adminTab?: 'overview' | 'verify' | 'games' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media';
+  adminTab?: 'overview' | 'verify' | 'games' | 'tournaments' | 'tournament-new' | 'tournament-edit' | 'tournament-registrations' | 'tournament-results' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media' | 'hero';
   adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminTournamentId?: string;
   adminPlayerId?: string;
@@ -902,6 +902,29 @@ export interface GalleryItem {
   createdAt: string;
   updatedAt: string;
 }
+
+// ==========================================
+// HERO CAROUSEL TYPES
+// ==========================================
+
+export interface HeroSlide {
+  id: string; // 'slide-1', 'slide-2', ...
+  order: number; // 1 to 5
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  desktopImageUrl: string;
+  desktopPublicId?: string;
+  tabletImageUrl?: string;
+  tabletPublicId?: string;
+  mobileImageUrl: string;
+  mobilePublicId?: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
 
 
 

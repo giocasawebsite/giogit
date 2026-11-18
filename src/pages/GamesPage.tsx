@@ -451,11 +451,11 @@ export const GamesPage: React.FC<GamesPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-brand-darker text-white pt-24 sm:pt-28 pb-24 selection:bg-brand-pink selection:text-white">
-      {/* Background Ambience */}
+      {/* Background Ambience - Zero-blur GPU radial gradients for ultra-smooth 60fps scrolling */}
       <div className="fixed inset-0 pointer-events-none opacity-25">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-brand-blue/10 rounded-full blur-[140px]" />
-        <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-brand-pink/10 rounded-full blur-[140px]" />
-        <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] bg-brand-orange/5 rounded-full blur-[160px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(90,169,230,0.18)_0%,transparent_70%)]" />
+        <div className="absolute top-1/3 right-10 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(237,36,155,0.18)_0%,transparent_70%)]" />
+        <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(249,162,11,0.12)_0%,transparent_70%)]" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12 sm:space-y-16">
@@ -933,11 +933,8 @@ interface GameCardProps {
 
 const GameCard: React.FC<GameCardProps> = ({ game, index, onSelect, onBook }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [rotateX, setRotateX] = useState<number>(0);
-  const [rotateY, setRotateY] = useState<number>(0);
-  const [isHovered, setIsHovered] = useState<boolean>(false);
 
-  // Subtle 3D tilt calculation on desktop mouse movement
+  // Direct DOM transform for 3D tilt without triggering React state updates on every mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current || window.innerWidth < 768) return;
     const rect = cardRef.current.getBoundingClientRect();
@@ -949,14 +946,20 @@ const GameCard: React.FC<GameCardProps> = ({ game, index, onSelect, onBook }) =>
     const rotX = -((y - centerY) / centerY) * 6; // Max 6 deg
     const rotY = ((x - centerX) / centerX) * 6;
 
-    setRotateX(rotX);
-    setRotateY(rotY);
+    cardRef.current.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  };
+
+  const handleMouseEnter = () => {
+    if (cardRef.current) {
+      cardRef.current.style.transition = 'transform 0.1s ease-out';
+    }
   };
 
   const handleMouseLeave = () => {
-    setRotateX(0);
-    setRotateY(0);
-    setIsHovered(false);
+    if (cardRef.current) {
+      cardRef.current.style.transition = 'transform 0.4s ease-out';
+      cardRef.current.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+    }
   };
 
   return (
@@ -966,11 +969,10 @@ const GameCard: React.FC<GameCardProps> = ({ game, index, onSelect, onBook }) =>
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.4) }}
       onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{
-        transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
-        transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
+        transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg)',
       }}
       className="group bg-brand-surface rounded-3xl border border-brand-border/80 hover:border-brand-pink/50 overflow-hidden flex flex-col justify-between shadow-xl transition-colors duration-300 relative cursor-pointer"
       onClick={onSelect}

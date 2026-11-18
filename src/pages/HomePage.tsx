@@ -16,7 +16,7 @@ import { EventPackageCalculator } from '../components/shared/EventPackageCalcula
 import { InstagramGrid } from '../components/shared/InstagramGrid';
 import { LocationMapCard } from '../components/shared/LocationMapCard';
 import { InteractiveHeroText } from '../components/shared/InteractiveHeroText';
-import { HeroScrollCanvas } from '../components/shared/HeroScrollCanvas';
+import { HeroCarousel } from '../components/shared/HeroCarousel';
 import { WinnersButton } from '../components/ui/WinnersButton';
 import { 
   Flame, 
@@ -70,8 +70,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-brand-dark text-white selection:bg-brand-pink selection:text-white">
       
-      {/* 1. LUXURY SCROLL-SCRUBBED CANVAS HERO EXPERIENCE */}
-      <HeroScrollCanvas />
+      {/* 1. LUXURY 5-SLIDE SCROLL-CONTROLLED HERO CAROUSEL */}
+      <HeroCarousel onNavigate={onNavigate} />
 
       {/* 2. REPEATED HERO CONTENT SECTION (Appears naturally as the next section after the hero sequence) */}
       <section className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center space-y-6 sm:space-y-8 border-b border-brand-border/40">

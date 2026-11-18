@@ -10,6 +10,7 @@ import { AdminReservationsManager } from '../components/admin/AdminReservationsM
 import { AdminGuestVerification } from '../components/admin/AdminGuestVerification';
 import { AdminMediaManager } from '../components/admin/AdminMediaManager';
 import { AdminGamesManager } from '../components/admin/AdminGamesManager';
+import { AdminHeroCarouselManager } from '../components/admin/AdminHeroCarouselManager';
 import { getPricingDescription } from '../utils/pricing';
 import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
 import {
@@ -44,6 +45,7 @@ import {
   Utensils,
   Bell,
   Image as ImageIcon,
+  Sliders,
 } from 'lucide-react';
 
 interface AdminPageProps {
@@ -73,8 +75,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Tab Navigation: 'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'
-  const [selectedTab, setSelectedTab] = useState<'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media'>(() => {
+  // Tab Navigation: 'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media' | 'hero'
+  const [selectedTab, setSelectedTab] = useState<'stations' | 'verify' | 'games' | 'tournaments' | 'hall-of-fame' | 'players' | 'contact' | 'equipment' | 'reservations' | 'media' | 'hero'>(() => {
     if (adminTab === 'verify') return 'verify';
     if (adminTab === 'games' || adminTab === 'gaming-wall') return 'games';
     if (adminTab === 'reservations') return 'reservations';
@@ -82,6 +84,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     if (adminTab === 'players') return 'players';
     if (adminTab === 'hall-of-fame') return 'hall-of-fame';
     if (adminTab === 'media' || adminTab === 'gallery') return 'media';
+    if (adminTab === 'hero' || adminTab === 'hero-carousel') return 'hero';
     if (adminTab?.startsWith('tournament')) return 'tournaments';
     if (adminTab === 'contact' || adminTab === 'settings') return 'contact';
     return 'stations';
@@ -102,6 +105,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setSelectedTab('hall-of-fame');
     } else if (adminTab === 'media' || adminTab === 'gallery') {
       setSelectedTab('media');
+    } else if (adminTab === 'hero' || adminTab === 'hero-carousel') {
+      setSelectedTab('hero');
     } else if (adminTab?.startsWith('tournament')) {
       setSelectedTab('tournaments');
     } else if (adminTab === 'contact' || adminTab === 'settings') {
@@ -832,6 +837,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <ImageIcon className="w-4 h-4 text-brand-gold" />
             <span>Media & Menu Images</span>
           </button>
+
+          <button
+            onClick={() => {
+              setSelectedTab('hero');
+              onNavigate('admin', { adminTab: 'hero' });
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              selectedTab === 'hero'
+                ? 'border-brand-gold text-brand-gold font-bold bg-brand-surface/40 rounded-t-xl'
+                : 'border-transparent text-brand-subtle hover:text-brand-cream hover:border-brand-border'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-brand-gold" />
+            <span>Hero Carousel</span>
+          </button>
         </div>
 
         {selectedTab === 'stations' && (
@@ -1341,6 +1361,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     {/* MEDIA & MENU DISHES MANAGER (CLOUDINARY) */}
     {selectedTab === 'media' && (
       <AdminMediaManager
+        passcode={passcode}
+      />
+    )}
+
+    {/* HERO CAROUSEL MANAGER */}
+    {selectedTab === 'hero' && (
+      <AdminHeroCarouselManager
         passcode={passcode}
       />
     )}
