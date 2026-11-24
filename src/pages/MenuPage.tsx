@@ -349,7 +349,7 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
             role="dialog"
             aria-modal="true"
             aria-label="Menu scan viewer"
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fade-in"
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
             onClick={() => setPreviewImage(null)}
           >
             <div 

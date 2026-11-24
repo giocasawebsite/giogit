@@ -238,10 +238,10 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 pt-2">
                   <button
                     onClick={() => onNavigate('tournament-detail', { slug: featuredTournament.slug })}
-                    className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue text-white text-xs font-semibold uppercase tracking-wider transition-colors"
+                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue text-white text-xs font-semibold uppercase tracking-wider transition-colors text-center justify-center flex items-center"
                   >
                     View Details & Rules
                   </button>
@@ -249,7 +249,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   {featuredTournament.isRegistrationAllowed ? (
                     <button
                       onClick={() => onNavigate('tournament-register', { slug: featuredTournament.slug })}
-                      className="px-7 py-3 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center gap-2"
+                      className="w-full sm:w-auto px-7 py-3 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-luxury-pink hover:-translate-y-0.5 flex items-center justify-center gap-2"
                     >
                       <span>
                         {featuredTournament.computedStatus === 'waitlist_open' ? 'Join Official Waitlist' : 'Register Now'}
@@ -259,13 +259,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ onNavigate }) 
                   ) : featuredTournament.status === 'completed' ? (
                     <button
                       onClick={() => onNavigate('tournament-results', { slug: featuredTournament.slug })}
-                      className="px-6 py-3 rounded-full bg-brand-blue/20 border border-brand-blue text-brand-blue text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                      className="w-full sm:w-auto px-6 py-3 rounded-full bg-brand-blue/20 border border-brand-blue text-brand-blue text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
                     >
                       <Trophy className="w-4 h-4" />
                       <span>View Results</span>
                     </button>
                   ) : (
-                    <span className="px-5 py-2.5 rounded-full bg-brand-surface border border-brand-border/40 text-brand-subtle text-xs font-mono">
+                    <span className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-brand-surface border border-brand-border/40 text-brand-subtle text-xs font-mono text-center">
                       {featuredTournament.statusLabel || 'Registration Unavailable'}
                     </span>
                   )}

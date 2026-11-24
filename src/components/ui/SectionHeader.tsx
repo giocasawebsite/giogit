@@ -5,6 +5,7 @@ interface SectionHeaderProps {
   tag?: string;
   title: string;
   titleItalic?: string;
+  titleItalicHref?: string;
   subtitle?: string;
   align?: 'left' | 'center' | 'right';
   className?: string;
@@ -16,6 +17,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   tag,
   title,
   titleItalic,
+  titleItalicHref,
   subtitle,
   align = 'center',
   className = '',
@@ -75,9 +77,20 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       >
         {title}{' '}
         {titleItalic && (
-          <span className={`font-italic-accent font-normal ${accentStyles.italicText} italic ml-1`}>
-            {titleItalic}
-          </span>
+          (titleItalicHref || titleItalic === '@giocasa.ayodhya') ? (
+            <a
+              href={titleItalicHref || 'https://www.instagram.com/giocasacafe/'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`font-italic-accent font-normal ${accentStyles.italicText} italic ml-1 hover:underline hover:opacity-90 transition-opacity inline-block`}
+            >
+              {titleItalic}
+            </a>
+          ) : (
+            <span className={`font-italic-accent font-normal ${accentStyles.italicText} italic ml-1`}>
+              {titleItalic}
+            </span>
+          )
         )}
       </motion.h2>
 

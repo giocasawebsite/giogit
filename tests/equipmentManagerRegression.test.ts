@@ -1,10 +1,11 @@
 import assert from 'node:assert';
 import { dbService } from '../server/db';
 import { config } from '../server/config';
+import { createAdminSession } from '../server/middleware/security';
 import app from '../server/index';
 
 const BASE_URL = `http://127.0.0.1:${config.port}`;
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'GIOCASA2025';
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'giocasa2026';
 
 async function runEquipmentManagerSuite() {
   console.log('======================================================');
@@ -34,9 +35,11 @@ async function runEquipmentManagerSuite() {
     return { status: res.status, ok: res.ok, data };
   };
 
+  const sessionVersion = await dbService.getSessionVersion();
+  const session = createAdminSession({ headers: {}, socket: {} } as any, sessionVersion);
   const adminHeaders = {
-    'x-admin-passcode': ADMIN_PASSCODE,
-    'Authorization': `Bearer ${ADMIN_PASSCODE}`,
+    'x-admin-token': session.token,
+    'Authorization': `Bearer ${session.token}`,
   };
 
   try {

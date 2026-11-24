@@ -20,8 +20,8 @@ self.addEventListener('push', (event) => {
   let payload = {
     title: 'GioCasa Operations Alert',
     body: 'New operational activity recorded in GioCasa hub.',
-    icon: '/assets/giocasa_logo_circle.png',
-    badge: '/assets/giocasa_logo_circle.png',
+    icon: '/assets/giocasa_logo_192.png',
+    badge: '/assets/giocasa_logo_64.png',
     tag: 'giocasa-ops-alert',
     data: { url: '/#/admin' },
   };
@@ -88,8 +88,17 @@ self.addEventListener('notificationclick', (event) => {
       // 1. If an existing window is open, focus it and navigate to the target tab
       for (const client of clientList) {
         if ('focus' in client && 'navigate' in client) {
-          // Check if window is GioCasa Admin
+          // Check if window is GioCasa Admin or active GioCasa tab
           if (client.url.includes('/admin') || client.url.includes(self.location.origin)) {
+            try {
+              client.postMessage({
+                type: 'GIOCASA_NOTIFICATION_NAVIGATE',
+                data: clickData,
+                targetUrl: targetUrl,
+              });
+            } catch (postErr) {
+              // Ignore postMessage failure
+            }
             client.navigate(targetUrl);
             return client.focus();
           }

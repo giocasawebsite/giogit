@@ -116,8 +116,8 @@ export const PlayerModal: React.FC<PlayerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-      <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-8">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+      <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-2xl w-full p-5 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto my-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-brand-border/60">
           <div className="flex items-center gap-3">

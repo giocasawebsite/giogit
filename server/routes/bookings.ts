@@ -120,8 +120,12 @@ router.get('/availability', async (req: Request, res: Response) => {
       for (const b of activeBookings) {
         const bStart = timeToMinutes(b.startTime);
         const bEnd = timeToMinutes(b.endTime);
+        // If a booking ends at an irregular custom time (e.g. 14:45), block any customer slot
+        // that overlaps up to the next customer 30-minute boundary (e.g. 15:00) so that 2:15, 2:30, 2:45
+        // slots are blocked, leaving 3:00 PM as the next available customer slot.
+        const effectiveEnd = Math.max(bEnd, Math.ceil(bEnd / 30) * 30);
 
-        if (doIntervalsOverlap(slotStart, slotEnd, bStart, bEnd)) {
+        if (doIntervalsOverlap(slotStart, slotEnd, bStart, effectiveEnd)) {
           isBooked = true;
           matchedBooking = b;
           if (isToday && currentMins >= bStart && currentMins < bEnd) {
@@ -186,14 +190,18 @@ router.post('/', bookingCreationLimiter, async (req: Request, res: Response) => 
       return res.status(400).json({ success: false, error: 'resourceId, date, and startTime are required.' });
     }
 
-    const durationMinutes = body.durationMinutes || 60;
-    if (durationMinutes < 30 || durationMinutes > 240) {
-      return res.status(400).json({ success: false, error: 'Booking duration must be between 30 and 240 minutes.' });
-    }
-
     const resource = await dbService.getResourceById(body.resourceId);
     if (!resource) {
       return res.status(404).json({ success: false, error: 'Selected gaming resource does not exist.' });
+    }
+
+    const durationMinutes = body.durationMinutes || 60;
+    const maxAllowedDuration = resource.maxDurationMinutes ? Math.max(resource.maxDurationMinutes, 360) : 360;
+    if (durationMinutes < 30 || durationMinutes > maxAllowedDuration) {
+      return res.status(400).json({
+        success: false,
+        error: `Booking duration must be between 30 and ${maxAllowedDuration} minutes (up to ${maxAllowedDuration / 60} hours).`,
+      });
     }
 
     if (resource.isMaintenance) {

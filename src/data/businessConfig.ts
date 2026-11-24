@@ -18,7 +18,7 @@ export const businessConfig = {
     whatsappNumber: "7376009646", // Format for wa.me links
     email: "ciao@giocasa.in",
     instagramHandle: "@giocasa.ayodhya",
-    instagramUrl: "https://instagram.com",
+    instagramUrl: "https://www.instagram.com/giocasacafe/",
   },
   hours: [
     { days: "Monday – Thursday", timing: "11:00 AM – 11:00 PM", note: "Dine-in, Gaming & Delivery" },

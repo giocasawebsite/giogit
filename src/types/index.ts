@@ -25,6 +25,9 @@ export interface RouteParams {
   adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminTournamentId?: string;
   adminPlayerId?: string;
+  bookingId?: string;
+  ref?: string;
+  type?: string;
 }
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'refunded' | 'waived';
@@ -185,6 +188,13 @@ export interface TournamentRegistration {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   auditLogs?: BookingAuditLog[];
   createdAt: string;
   updatedAt: string;
@@ -274,6 +284,13 @@ export interface DiningReservation {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   totalAmount?: number;
   auditLogs?: BookingAuditLog[];
   adminNotes?: string;
@@ -310,6 +327,13 @@ export interface EventReservation {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   totalAmount?: number;
   auditLogs?: BookingAuditLog[];
   adminNotes?: string;
@@ -351,6 +375,13 @@ export interface VerifiedGuestBooking {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   notes?: string;
   specialRequests?: string;
   additionalRequirements?: string;
@@ -775,10 +806,28 @@ export interface Booking {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   auditLogs?: BookingAuditLog[];
   notes?: string;
+  source?: 'web' | 'admin' | 'phone';
   createdAt: string;
   playerId?: string;
+}
+
+export type SlotStatus = 'available' | 'booked' | 'playing' | 'unavailable';
+
+export interface TimeSlot {
+  startTime: string; // '14:00'
+  endTime: string; // '15:00'
+  status: SlotStatus;
+  bookingId?: string;
+  reason?: string;
 }
 
 export interface PlayerPaymentSummary {
@@ -922,6 +971,51 @@ export interface HeroSlide {
   mobileImageUrl: string;
   mobilePublicId?: string;
   isActive: boolean;
+  updatedAt: string;
+}
+
+// ==========================================
+// CENTRALIZED WEBSITE-WIDE IMAGE TYPES
+// ==========================================
+
+export type WebsiteImageSectionId =
+  | 'first_floor_carousel'
+  | 'basement_carousel'
+  | 'hero_slides'
+  | 'racing_simulator'
+  | 'experience_page'
+  | 'menu_food'
+  | 'visual_stories'
+  | 'games_artwork'
+  | 'tournaments_hall_of_fame'
+  | 'promotional_banners';
+
+export interface WebsiteImageItem {
+  id: string;
+  section: WebsiteImageSectionId;
+  title: string;
+  subtitle?: string;
+  caption?: string;
+  imageUrl: string;
+  imagePublicId?: string;
+  mobileImageUrl?: string;
+  mobilePublicId?: string;
+  tabletImageUrl?: string;
+  tabletPublicId?: string;
+  order: number;
+  isActive: boolean;
+  altText?: string;
+  aspectRatio?: string;
+  usageId?: string;
+  tags?: string[];
+  ctaText?: string;
+  ctaLink?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WebsiteImagesConfig {
+  sections: Record<WebsiteImageSectionId, WebsiteImageItem[]>;
   updatedAt: string;
 }
 

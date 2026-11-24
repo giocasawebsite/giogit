@@ -199,7 +199,7 @@ class PushNotificationService {
       body: `Booking #${booking.id} by ${booking.customerName} for ${resourceName} (${booking.date} at ${timeFormatted})`,
       tag: `booking-${booking.id}`,
       data: {
-        url: '/#/admin',
+        url: `/#/admin?adminTab=overview&bookingId=${encodeURIComponent(booking.id)}`,
         type: 'booking',
         reference: booking.id,
         timestamp: Date.now(),
@@ -214,7 +214,7 @@ class PushNotificationService {
       body: `Reservation #${ref} by ${reservation.customerName} for ${reservation.guests} guests (${reservation.date} at ${reservation.time})`,
       tag: `dining-${ref}`,
       data: {
-        url: '/#/admin/reservations',
+        url: `/#/admin/reservations?type=dining&ref=${encodeURIComponent(ref)}`,
         type: 'dining',
         reference: ref,
         timestamp: Date.now(),
@@ -230,7 +230,7 @@ class PushNotificationService {
       body: `Enquiry #${ref} by ${reservation.customerName} (${eventType} on ${reservation.date})`,
       tag: `event-${ref}`,
       data: {
-        url: '/#/admin/reservations',
+        url: `/#/admin/reservations?type=events&ref=${encodeURIComponent(ref)}`,
         type: 'event',
         reference: ref,
         timestamp: Date.now(),
@@ -241,12 +241,13 @@ class PushNotificationService {
   public async notifyNewTournamentRegistration(registration: any, tournament: any): Promise<void> {
     const ref = registration.registrationReference || registration.id;
     const title = tournament?.title || 'Tournament';
+    const tourId = tournament?.id || 'all';
     await this.sendPushNotificationToAll({
       title: '🏆 New Tournament Registration',
       body: `Registration #${ref} by ${registration.participantName} for ${title}`,
       tag: `tournament-${registration.id}`,
       data: {
-        url: '/#/admin/tournaments',
+        url: `/#/admin/tournaments/${encodeURIComponent(tourId)}/registrations?ref=${encodeURIComponent(ref)}`,
         type: 'tournament',
         reference: ref,
         timestamp: Date.now(),

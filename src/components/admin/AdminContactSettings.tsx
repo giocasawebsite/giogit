@@ -456,7 +456,7 @@ export const AdminContactSettings: React.FC<AdminContactSettingsProps> = ({ pass
                   type="url"
                   value={formData.instagramUrl}
                   onChange={(e) => handleChange('instagramUrl', e.target.value)}
-                  placeholder="https://instagram.com/giocasa.ayodhya"
+                  placeholder="https://www.instagram.com/giocasacafe/"
                   className="w-full px-4 py-2.5 rounded-xl bg-brand-dark border border-brand-border text-brand-cream font-mono text-xs focus:outline-none focus:border-brand-pink transition-colors"
                 />
               </div>

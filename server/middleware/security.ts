@@ -120,7 +120,9 @@ export function verifyPassword(plainText: string, storedHashOrPlain: string): bo
 //   The denylist is cleared on server restart, which is acceptable because
 //   single-device logouts are user-initiated from live sessions.
 // =========================================================================
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const ACCESS_TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_TTL_MS = ACCESS_TOKEN_TTL_MS; // Legacy alias
 
 // Denylist for explicit single-device logout: token -> expiry timestamp
 const tokenDenylist = new Map<string, number>();
@@ -149,11 +151,12 @@ interface AdminSessionPayload {
   iat: number; // issued-at ms
   exp: number; // expiry ms
   v: number;   // sessionVersion — must match current DB value
+  type?: 'access' | 'refresh';
 }
 
 /**
- * Creates a stateless, HMAC-signed admin session token that encodes its own
- * expiry and the current sessionVersion. No server-side state is stored.
+ * Creates a stateless, HMAC-signed admin session access token and refresh token.
+ * No server-side session state is stored.
  *
  * @param req            Express request (used for audit logging)
  * @param sessionVersion Current DB sessionVersion (from dbService.getSessionVersion())
@@ -161,29 +164,36 @@ interface AdminSessionPayload {
 export function createAdminSession(
   req: Request,
   sessionVersion: number
-): { token: string; expiresAt: string } {
+): { token: string; refreshToken: string; expiresAt: string } {
   const now = Date.now();
-  const exp = now + SESSION_TTL_MS;
-  const payload: AdminSessionPayload = { iat: now, exp, v: sessionVersion };
-  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const accessExp = now + ACCESS_TOKEN_TTL_MS;
+  const refreshExp = now + REFRESH_TOKEN_TTL_MS;
   const secret = getSigningSecret();
-  const sig = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex').slice(0, 32);
-  const token = `gio_sec_${payloadB64}.${sig}`;
+
+  // 1. Access Token (gio_sec_...)
+  const accessPayload: AdminSessionPayload = { iat: now, exp: accessExp, v: sessionVersion, type: 'access' };
+  const accessB64 = Buffer.from(JSON.stringify(accessPayload)).toString('base64url');
+  const accessSig = crypto.createHmac('sha256', secret).update(accessB64).digest('hex').slice(0, 32);
+  const token = `gio_sec_${accessB64}.${accessSig}`;
+
+  // 2. Refresh Token (gio_ref_...)
+  const refreshPayload: AdminSessionPayload = { iat: now, exp: refreshExp, v: sessionVersion, type: 'refresh' };
+  const refreshB64 = Buffer.from(JSON.stringify(refreshPayload)).toString('base64url');
+  const refreshSig = crypto.createHmac('sha256', secret).update(refreshB64).digest('hex').slice(0, 32);
+  const refreshToken = `gio_ref_${refreshB64}.${refreshSig}`;
 
   logSecurityEvent('AUTH_SUCCESS', req, `Admin session issued (v${sessionVersion})`);
-  return { token, expiresAt: new Date(exp).toISOString() };
+  return { token, refreshToken, expiresAt: new Date(accessExp).toISOString() };
 }
 
 /**
- * Validates a stateless admin session token.
+ * Validates a stateless admin session access token.
  * Returns true only when ALL conditions hold:
  *   1. HMAC signature is correct
  *   2. Token has not expired
  *   3. Embedded sessionVersion matches the current DB version
  *   4. Token is not in the per-process denylist
- *
- * @param token                Token from the request header
- * @param currentSessionVersion Current DB sessionVersion (from dbService.getSessionVersion())
+ *   5. Token is not a refresh token
  */
 export function validateAdminSession(token: string, currentSessionVersion: number): boolean {
   if (!token || !token.startsWith('gio_sec_')) return false;
@@ -206,13 +216,16 @@ export function validateAdminSession(token: string, currentSessionVersion: numbe
       Buffer.from(payloadB64, 'base64url').toString('utf8')
     );
 
-    // 3. Check expiry
+    // 3. Reject if this is a refresh token mistakenly passed as an access token
+    if (payload.type === 'refresh') return false;
+
+    // 4. Check expiry
     if (!payload.exp || payload.exp <= Date.now()) return false;
 
-    // 4. Check session version (global revocation)
+    // 5. Check session version (global revocation on password change)
     if (typeof payload.v !== 'number' || payload.v !== currentSessionVersion) return false;
 
-    // 5. Check single-device denylist
+    // 6. Check single-device denylist
     if (tokenDenylist.has(token)) return false;
 
     return true;
@@ -222,24 +235,61 @@ export function validateAdminSession(token: string, currentSessionVersion: numbe
 }
 
 /**
- * Invalidates a single admin session token (browser logout).
+ * Validates a stateless admin refresh token.
+ * Returns true only when HMAC signature is correct, expiry is valid,
+ * the token is not on the denylist, and the embedded sessionVersion matches
+ * currentSessionVersion (ensuring password changes revoke ALL refresh tokens).
+ */
+export function validateAdminRefreshToken(token: string, currentSessionVersion: number): boolean {
+  if (!token || !token.startsWith('gio_ref_')) return false;
+
+  try {
+    const inner = token.slice('gio_ref_'.length);
+    const lastDot = inner.lastIndexOf('.');
+    if (lastDot === -1) return false;
+
+    const payloadB64 = inner.slice(0, lastDot);
+    const receivedSig = inner.slice(lastDot + 1);
+
+    const secret = getSigningSecret();
+    const expectedSig = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex').slice(0, 32);
+    if (!timingSafeCompare(receivedSig, expectedSig)) return false;
+
+    const payload: AdminSessionPayload = JSON.parse(
+      Buffer.from(payloadB64, 'base64url').toString('utf8')
+    );
+
+    if (payload.type !== 'refresh') return false;
+    if (!payload.exp || payload.exp <= Date.now()) return false;
+    if (typeof payload.v !== 'number' || payload.v !== currentSessionVersion) return false;
+    if (tokenDenylist.has(token)) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Invalidates a single admin session token or refresh token (browser logout).
  * Adds the token to the per-process denylist until its natural expiry.
  */
 export function invalidateAdminSession(token: string, req?: Request): boolean {
-  if (!token || !token.startsWith('gio_sec_')) return false;
+  if (!token || (!token.startsWith('gio_sec_') && !token.startsWith('gio_ref_'))) return false;
 
   try {
-    const inner = token.slice('gio_sec_'.length);
+    const prefix = token.startsWith('gio_sec_') ? 'gio_sec_' : 'gio_ref_';
+    const inner = token.slice(prefix.length);
     const lastDot = inner.lastIndexOf('.');
     if (lastDot !== -1) {
       const payloadB64 = inner.slice(0, lastDot);
       const payload: AdminSessionPayload = JSON.parse(
         Buffer.from(payloadB64, 'base64url').toString('utf8')
       );
-      tokenDenylist.set(token, payload.exp || Date.now() + SESSION_TTL_MS);
+      tokenDenylist.set(token, payload.exp || Date.now() + REFRESH_TOKEN_TTL_MS);
     }
   } catch {
-    tokenDenylist.set(token, Date.now() + SESSION_TTL_MS);
+    tokenDenylist.set(token, Date.now() + REFRESH_TOKEN_TTL_MS);
   }
 
   if (req) {

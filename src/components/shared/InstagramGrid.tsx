@@ -7,39 +7,45 @@ export const InstagramGrid: React.FC = () => {
   const posts = [
     {
       id: 1,
-      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80',
+      image: '/assets/real/insta_Dftthy4qYGO.jpg',
       tag: '#WoodFiredPizza',
-      caption: '48-hour slow fermented dough meets 450°C wood fire. Leopard crust perfection.'
+      caption: 'Wood-fired pizza, gourmet burgers and crispy fries fresh from our kitchen in Ayodhya.',
+      url: 'https://www.instagram.com/giocasacafe/p/Dftthy4qYGO/'
     },
     {
       id: 2,
       image: '/assets/real/ps5_setup.png',
       tag: '#PS5Arena',
-      caption: '4K HDR gaming station live in Ayodhya. Tekken 8 showdown in full effect!'
+      caption: '4K HDR gaming stations live in Ayodhya. Tekken 8 and EA FC 25 battles in full effect!',
+      url: 'https://www.instagram.com/giocasacafe/p/DflyoVvKSNR/'
     },
     {
       id: 3,
-      image: '/assets/real/pool_table.png',
+      image: '/assets/real/insta_DfEfA5VzdBP.jpg',
       tag: '#8BallPool',
-      caption: 'Championship slate pool table ready for Friday evening frames.'
+      caption: 'Championship slate pool tables ready for unhurried evening frames with friends.',
+      url: 'https://www.instagram.com/giocasacafe/p/DfEfA5VzdBP/'
     },
     {
       id: 4,
-      image: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=600&q=80',
-      tag: '#ColdCoffee',
-      caption: 'Classic iced cold coffee brewed to keep the gaming sessions energized.'
+      image: 'https://res.cloudinary.com/hcmnz5rk/image/upload/f_auto/q_auto/racing.jpg',
+      tag: '#RacingSimulator',
+      caption: 'Pro force-feedback racing simulator cockpit with GT bucket seating and ultra-wide display.',
+      url: 'https://www.instagram.com/giocasacafe/'
     },
     {
       id: 5,
       image: '/assets/real/foosball_lounge.png',
       tag: '#FoosballLounge',
-      caption: 'Fast-paced soccer foosball in our first-floor lounge with friends.'
+      caption: 'Fast-paced table soccer action in our first-floor lounge with friends.',
+      url: 'https://www.instagram.com/giocasacafe/reel/DfwS1SDqgen/'
     },
     {
       id: 6,
-      image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=600&q=80',
-      tag: '#BoardGameSocial',
-      caption: 'Catan & Chai Sundays at GioCasa Ayodhya.'
+      image: '/assets/real/insta_Df2v3KXz37R.jpg',
+      tag: '#GioCasaCelebrations',
+      caption: 'Birthday celebrations, good vibes and unforgettable memories at GioCasa Family Lounge.',
+      url: 'https://www.instagram.com/giocasacafe/reel/Df2v3KXz37R/'
     },
   ];
 
@@ -49,7 +55,7 @@ export const InstagramGrid: React.FC = () => {
         {posts.map(post => (
           <a
             key={post.id}
-            href={businessConfig.contact.instagramUrl}
+            href={post.url || businessConfig.contact.instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="group relative aspect-square rounded-2xl overflow-hidden bg-brand-surface border border-brand-border block"

@@ -95,7 +95,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           
           {/* Interactive Living Title with Spring Physics & Easter Egg */}
           <div className="w-full">
-            <InteractiveHeroText sizeClassName="text-5xl sm:text-7xl md:text-8xl lg:text-9xl" />
+            <InteractiveHeroText sizeClassName="text-4xl sm:text-6xl md:text-7xl lg:text-8xl" />
           </div>
           
           <p className="font-italic-accent text-2xl sm:text-3xl md:text-4xl text-brand-orange font-semibold italic max-w-2xl mx-auto pt-1">
@@ -441,6 +441,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           tag="Visual Stories"
           title="Follow The House"
           titleItalic="@giocasa.ayodhya"
+          titleItalicHref="https://www.instagram.com/giocasacafe/"
           subtitle="Glimpses of daily hearth firings, intense pool frames, and community gaming sessions."
           accentColor="pink"
         />

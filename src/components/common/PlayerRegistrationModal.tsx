@@ -162,8 +162,8 @@ export const PlayerRegistrationModal: React.FC<PlayerRegistrationModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-white dark:bg-[#343233] rounded-3xl shadow-2xl border border-neutral-200 dark:border-neutral-700/80 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#343233] rounded-3xl shadow-2xl border border-neutral-200 dark:border-neutral-700/80 overflow-hidden max-h-[92vh] overflow-y-auto my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-5 md:p-6 border-b border-neutral-200 dark:border-neutral-800 bg-gradient-to-r from-[#4B494A]/10 via-[#ED249B]/5 to-transparent">
           <div className="flex items-center gap-3">

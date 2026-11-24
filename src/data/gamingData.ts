@@ -60,7 +60,7 @@ export const gamingZones: GamingZone[] = [
     name: 'Pro Racing Simulator Cockpit',
     subtitle: 'Basement Arena • Force Feedback Steering • High-Speed Sim Physics',
     type: 'racing',
-    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    image: 'https://res.cloudinary.com/hcmnz5rk/image/upload/f_auto/q_auto/racing.jpg',
     ratePerHour: '₹200 / hr (+₹100 per extra player)',
     playersCapacity: '1 - 4 Drivers',
     description: 'Feel every turn, curb and rumble with authentic Logitech force-feedback steering wheels, load-cell pedals and custom GT bucket racing seats.',

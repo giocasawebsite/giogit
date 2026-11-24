@@ -301,8 +301,8 @@ export const AdminHallOfFameManager: React.FC<AdminHallOfFameManagerProps> = ({ 
 
       {/* Modal for Add / Edit Hall of Fame Entry */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-brand-dark/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-brand-dark/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-xl w-full p-5 sm:p-8 space-y-6 shadow-2xl animate-fade-in max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-brand-border/60 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-brand-gold/15 border border-brand-gold/40 flex items-center justify-center text-brand-gold">

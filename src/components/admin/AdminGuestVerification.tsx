@@ -689,8 +689,8 @@ export const AdminGuestVerification: React.FC<AdminGuestVerificationProps> = ({
 
       {/* PAYMENT VERIFICATION MODAL / SHEET */}
       {showPaymentModal && booking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-darker/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-brand-surface border-2 border-brand-gold/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-brand-darker/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-brand-surface border-2 border-brand-gold/60 rounded-3xl p-5 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-brand-border/60 pb-4">
               <div className="flex items-center gap-2.5">
                 <CreditCard className="w-5 h-5 text-brand-gold" />

@@ -52,7 +52,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-full bg-brand-surfaceElevated border border-brand-border/80 overflow-hidden shrink-0 shadow-md">
                   <img
-                    src="/assets/giocasa_logo_circle.png"
+                    src="/assets/giocasa_logo_192.png"
+                    onError={(e) => {
+                      e.currentTarget.src = '/assets/giocasa_logo_circle.png';
+                    }}
                     alt="GioCasa Logo"
                     className="w-full h-full object-cover"
                   />
@@ -211,7 +214,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-1 text-[11px]">
             <span>Eat. Play. Connect.</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-3 text-center sm:text-right">
             <span>© {new Date().getFullYear()} GioCasa. All rights reserved.</span>
             <span>•</span>
             <button

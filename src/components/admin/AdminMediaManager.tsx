@@ -25,13 +25,14 @@ import {
   compressImage,
   CloudinaryStatusResult,
 } from '../../services/imageUploadService';
+import { AdminCentralizedImageManager } from './AdminCentralizedImageManager';
 
 interface AdminMediaManagerProps {
   passcode: string;
 }
 
 export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'menu' | 'gallery' | 'settings'>('menu');
+  const [activeSubTab, setActiveSubTab] = useState<'all_website' | 'menu' | 'gallery' | 'settings'>('all_website');
 
   // Cloudinary Status
   const [status, setStatus] = useState<CloudinaryStatusResult | null>(null);
@@ -375,7 +376,20 @@ export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }
       </div>
 
       {/* Sub-tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-brand-border pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-brand-border pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('all_website')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            activeSubTab === 'all_website'
+              ? 'bg-brand-orange text-brand-charcoalDeep shadow-luxury-orange'
+              : 'bg-brand-surface text-brand-subtle hover:text-white border border-brand-border'
+          }`}
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>Website Sections & Carousels (All Images)</span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveSubTab('menu')}
@@ -386,7 +400,7 @@ export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }
           }`}
         >
           <UtensilsCrossed className="w-3.5 h-3.5" />
-          Menu Dishes & Pizzas ({Object.keys(customizations).length} Custom Images)
+          <span>Menu Dishes & Pizzas ({Object.keys(customizations).length} Custom)</span>
         </button>
 
         <button
@@ -399,7 +413,7 @@ export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          Cafe & Lounge Gallery ({galleryItems.length} Photos)
+          <span>Cafe & Lounge Gallery ({galleryItems.length} Photos)</span>
         </button>
 
         <button
@@ -412,9 +426,16 @@ export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }
           }`}
         >
           <Sliders className="w-3.5 h-3.5" />
-          Optimization & CDN Info
+          <span>Optimization & CDN Info</span>
         </button>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 0. CENTRALIZED WEBSITE-WIDE IMAGES & CAROUSELS TAB */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'all_website' && (
+        <AdminCentralizedImageManager passcode={passcode} />
+      )}
 
       {/* ========================================================================= */}
       {/* 1. MENU DISHES & PIZZAS TAB */}
@@ -763,8 +784,8 @@ export const AdminMediaManager: React.FC<AdminMediaManagerProps> = ({ passcode }
       {/* GALLERY UPLOAD / EDIT MODAL */}
       {/* ========================================================================= */}
       {showGalleryModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-brand-border rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-up">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-brand-border rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-up max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between p-4 border-b border-brand-border">
               <h3 className="font-bold text-white text-sm">
                 {editingGalleryItem ? 'Edit Gallery Photo' : 'Upload New Gallery Photo'}

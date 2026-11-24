@@ -40,6 +40,8 @@ import {
   MenuCustomization,
   GalleryItem,
   HeroSlide,
+  WebsiteImageItem,
+  WebsiteImageSectionId,
 } from './types';
 import { cloudinaryService } from './services/cloudinary';
 import { normalizeWhatsAppNumber, formatReadablePhone, DEFAULT_WHATSAPP_NUMBER, DEFAULT_DISPLAY_PHONE } from './utils/phone';
@@ -47,6 +49,7 @@ import { timeToMinutes, doIntervalsOverlap, getNowInKolkata } from './utils/time
 import { calculateBookingPrice } from './utils/pricing';
 import { INITIAL_TOURNAMENTS, INITIAL_TOURNAMENT_RESULTS, INITIAL_HALL_OF_FAME } from './initialTournaments';
 import { INITIAL_HERO_SLIDES } from './initialHeroSlides';
+import { INITIAL_WEBSITE_IMAGES } from './initialWebsiteImages';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -205,7 +208,7 @@ export const INITIAL_RESOURCES: GamingResource[] = [
     isMaintenance: false,
     machineIdentifier: 'RACE-01',
     specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
-    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    image: 'https://res.cloudinary.com/hcmnz5rk/image/upload/f_auto/q_auto/racing.jpg',
     order: 6,
   },
 ];
@@ -599,7 +602,7 @@ export const DEFAULT_CONTACT_SETTINGS: ContactSettings = {
   pincode: '224001',
   googleMapsUrl: 'https://maps.google.com/?q=Ayodhya+Uttar+Pradesh',
   instagramHandle: '@giocasa.ayodhya',
-  instagramUrl: 'https://instagram.com',
+  instagramUrl: 'https://www.instagram.com/giocasacafe/',
 };
 
 class DatabaseService {
@@ -631,6 +634,7 @@ class DatabaseService {
   private fileMenuCustomizations: MenuCustomization[] = [];
   private fileGalleryItems: GalleryItem[] = [];
   private fileHeroSlides: HeroSlide[] = [];
+  private fileWebsiteImages: WebsiteImageItem[] = [];
 
   private bookingsFilePath = path.join(DATA_DIR, 'bookings.json');
   private resourcesFilePath = path.join(DATA_DIR, 'resources.json');
@@ -652,6 +656,7 @@ class DatabaseService {
   private menuCustomizationsFilePath = path.join(DATA_DIR, 'menu_customizations.json');
   private galleryItemsFilePath = path.join(DATA_DIR, 'gallery_items.json');
   private heroSlidesFilePath = path.join(DATA_DIR, 'hero_slides.json');
+  private websiteImagesFilePath = path.join(DATA_DIR, 'website_images.json');
   private settingsFilePath = path.join(DATA_DIR, 'settings.json');
   private cachedAdminPasscode: string | null = null;
   private cachedContactSettings: ContactSettings | null = null;
@@ -1233,6 +1238,15 @@ class DatabaseService {
         this.fileHeroSlides = [...INITIAL_HERO_SLIDES];
         this.saveHeroSlidesToFile();
       }
+
+      // Load Website Images
+      if (fs.existsSync(this.websiteImagesFilePath)) {
+        const raw = fs.readFileSync(this.websiteImagesFilePath, 'utf-8');
+        this.fileWebsiteImages = JSON.parse(raw);
+      } else {
+        this.fileWebsiteImages = [...INITIAL_WEBSITE_IMAGES];
+        this.saveWebsiteImagesToFile();
+      }
     } catch (err) {
       console.error('Error reading fallback JSON stores:', err);
       this.fileResources = [...INITIAL_RESOURCES];
@@ -1254,6 +1268,7 @@ class DatabaseService {
       this.fileMenuCustomizations = [];
       this.fileGalleryItems = [];
       this.fileHeroSlides = [...INITIAL_HERO_SLIDES];
+      this.fileWebsiteImages = [...INITIAL_WEBSITE_IMAGES];
     }
   }
 
@@ -1278,6 +1293,14 @@ class DatabaseService {
       fs.writeFileSync(this.heroSlidesFilePath, JSON.stringify(this.fileHeroSlides, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error saving hero slides to file:', err);
+    }
+  }
+
+  private saveWebsiteImagesToFile(): void {
+    try {
+      fs.writeFileSync(this.websiteImagesFilePath, JSON.stringify(this.fileWebsiteImages, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving website images to file:', err);
     }
   }
 
@@ -2419,21 +2442,33 @@ class DatabaseService {
   async verifyAdminPasscode(candidate: string): Promise<boolean> {
     if (!candidate || typeof candidate !== 'string') return false;
     const stored = await this.getAdminPasscode();
-    if (!stored) return false;
 
-    // Direct constant-time match (matches stored token or hash)
-    if (timingSafeCompare(candidate.trim(), stored.trim())) {
+    if (stored) {
+      // Direct constant-time match (matches stored token or hash)
+      if (timingSafeCompare(candidate.trim(), stored.trim())) {
+        return true;
+      }
+
+      if (verifyPassword(candidate, stored)) {
+        if (!stored.includes('$')) {
+          // Transparently upgrade legacy plaintext to secure scrypt hash
+          this.setAdminPasscode(candidate).catch((err) =>
+            console.warn('Notice: Background passcode hash upgrade notice:', err?.message || err)
+          );
+        }
+        return true;
+      }
+    }
+
+    // Also verify against configured environment adminPasscode (from .env ADMIN_PASSCODE)
+    if (config.adminPasscode && timingSafeCompare(candidate.trim(), config.adminPasscode.trim())) {
+      this.setAdminPasscode(candidate).catch((err) =>
+        console.warn('Notice: Background sync of configured passcode to database:', err?.message || err)
+      );
       return true;
     }
 
-    const isValid = verifyPassword(candidate, stored);
-    if (isValid && !stored.includes('$')) {
-      // Transparently upgrade legacy plaintext to secure scrypt hash
-      this.setAdminPasscode(candidate).catch((err) =>
-        console.warn('Notice: Background passcode hash upgrade notice:', err?.message || err)
-      );
-    }
-    return isValid;
+    return false;
   }
 
   async setAdminPasscode(newPasscode: string): Promise<void> {
@@ -7961,6 +7996,146 @@ class DatabaseService {
       this.saveHeroSlidesToFile();
       return updated;
     }
+  }
+
+  // ==========================================
+  // CENTRALIZED WEBSITE-WIDE IMAGES METHODS
+  // ==========================================
+
+  async getWebsiteImages(
+    section?: WebsiteImageSectionId,
+    includeInactive = false
+  ): Promise<WebsiteImageItem[]> {
+    let items: WebsiteImageItem[] = [];
+    if (this.isMongoConnected && this.db) {
+      const query: any = {};
+      if (section) query.section = section;
+      if (!includeInactive) query.isActive = true;
+      items = await this.db
+        .collection<WebsiteImageItem>('website_images')
+        .find(query)
+        .sort({ order: 1 })
+        .toArray();
+    } else {
+      items = [...this.fileWebsiteImages];
+      if (section) items = items.filter((img) => img.section === section);
+      if (!includeInactive) items = items.filter((img) => img.isActive);
+      items.sort((a, b) => a.order - b.order);
+    }
+
+    // If mongo is empty or initial fallback needed for this section
+    if (items.length === 0 && section) {
+      const fallback = INITIAL_WEBSITE_IMAGES.filter((img) => img.section === section);
+      if (fallback.length > 0) {
+        items = includeInactive ? fallback : fallback.filter((img) => img.isActive);
+      }
+    } else if (items.length === 0 && !section) {
+      items = includeInactive ? INITIAL_WEBSITE_IMAGES : INITIAL_WEBSITE_IMAGES.filter((img) => img.isActive);
+    }
+
+    return items;
+  }
+
+  async saveWebsiteImages(
+    section: WebsiteImageSectionId,
+    images: WebsiteImageItem[]
+  ): Promise<WebsiteImageItem[]> {
+    const nowIso = new Date().toISOString();
+    const cleanImages = images.map((img, idx) => ({
+      ...img,
+      section,
+      order: img.order || idx + 1,
+      updatedAt: nowIso,
+    }));
+
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<WebsiteImageItem>('website_images');
+      // Delete existing section items
+      await col.deleteMany({ section });
+      if (cleanImages.length > 0) {
+        await col.insertMany(cleanImages);
+      }
+    }
+
+    // Always update file fallback
+    this.fileWebsiteImages = [
+      ...this.fileWebsiteImages.filter((img) => img.section !== section),
+      ...cleanImages,
+    ];
+    this.saveWebsiteImagesToFile();
+
+    return cleanImages;
+  }
+
+  async updateWebsiteImageItem(
+    id: string,
+    updates: Partial<WebsiteImageItem>
+  ): Promise<WebsiteImageItem | null> {
+    const nowIso = new Date().toISOString();
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<WebsiteImageItem>('website_images');
+      const existing = await col.findOne({ id });
+      if (!existing) return null;
+      const updated = { ...existing, ...updates, updatedAt: nowIso };
+      const { _id, ...fieldsToSet } = updated as any;
+      await col.updateOne({ id }, { $set: fieldsToSet });
+
+      // sync file store
+      const idx = this.fileWebsiteImages.findIndex((img) => img.id === id);
+      if (idx !== -1) {
+        this.fileWebsiteImages[idx] = updated;
+        this.saveWebsiteImagesToFile();
+      }
+      return updated;
+    } else {
+      const idx = this.fileWebsiteImages.findIndex((img) => img.id === id);
+      if (idx === -1) return null;
+      const updated = { ...this.fileWebsiteImages[idx], ...updates, updatedAt: nowIso };
+      this.fileWebsiteImages[idx] = updated;
+      this.saveWebsiteImagesToFile();
+      return updated;
+    }
+  }
+
+  async addWebsiteImageItem(
+    section: WebsiteImageSectionId,
+    item: Omit<WebsiteImageItem, 'id'>
+  ): Promise<WebsiteImageItem> {
+    const nowIso = new Date().toISOString();
+    const newId = `img-${section.slice(0, 4)}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const newItem: WebsiteImageItem = {
+      ...item,
+      id: newId,
+      section,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<WebsiteImageItem>('website_images');
+      await col.insertOne(newItem);
+    }
+
+    this.fileWebsiteImages.push(newItem);
+    this.saveWebsiteImagesToFile();
+    return newItem;
+  }
+
+  async deleteWebsiteImageItem(id: string): Promise<boolean> {
+    let deleted = false;
+    if (this.isMongoConnected && this.db) {
+      const col = this.db.collection<WebsiteImageItem>('website_images');
+      const res = await col.deleteOne({ id });
+      deleted = (res.deletedCount || 0) > 0;
+    }
+
+    const prevLen = this.fileWebsiteImages.length;
+    this.fileWebsiteImages = this.fileWebsiteImages.filter((img) => img.id !== id);
+    if (this.fileWebsiteImages.length !== prevLen) {
+      deleted = true;
+      this.saveWebsiteImagesToFile();
+    }
+    return deleted;
   }
 
   async backfillHistoricalData(): Promise<{ syncedPlayersCount: number }> {

@@ -17,7 +17,7 @@ export const DEFAULT_CONTACT_SETTINGS: ContactSettings = {
   pincode: '224001',
   googleMapsUrl: 'https://maps.google.com/?q=Ayodhya+Uttar+Pradesh',
   instagramHandle: '@giocasa.ayodhya',
-  instagramUrl: 'https://instagram.com',
+  instagramUrl: 'https://www.instagram.com/giocasacafe/',
 };
 
 class ContactApiClient {

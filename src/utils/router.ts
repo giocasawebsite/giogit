@@ -23,6 +23,10 @@ export function parseCurrentRoute(): ParsedRoute {
   const queryParams = new URLSearchParams(queryString);
   const token = queryParams.get('token') || undefined;
   const resourceId = queryParams.get('resourceId') || undefined;
+  const bookingId = queryParams.get('bookingId') || undefined;
+  const ref = queryParams.get('ref') || undefined;
+  const type = queryParams.get('type') || undefined;
+  const queryAdminTab = (queryParams.get('adminTab') || queryParams.get('tab') || undefined) as any;
 
   // Normalize path segments: remove leading/trailing slashes
   const segments = raw.split('/').filter(Boolean);
@@ -72,12 +76,12 @@ export function parseCurrentRoute(): ParsedRoute {
   // 3. ADMIN ROUTES
   if (segments[0] === 'admin') {
     if (segments.length === 1) {
-      return { page: 'admin', params: { adminTab: 'overview' } };
+      return { page: 'admin', params: { adminTab: queryAdminTab || 'overview', bookingId, ref, type } };
     }
 
     if (segments[1] === 'tournaments') {
       if (segments.length === 2) {
-        return { page: 'admin', params: { adminTab: 'tournaments' } };
+        return { page: 'admin', params: { adminTab: 'tournaments', ref } };
       }
       if (segments[2] === 'new') {
         return { page: 'admin', params: { adminTab: 'tournament-new' } };
@@ -88,13 +92,13 @@ export function parseCurrentRoute(): ParsedRoute {
         return { page: 'admin', params: { adminTab: 'tournament-edit', adminTournamentId: id } };
       }
       if (segments[3] === 'registrations') {
-        return { page: 'admin', params: { adminTab: 'tournament-registrations', adminTournamentId: id } };
+        return { page: 'admin', params: { adminTab: 'tournament-registrations', adminTournamentId: id, ref } };
       }
       if (segments[3] === 'results') {
         return { page: 'admin', params: { adminTab: 'tournament-results', adminTournamentId: id } };
       }
 
-      return { page: 'admin', params: { adminTab: 'tournaments', adminTournamentId: id } };
+      return { page: 'admin', params: { adminTab: 'tournaments', adminTournamentId: id, ref } };
     }
 
     if (segments[1] === 'players') {
@@ -128,10 +132,10 @@ export function parseCurrentRoute(): ParsedRoute {
     }
 
     if (segments[1] === 'reservations') {
-      return { page: 'admin', params: { adminTab: 'reservations' } };
+      return { page: 'admin', params: { adminTab: 'reservations', ref, type } };
     }
 
-    return { page: 'admin', params: { adminTab: 'overview' } };
+    return { page: 'admin', params: { adminTab: queryAdminTab || 'overview', bookingId, ref, type } };
   }
 
   // 4. EXISTING CORE PAGES
@@ -168,35 +172,41 @@ export function buildRoutePath(page: PageRoute, params?: RouteParams): string {
     case 'hall-of-fame':
       return '/hall-of-fame';
     case 'admin': {
+      const q = new URLSearchParams();
+      if (params?.bookingId) q.set('bookingId', params.bookingId);
+      if (params?.ref) q.set('ref', params.ref);
+      if (params?.type) q.set('type', params.type);
+      const qStr = q.toString() ? `?${q.toString()}` : '';
+
       if (params?.adminTab === 'players') {
         if (params.adminSubTab === 'profile' && params.adminPlayerId) {
-          return `/admin/players/${params.adminPlayerId}`;
+          return `/admin/players/${params.adminPlayerId}${qStr}`;
         }
         if (params.adminSubTab === 'segments') {
-          return '/admin/players/segments';
+          return `/admin/players/segments${qStr}`;
         }
         if (params.adminSubTab === 'loyalty') {
-          return '/admin/players/loyalty';
+          return `/admin/players/loyalty${qStr}`;
         }
-        return '/admin/players';
+        return `/admin/players${qStr}`;
       }
-      if (params?.adminTab === 'tournament-new') return '/admin/tournaments/new';
+      if (params?.adminTab === 'tournament-new') return `/admin/tournaments/new${qStr}`;
       if (params?.adminTab === 'tournament-edit' && params.adminTournamentId) {
-        return `/admin/tournaments/${params.adminTournamentId}/edit`;
+        return `/admin/tournaments/${params.adminTournamentId}/edit${qStr}`;
       }
       if (params?.adminTab === 'tournament-registrations' && params.adminTournamentId) {
-        return `/admin/tournaments/${params.adminTournamentId}/registrations`;
+        return `/admin/tournaments/${params.adminTournamentId}/registrations${qStr}`;
       }
       if (params?.adminTab === 'tournament-results' && params.adminTournamentId) {
-        return `/admin/tournaments/${params.adminTournamentId}/results`;
+        return `/admin/tournaments/${params.adminTournamentId}/results${qStr}`;
       }
-      if (params?.adminTab === 'tournaments') return '/admin/tournaments';
-      if (params?.adminTab === 'games') return '/admin/games';
-      if (params?.adminTab === 'hall-of-fame') return '/admin/hall-of-fame';
-      if (params?.adminTab === 'contact') return '/admin/contact';
-      if (params?.adminTab === 'equipment') return '/admin/equipment';
-      if (params?.adminTab === 'reservations') return '/admin/reservations';
-      return '/admin';
+      if (params?.adminTab === 'tournaments') return `/admin/tournaments${qStr}`;
+      if (params?.adminTab === 'games') return `/admin/games${qStr}`;
+      if (params?.adminTab === 'hall-of-fame') return `/admin/hall-of-fame${qStr}`;
+      if (params?.adminTab === 'contact') return `/admin/contact${qStr}`;
+      if (params?.adminTab === 'equipment') return `/admin/equipment${qStr}`;
+      if (params?.adminTab === 'reservations') return `/admin/reservations${qStr}`;
+      return `/admin${qStr}`;
     }
     default:
       return `/${page}`;

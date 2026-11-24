@@ -26,6 +26,7 @@ import adminVerifyRouter from './routes/adminVerify';
 import menuCustomizationsRouter from './routes/menuCustomizations';
 import galleryRouter from './routes/gallery';
 import heroRouter from './routes/hero';
+import websiteImagesRouter from './routes/websiteImages';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -211,6 +212,8 @@ app.use('/api/hall-of-fame', hallOfFameRouter);
 app.use('/api/menu', menuCustomizationsRouter);
 app.use('/api/gallery', galleryRouter);
 app.use('/api/hero', heroRouter);
+app.use('/api/website-images', websiteImagesRouter);
+app.use('/api/admin/website-images', websiteImagesRouter);
 app.use('/api/admin/verify', adminVerifyRouter);
 app.use('/api/admin/push', adminPushRouter);
 app.use('/api/admin/reservations', adminReservationsRouter);

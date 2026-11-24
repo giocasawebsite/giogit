@@ -131,6 +131,13 @@ export interface Booking {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   auditLogs?: BookingAuditLog[];
   notes?: string;
   createdAt: string; // ISO string
@@ -262,6 +269,13 @@ export interface TournamentRegistration {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   auditLogs?: BookingAuditLog[];
   createdAt: string;
   updatedAt: string;
@@ -628,6 +642,13 @@ export interface DiningReservation {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   totalAmount?: number;
   auditLogs?: BookingAuditLog[];
   adminNotes?: string;
@@ -664,6 +685,13 @@ export interface EventReservation {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   totalAmount?: number;
   auditLogs?: BookingAuditLog[];
   adminNotes?: string;
@@ -705,6 +733,13 @@ export interface VerifiedGuestBooking {
   paymentReference?: string;
   paymentVerifiedAt?: string;
   paymentVerifiedBy?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  sessionStartedAt?: string;
+  sessionEndedAt?: string;
+  sessionStartedBy?: string;
+  sessionEndedBy?: string;
+  actualPlayDurationMinutes?: number;
   notes?: string;
   specialRequests?: string;
   additionalRequirements?: string;
@@ -852,6 +887,51 @@ export interface HeroSlide {
   mobileImageUrl: string;
   mobilePublicId?: string;
   isActive: boolean;
+  updatedAt: string;
+}
+
+// ==========================================
+// CENTRALIZED WEBSITE-WIDE IMAGE TYPES
+// ==========================================
+
+export type WebsiteImageSectionId =
+  | 'first_floor_carousel'
+  | 'basement_carousel'
+  | 'hero_slides'
+  | 'racing_simulator'
+  | 'experience_page'
+  | 'menu_food'
+  | 'visual_stories'
+  | 'games_artwork'
+  | 'tournaments_hall_of_fame'
+  | 'promotional_banners';
+
+export interface WebsiteImageItem {
+  id: string;
+  section: WebsiteImageSectionId;
+  title: string;
+  subtitle?: string;
+  caption?: string;
+  imageUrl: string;
+  imagePublicId?: string;
+  mobileImageUrl?: string;
+  mobilePublicId?: string;
+  tabletImageUrl?: string;
+  tabletPublicId?: string;
+  order: number;
+  isActive: boolean;
+  altText?: string;
+  aspectRatio?: string;
+  usageId?: string;
+  tags?: string[];
+  ctaText?: string;
+  ctaLink?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WebsiteImagesConfig {
+  sections: Record<WebsiteImageSectionId, WebsiteImageItem[]>;
   updatedAt: string;
 }
 

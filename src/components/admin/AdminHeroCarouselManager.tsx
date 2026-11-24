@@ -646,11 +646,11 @@ export const AdminHeroCarouselManager: React.FC<AdminHeroCarouselManagerProps> =
 
       {/* Interactive Modal for Slide Preview */}
       {previewSlide && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-brand-border">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-white">
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl my-auto">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 border-b border-brand-border">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="text-sm font-bold text-white truncate max-w-[180px] sm:max-w-none">
                   Slide Preview: {previewSlide.title}
                 </span>
                 <div className="flex items-center gap-1 bg-brand-surfaceElevated p-1 rounded-xl border border-brand-border">
@@ -686,19 +686,19 @@ export const AdminHeroCarouselManager: React.FC<AdminHeroCarouselManagerProps> =
 
               <button
                 onClick={() => setPreviewSlide(null)}
-                className="p-2 rounded-full hover:bg-brand-surfaceElevated text-brand-subtle hover:text-white"
+                className="p-1.5 sm:p-2 rounded-full hover:bg-brand-surfaceElevated text-brand-subtle hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-black/40">
+            <div className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-black/40">
               <div
                 className={`relative rounded-2xl overflow-hidden border border-brand-border shadow-2xl transition-all duration-300 flex items-center justify-center ${
                   previewDevice === 'mobile'
-                    ? 'w-[320px] h-[568px]'
+                    ? 'w-full max-w-[320px] aspect-[9/16]'
                     : previewDevice === 'tablet'
-                    ? 'w-[640px] h-[440px]'
+                    ? 'w-full max-w-[640px] aspect-[4/3]'
                     : 'w-full max-w-3xl aspect-video'
                 }`}
               >

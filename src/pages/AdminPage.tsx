@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PageRoute, RouteParams } from '../types';
-import { bookingApi, AdminOverviewData, Booking, GamingResource } from '../services/bookingApi';
+import { bookingApi, AdminOverviewData, Booking, GamingResource, TimeSlot } from '../services/bookingApi';
 import { AdminTournamentsManager } from '../components/admin/AdminTournamentsManager';
 import { AdminHallOfFameManager } from '../components/admin/AdminHallOfFameManager';
 import { AdminPlayerCRM } from '../components/admin/AdminPlayerCRM';
@@ -11,8 +11,9 @@ import { AdminGuestVerification } from '../components/admin/AdminGuestVerificati
 import { AdminMediaManager } from '../components/admin/AdminMediaManager';
 import { AdminGamesManager } from '../components/admin/AdminGamesManager';
 import { AdminHeroCarouselManager } from '../components/admin/AdminHeroCarouselManager';
-import { getPricingDescription } from '../utils/pricing';
+import { getPricingDescription, calculateBookingPrice } from '../utils/pricing';
 import { useAdminLiveSync } from '../hooks/useAdminLiveSync';
+import { canInstallPwa, triggerPwaInstall, isStandaloneApp, subscribeToPwaState } from '../utils/pwaInstall';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -40,12 +41,19 @@ import {
   Trash,
   CheckSquare,
   Square,
+  Play,
+  Edit3,
+  Download,
   LogOut,
   MessageCircle,
   Utensils,
   Bell,
   Image as ImageIcon,
   Sliders,
+  Eye,
+  ChevronRight,
+  Activity,
+  Timer,
 } from 'lucide-react';
 
 interface AdminPageProps {
@@ -54,6 +62,9 @@ interface AdminPageProps {
   adminTournamentId?: string;
   adminSubTab?: 'directory' | 'profile' | 'segments' | 'loyalty' | 'referrals' | 'reminders';
   adminPlayerId?: string;
+  targetBookingId?: string;
+  targetRef?: string;
+  targetType?: string;
 }
 
 export const AdminPage: React.FC<AdminPageProps> = ({
@@ -62,6 +73,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   adminTournamentId,
   adminSubTab,
   adminPlayerId,
+  targetBookingId,
+  targetRef,
+  targetType,
 }) => {
   // Passcode / Session Token authentication (sessionStorage ensures credentials expire when browser is closed)
   const [passcode, setPasscode] = useState<string>(
@@ -145,6 +159,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     resourceId: '',
     date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
     startTime: '14:00',
+    endTime: '15:00',
     durationMinutes: 60,
     numberOfPeople: 1,
     paymentStatus: 'paid',
@@ -152,6 +167,224 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   });
   const [manualSubmitting, setManualSubmitting] = useState<boolean>(false);
   const [manualError, setManualError] = useState<string | null>(null);
+
+  // Edit Booking Modal State (Requirement 3)
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [editForm, setEditForm] = useState({
+    customerName: '',
+    phone: '',
+    email: '',
+    resourceId: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    durationMinutes: 60,
+    totalAmount: 0,
+    paymentStatus: 'unpaid' as 'unpaid' | 'pending' | 'paid' | 'refunded',
+    paymentMethod: 'cash' as 'cash' | 'upi' | 'card' | 'other',
+    paymentReference: '',
+    status: 'confirmed' as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled',
+    notes: '',
+  });
+  const [editSubmitting, setEditSubmitting] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Live Station Details / Inspector Drawer State (Requirement: Equipment Cards Click)
+  const [selectedStationDetail, setSelectedStationDetail] = useState<{
+    station: AdminOverviewData['liveStations'][0];
+    resource?: GamingResource;
+  } | null>(null);
+  const [stationDrawerTab, setStationDrawerTab] = useState<'availability' | 'upcoming'>('availability');
+  const [stationDetailDate, setStationDetailDate] = useState<string>(() =>
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+  );
+  const [stationSlots, setStationSlots] = useState<TimeSlot[]>([]);
+  const [stationOperatingHours, setStationOperatingHours] = useState<{ open: string; close: string }>({
+    open: '11:00',
+    close: '23:00',
+  });
+  const [stationBookings, setStationBookings] = useState<Booking[]>([]);
+  const [stationAllUpcomingBookings, setStationAllUpcomingBookings] = useState<Booking[]>([]);
+  const [stationDetailLoading, setStationDetailLoading] = useState<boolean>(false);
+  const [stationDetailError, setStationDetailError] = useState<string | null>(null);
+  const [stationActionLoadingId, setStationActionLoadingId] = useState<string | null>(null);
+
+  const selectedStationDetailRef = React.useRef(selectedStationDetail);
+  selectedStationDetailRef.current = selectedStationDetail;
+  const stationDetailDateRef = React.useRef(stationDetailDate);
+  stationDetailDateRef.current = stationDetailDate;
+
+  // Format remaining time in hours & minutes (30 mins per available slot)
+  const formatRemainingTime = (availableSlotsCount: number) => {
+    const totalMinutes = availableSlotsCount * 30;
+    if (totalMinutes <= 0) return '0h 0m';
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    return `${hours}h ${mins > 0 ? `${mins}m` : '0m'}`;
+  };
+
+  // Strictly load live availability and bookings for a specific station unit
+  const loadStationDetailData = useCallback(async (resourceId: string, date: string, showSpinner = true) => {
+    if (!passcode) return;
+    if (showSpinner) setStationDetailLoading(true);
+    setStationDetailError(null);
+
+    try {
+      const todayKolkata = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+      // Parallel fetch for: 30-min slot availability, day bookings for this resource, and all upcoming bookings for this resource
+      const [availData, dayBookings, allResBookings] = await Promise.all([
+        bookingApi.getAvailability(resourceId, date, 30),
+        bookingApi.getAdminBookings(passcode, { resourceId, date }),
+        bookingApi.getAdminBookings(passcode, { resourceId }),
+      ]);
+
+      setStationSlots(availData.slots || []);
+      if (availData.operatingHours) {
+        setStationOperatingHours(availData.operatingHours);
+      }
+
+      // STRICT SCOPING GUARANTEE: Equipment A will NEVER show Equipment B's bookings
+      const scopedDayBookings = (dayBookings || []).filter((b) => b.resourceId === resourceId);
+      setStationBookings(scopedDayBookings);
+
+      const scopedUpcoming = (allResBookings || [])
+        .filter((b) => b.resourceId === resourceId && b.date >= todayKolkata && b.status !== 'cancelled')
+        .sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.startTime.localeCompare(b.startTime);
+        });
+      setStationAllUpcomingBookings(scopedUpcoming);
+    } catch (err: any) {
+      console.error('Failed to load live station details:', err);
+      setStationDetailError(err.message || 'Failed to load station availability and bookings.');
+    } finally {
+      if (showSpinner) setStationDetailLoading(false);
+    }
+  }, [passcode]);
+
+  // Open Station Inspector Drawer
+  const handleOpenStationDetails = (station: AdminOverviewData['liveStations'][0], resource?: GamingResource) => {
+    const todayKolkata = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    setSelectedStationDetail({ station, resource });
+    setStationDrawerTab('availability');
+    setStationDetailDate(todayKolkata);
+    loadStationDetailData(station.id, todayKolkata, true);
+  };
+
+  // Change Inspection Date
+  const handleStationDetailDateChange = (newDate: string) => {
+    setStationDetailDate(newDate);
+    if (selectedStationDetailRef.current) {
+      loadStationDetailData(selectedStationDetailRef.current.station.id, newDate, true);
+    }
+  };
+
+  // Fast Switch between Stations in Drawer
+  const handleSwitchStationDetail = (targetStationId: string) => {
+    const targetStation = overview?.liveStations.find((s) => s.id === targetStationId);
+    if (!targetStation) return;
+    const matched = resources.find((r) => r.id === targetStation.id);
+    setSelectedStationDetail({ station: targetStation, resource: matched });
+    loadStationDetailData(targetStation.id, stationDetailDateRef.current, true);
+  };
+
+  // Start Play Session inside Station Drawer
+  const handleStationDrawerStartPlay = async (booking: Booking) => {
+    if (!passcode || stationActionLoadingId) return;
+    if (!window.confirm(`Start live gaming session for #${booking.id} (${booking.customerName}) on ${selectedStationDetail?.station.name || 'station'}?`)) return;
+
+    setStationActionLoadingId(booking.id);
+    try {
+      await bookingApi.startSession(passcode, booking.id);
+      setActionFeedback({ type: 'success', message: `Play session started for ${booking.customerName}!` });
+      await Promise.all([
+        loadDashboard(passcode),
+        selectedStationDetailRef.current ? loadStationDetailData(selectedStationDetailRef.current.station.id, stationDetailDateRef.current, false) : Promise.resolve(),
+      ]);
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Failed to start gaming session.' });
+    } finally {
+      setStationActionLoadingId(null);
+    }
+  };
+
+  // End Play Session inside Station Drawer
+  const handleStationDrawerEndPlay = async (booking: Booking) => {
+    if (!passcode || stationActionLoadingId) return;
+    if (!window.confirm(`End live gaming session for #${booking.id} (${booking.customerName})? Actual play duration will be recorded.`)) return;
+
+    setStationActionLoadingId(booking.id);
+    try {
+      const res = await bookingApi.endSession(passcode, booking.id);
+      setActionFeedback({
+        type: 'success',
+        message: `Play session completed for ${booking.customerName}. Actual play: ${res.actualPlayDurationMinutes || 0} mins.`,
+      });
+      await Promise.all([
+        loadDashboard(passcode),
+        selectedStationDetailRef.current ? loadStationDetailData(selectedStationDetailRef.current.station.id, stationDetailDateRef.current, false) : Promise.resolve(),
+      ]);
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Failed to end gaming session.' });
+    } finally {
+      setStationActionLoadingId(null);
+    }
+  };
+
+  // Deep Links & Notification Redirection
+  useEffect(() => {
+    if (targetBookingId) {
+      setSelectedTab('stations');
+      setSearchQuery(targetBookingId);
+    } else if (targetType === 'dining' || targetType === 'event' || targetType === 'events') {
+      setSelectedTab('reservations');
+    } else if (targetType === 'tournament') {
+      setSelectedTab('tournaments');
+    }
+  }, [targetBookingId, targetType, targetRef]);
+
+  // Listen for service worker notification click navigation events
+  useEffect(() => {
+    const handleSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'GIOCASA_NOTIFICATION_NAVIGATE') {
+        const { data } = e.data;
+        if (data?.type === 'booking' && data.reference) {
+          setSelectedTab('stations');
+          setSearchQuery(data.reference);
+        } else if (data?.type === 'dining' || data?.type === 'event') {
+          setSelectedTab('reservations');
+        } else if (data?.type === 'tournament') {
+          setSelectedTab('tournaments');
+        }
+      }
+    };
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      };
+    }
+  }, []);
+
+  // PWA installation for authenticated staff
+  const [pwaInstallAvailable, setPwaInstallAvailable] = useState<boolean>(() => canInstallPwa());
+  const [showPwaInstallModal, setShowPwaInstallModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    return subscribeToPwaState(() => {
+      setPwaInstallAvailable(canInstallPwa());
+    });
+  }, []);
+
+  const handleStaffPwaInstall = async () => {
+    const res = await triggerPwaInstall();
+    if (res.outcome === 'unsupported') {
+      setShowPwaInstallModal(true);
+    }
+  };
 
   // Attempt login with stored passcode or verify
   useEffect(() => {
@@ -173,6 +406,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setOverview(ovData);
       setBookings(bkData);
       setResources(resData);
+
+      // Keep Station Detail drawer live synced if open
+      if (selectedStationDetailRef.current) {
+        const curId = selectedStationDetailRef.current.station.id;
+        const curDate = stationDetailDateRef.current;
+        const updatedStation = ovData.liveStations.find((s) => s.id === curId);
+        const updatedRes = resData.find((r) => r.id === curId);
+        if (updatedStation) {
+          setSelectedStationDetail({ station: updatedStation, resource: updatedRes });
+        }
+        await loadStationDetailData(curId, curDate, false);
+      }
       setIsAuthenticated(true);
       sessionStorage.setItem('giocasa_admin_token', code);
       // Clean up plaintext legacy storage
@@ -217,7 +462,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       }
       throw err;
     }
-  }, [passcode, isAuthenticated, showManualModal]);
+  }, [passcode, isAuthenticated, showManualModal, loadStationDetailData]);
 
   const { status: liveSyncStatus, lastSyncedAt } = useAdminLiveSync({
     enabled: isAuthenticated && !!passcode,
@@ -312,7 +557,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
     try {
       await bookingApi.toggleResourceMaintenance(passcode, resource.id, nextState, reason);
-      loadDashboard(passcode);
+      await loadDashboard(passcode);
+      if (selectedStationDetailRef.current && selectedStationDetailRef.current.station.id === resource.id) {
+        await loadStationDetailData(resource.id, stationDetailDateRef.current, false);
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to update maintenance state.');
     }
@@ -349,6 +597,129 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
+  const timeToMins = (t: string): number => {
+    const [h, m] = (t || '0:0').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const minsToTime = (mins: number): string => {
+    const totalMinutes = ((mins % 1440) + 1440) % 1440;
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Start Play (Session Control - Requirement 3)
+  const handleStartPlay = async (booking: Booking) => {
+    if (actionLoading) return;
+    if (!window.confirm(`Start live gaming session for #${booking.id} (${booking.customerName})?`)) return;
+
+    setActionLoading(true);
+    setActionFeedback(null);
+    try {
+      await bookingApi.startSession(passcode, booking.id);
+      await loadDashboard(passcode);
+      setActionFeedback({ type: 'success', message: `Gaming session started for #${booking.id}! Station marked active.` });
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Failed to start gaming session.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // End Play (Session Control - Requirement 3)
+  const handleEndPlay = async (booking: Booking) => {
+    if (actionLoading) return;
+    if (!window.confirm(`End active gaming session for #${booking.id} (${booking.customerName})? This will record actual duration.`)) return;
+
+    setActionLoading(true);
+    setActionFeedback(null);
+    try {
+      const res = await bookingApi.endSession(passcode, booking.id);
+      await loadDashboard(passcode);
+      setActionFeedback({
+        type: 'success',
+        message: `Gaming session completed for #${booking.id}. Actual play: ${res.actualPlayDurationMinutes || 0} mins.`,
+      });
+      setTimeout(() => setActionFeedback(null), 5000);
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Failed to end gaming session.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open Edit Booking Modal
+  const handleOpenEditBooking = (booking: Booking) => {
+    setEditingBooking(booking);
+    setEditError(null);
+    setEditForm({
+      customerName: booking.customerName || '',
+      phone: booking.phone || '',
+      email: booking.email || '',
+      resourceId: booking.resourceId || '',
+      date: booking.date || '',
+      startTime: booking.startTime || '',
+      endTime: booking.endTime || '',
+      durationMinutes: booking.durationMinutes || 60,
+      totalAmount: booking.totalAmount || 0,
+      paymentStatus: (booking.paymentStatus as any) || 'unpaid',
+      paymentMethod: (booking.paymentMethod as any) || 'cash',
+      paymentReference: booking.paymentReference || '',
+      status: (booking.status as any) || 'confirmed',
+      notes: booking.notes || '',
+    });
+  };
+
+  // Recalculate price in Edit Modal
+  const handleRecalculateEditPrice = () => {
+    const res = resources.find(r => r.id === editForm.resourceId);
+    if (!res) return;
+    const startM = timeToMins(editForm.startTime);
+    const endM = timeToMins(editForm.endTime);
+    const duration = endM > startM ? endM - startM : editForm.durationMinutes;
+    const calcCost = calculateBookingPrice(res.category, duration, editingBooking?.numberOfPeople || 1, res.ratePerHour);
+    setEditForm(prev => ({
+      ...prev,
+      durationMinutes: duration,
+      totalAmount: calcCost,
+    }));
+  };
+
+  // Save Booking Edits
+  const handleSaveEditBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBooking) return;
+
+    const startM = timeToMins(editForm.startTime);
+    const endM = timeToMins(editForm.endTime);
+    if (endM <= startM) {
+      setEditError('End time must be strictly after start time.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      await bookingApi.editBooking(passcode, editingBooking.id, {
+        ...editForm,
+        durationMinutes: endM - startM,
+      });
+      setEditingBooking(null);
+      await loadDashboard(passcode);
+      if (selectedStationDetailRef.current) {
+        await loadStationDetailData(selectedStationDetailRef.current.station.id, stationDetailDateRef.current, false);
+      }
+      setActionFeedback({ type: 'success', message: `Booking #${editingBooking.id} updated successfully!` });
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update booking. Please verify timing conflicts.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   // Submit Manual Booking
   const handleCreateManualBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,12 +733,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     try {
       await bookingApi.createManualBooking(passcode, manualForm);
       setShowManualModal(false);
+      if (selectedStationDetailRef.current) {
+        loadStationDetailData(selectedStationDetailRef.current.station.id, stationDetailDateRef.current, false);
+      }
       setManualForm({
         customerName: '',
         phone: '',
         resourceId: resources[0]?.id || '',
         date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
         startTime: '14:00',
+        endTime: '',
         durationMinutes: 60,
         numberOfPeople: 1,
         paymentStatus: 'paid',
@@ -660,6 +1035,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               <span>Refresh</span>
             </button>
 
+            {!isStandaloneApp() && (
+              <button
+                type="button"
+                onClick={handleStaffPwaInstall}
+                className="px-4 py-2 rounded-xl bg-brand-surface border border-brand-border text-brand-subtle hover:text-brand-cream text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Install GioCasa Staff App on this device"
+              >
+                <Download className="w-3.5 h-3.5 text-brand-gold" />
+                <span className="hidden sm:inline">Install GioCasa Staff App</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setSelectedTab('verify');
@@ -919,7 +1306,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               return (
                 <div
                   key={station.id}
-                  className={`rounded-2xl border p-5 flex flex-col justify-between transition-all ${
+                  onClick={() => handleOpenStationDetails(station, matchedResource)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenStationDetails(station, matchedResource);
+                    }
+                  }}
+                  className={`rounded-2xl border p-5 flex flex-col justify-between transition-all cursor-pointer group hover:border-brand-gold/60 hover:shadow-luxury-gold/10 hover:scale-[1.01] active:scale-[0.99] ${
                     station.status === 'playing'
                       ? 'bg-amber-950/20 border-amber-600/60 shadow-lg'
                       : station.status === 'maintenance'
@@ -931,9 +1327,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-serif text-lg font-bold text-brand-cream">
-                        {station.name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-serif text-lg font-bold text-brand-cream group-hover:text-brand-gold transition-colors">
+                          {station.name}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-surfaceElevated border border-brand-border/60 text-brand-subtle">
+                          {station.id}
+                        </span>
+                      </div>
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
                           station.status === 'playing'
@@ -979,24 +1380,38 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     )}
                   </div>
 
-                  {/* Maintenance Toggle Button */}
-                  <div className="pt-4 mt-3 border-t border-brand-border/40 flex items-center justify-between text-xs">
-                    <span className="font-mono text-brand-subtle text-[11px]">
-                      {matchedResource ? getPricingDescription(matchedResource.category) : 'Standard Rate'}
-                    </span>
+                  {/* Maintenance Toggle Button & Inspector Link */}
+                  <div className="space-y-2 pt-4 mt-3 border-t border-brand-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono text-brand-subtle text-[11px]">
+                        {matchedResource ? getPricingDescription(matchedResource.category) : 'Standard Rate'}
+                      </span>
 
-                    {matchedResource && (
-                      <button
-                        onClick={() => handleToggleMaintenance(matchedResource)}
-                        className={`px-3 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-colors ${
-                          matchedResource.isMaintenance
-                            ? 'bg-emerald-950 text-emerald-400 hover:bg-emerald-900 border border-emerald-600'
-                            : 'bg-red-950/60 text-red-400 hover:bg-red-900 border border-red-800'
-                        }`}
-                      >
-                        {matchedResource.isMaintenance ? 'Restore Active' : 'Set Maintenance'}
-                      </button>
-                    )}
+                      {matchedResource && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleMaintenance(matchedResource);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-colors ${
+                            matchedResource.isMaintenance
+                              ? 'bg-emerald-950 text-emerald-400 hover:bg-emerald-900 border border-emerald-600'
+                              : 'bg-red-950/60 text-red-400 hover:bg-red-900 border border-red-800'
+                          }`}
+                        >
+                          {matchedResource.isMaintenance ? 'Restore Active' : 'Set Maintenance'}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-brand-border/30 flex items-center justify-between text-[11px] font-mono text-brand-gold group-hover:text-brand-goldHover">
+                      <span className="flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5" />
+                        Inspect Live Slots & Bookings
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
                 </div>
               );
@@ -1201,7 +1616,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         <td className="p-3.5">
                           <span className="text-brand-cream">{b.date}</span>
                           <span className="text-brand-gold block font-bold">
-                            {formatTime12(b.startTime)} – {formatTime12(b.endTime)}
+                            {formatTime12(b.startTime)} – {formatTime12(b.endTime || '')}
                           </span>
                         </td>
                         <td className="p-3.5 text-brand-cream">{b.durationMinutes} mins</td>
@@ -1233,26 +1648,41 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                             {b.status}
                           </span>
                         </td>
-                        <td className="p-3.5 text-right space-x-1.5">
-                          {b.status === 'confirmed' && (
+                        <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                          {/* Start Play button (Requirement 3) */}
+                          {(b.status === 'confirmed' || (b.status === 'pending' && !b.actualStartTime)) && (
                             <button
-                              onClick={() => handleUpdateBookingStatus(b.id, 'active')}
-                              title="Mark customer as playing right now"
-                              className="px-2 py-1 rounded bg-amber-950 border border-amber-700 text-amber-300 hover:bg-amber-900 text-[10px]"
+                              onClick={() => handleStartPlay(b)}
+                              disabled={actionLoading}
+                              title="Start gaming session (records actual start time & marks active)"
+                              className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-600 text-emerald-300 hover:bg-emerald-900 text-[10px] font-semibold transition-all inline-flex items-center gap-1 active:scale-95 cursor-pointer"
                             >
-                              Start Play
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>Start Play</span>
                             </button>
                           )}
 
-                          {b.status === 'active' && (
+                          {/* End Play button (Requirement 3) */}
+                          {(b.status === 'active' || (b.actualStartTime && b.status !== 'completed' && b.status !== 'cancelled')) && (
                             <button
-                              onClick={() => handleUpdateBookingStatus(b.id, 'completed')}
-                              title="Mark session as completed"
-                              className="px-2 py-1 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 hover:bg-emerald-900 text-[10px]"
+                              onClick={() => handleEndPlay(b)}
+                              disabled={actionLoading}
+                              title="End active gaming session (records end time & calculates actual duration)"
+                              className="px-2.5 py-1 rounded bg-amber-950 border border-amber-600 text-amber-300 hover:bg-amber-900 text-[10px] font-semibold transition-all inline-flex items-center gap-1 active:scale-95 cursor-pointer animate-pulse"
                             >
-                              Complete
+                              <Square className="w-3 h-3 fill-current" />
+                              <span>End Play</span>
                             </button>
                           )}
+
+                          {/* Edit Booking button (Requirement 3) */}
+                          <button
+                            onClick={() => handleOpenEditBooking(b)}
+                            title="Edit customer, timing, price, status, or notes"
+                            className="p-1.5 rounded bg-brand-surfaceElevated border border-brand-border text-brand-gold hover:text-white hover:border-brand-gold transition-colors inline-flex items-center align-middle cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
 
                           {(b.status === 'confirmed' || b.status === 'active') && (
                             <>
@@ -1278,7 +1708,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                           <button
                             onClick={() => handleDeleteSingle(b)}
                             title={`Delete booking #${b.id} from history`}
-                            className="p-1 rounded bg-stone-900/60 border border-stone-800 text-stone-400 hover:text-red-400 hover:border-red-900/60 hover:bg-red-950/40 transition-colors inline-flex items-center align-middle"
+                            className="p-1 rounded bg-stone-900/60 border border-stone-800 text-stone-400 hover:text-red-400 hover:border-red-900/60 hover:bg-red-950/40 transition-colors inline-flex items-center align-middle cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1484,6 +1914,856 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     className="px-6 py-2.5 rounded-xl bg-brand-terracotta text-brand-cream font-bold uppercase tracking-wider"
                   >
                     {manualSubmitting ? 'Creating...' : 'Create Booking'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* LIVE STATION DETAILS & AVAILABILITY DRAWER (Requirement 10) */}
+        {selectedStationDetail && (() => {
+          const categoryUnits = resources.filter(
+            (r) => r.category === (selectedStationDetail.resource?.category || selectedStationDetail.station.category)
+          );
+          const totalCategoryCount = categoryUnits.length || 1;
+          const unitIndex =
+            categoryUnits.findIndex((r) => r.id === selectedStationDetail.station.id) + 1 ||
+            1;
+          const arenaTotalUnits = overview?.liveStations.length || resources.length || 1;
+          const arenaUnitIndex =
+            (overview?.liveStations.findIndex((s) => s.id === selectedStationDetail.station.id) ?? -1) + 1 || 1;
+          const categoryName = (
+            selectedStationDetail.resource?.category ||
+            selectedStationDetail.station.category ||
+            'Station'
+          ).toUpperCase();
+
+          const availableSlots = stationSlots.filter((s) => s.status === 'available');
+          const bookedSlots = stationSlots.filter((s) => s.status === 'booked' || s.status === 'unavailable');
+          const playingSlots = stationSlots.filter((s) => s.status === 'playing');
+          const isTodaySelected =
+            stationDetailDate === new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+          const renderStationBookingCard = (b: Booking) => {
+            const isPlayingNow = b.status === 'active';
+            const isActionLoading = stationActionLoadingId === b.id;
+            const isTodayBooking =
+              b.date === new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+            return (
+              <div
+                key={b.id}
+                className={`p-4 rounded-2xl border transition-all ${
+                  isPlayingNow
+                    ? 'bg-amber-950/25 border-amber-600/70 shadow-md'
+                    : 'bg-brand-surfaceElevated border-brand-border/80'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-brand-border/40">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-serif font-bold text-base text-brand-cream">
+                      {b.customerName}
+                    </span>
+                    <span className="font-mono text-xs text-brand-gold font-semibold">
+                      #{b.id}
+                    </span>
+                    {b.guestCode && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-brand-gold/15 border border-brand-gold/40 text-brand-gold">
+                        Code: {b.guestCode}
+                      </span>
+                    )}
+                    {b.source && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-brand-surface text-brand-subtle border border-brand-border">
+                        {b.source}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                        b.status === 'active'
+                          ? 'bg-amber-500 text-brand-dark animate-pulse'
+                          : b.status === 'confirmed'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-600'
+                          : b.status === 'completed'
+                          ? 'bg-blue-950 text-blue-300 border border-blue-800'
+                          : b.status === 'cancelled'
+                          ? 'bg-red-950 text-red-400 border border-red-800'
+                          : 'bg-stone-900 text-brand-subtle border border-brand-border'
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                        b.paymentStatus === 'paid'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-600'
+                          : 'bg-amber-950/60 text-amber-300 border border-amber-800'
+                      }`}
+                    >
+                      {b.paymentStatus} (₹{b.totalAmount})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-brand-cream font-mono">
+                      <Clock className="w-3.5 h-3.5 text-brand-gold" />
+                      <span>
+                        {b.date} • {formatTime12(b.startTime)} – {formatTime12(b.endTime || '')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-brand-subtle font-mono text-[11px]">
+                      <Timer className="w-3.5 h-3.5 text-brand-subtle" />
+                      <span>
+                        Duration: {b.durationMinutes} mins ({Math.round((b.durationMinutes / 60) * 10) / 10}h) • {b.numberOfPeople || 1} Players
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-brand-cream">
+                      <Phone className="w-3.5 h-3.5 text-brand-gold" />
+                      <a href={`tel:${b.phone}`} className="font-mono text-xs text-brand-gold hover:underline">
+                        {b.phone}
+                      </a>
+                    </div>
+                    {b.email && (
+                      <div className="text-[11px] text-brand-subtle font-mono truncate">
+                        Email: <a href={`mailto:${b.email}`} className="hover:text-brand-cream underline">{b.email}</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(b.actualStartTime || b.actualEndTime) && (
+                  <div className="mt-3 p-2.5 rounded-xl bg-brand-dark/80 border border-brand-border/60 text-[11px] font-mono text-brand-subtle space-y-0.5">
+                    {b.actualStartTime && (
+                      <div className="text-amber-300">
+                        Session Started: {new Date(b.actualStartTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                      </div>
+                    )}
+                    {b.actualEndTime && (
+                      <div className="text-blue-300">
+                        Session Ended: {new Date(b.actualEndTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} ({b.actualPlayDurationMinutes || 0} mins played)
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-3 pt-3 border-t border-brand-border/40 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    {isTodayBooking && (b.status === 'confirmed' || b.status === 'pending') && (
+                      <button
+                        type="button"
+                        disabled={isActionLoading}
+                        onClick={() => handleStationDrawerStartPlay(b)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        {isActionLoading ? 'Starting...' : 'Start Play'}
+                      </button>
+                    )}
+
+                    {b.status === 'active' && (
+                      <button
+                        type="button"
+                        disabled={isActionLoading}
+                        onClick={() => handleStationDrawerEndPlay(b)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-brand-dark font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {isActionLoading ? 'Ending...' : 'End Play'}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditBooking(b)}
+                    className="px-3 py-1.5 rounded-lg bg-brand-dark border border-brand-border text-brand-gold hover:text-brand-cream hover:border-brand-gold text-xs font-mono font-medium transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    View / Edit Booking
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <div className="fixed inset-0 z-50 overflow-hidden bg-brand-dark/80 backdrop-blur-md flex justify-end animate-fade-in">
+              <div
+                className="absolute inset-0 cursor-pointer"
+                onClick={() => setSelectedStationDetail(null)}
+                aria-label="Close station inspector"
+              />
+
+              <div
+                className="relative z-10 w-full max-w-2xl lg:max-w-3xl h-full bg-brand-surface border-l border-brand-border flex flex-col shadow-2xl overflow-hidden animate-slide-left text-brand-cream"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 1. Drawer Header */}
+                <div className="p-5 sm:p-6 border-b border-brand-border/60 bg-brand-dark/70 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-gold/15 border border-brand-gold/40 flex items-center justify-center text-brand-gold shadow-md shrink-0">
+                        <Gamepad2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-serif text-xl sm:text-2xl font-bold text-brand-cream">
+                            {selectedStationDetail.station.name}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-brand-surfaceElevated border border-brand-border text-brand-gold">
+                            {selectedStationDetail.station.id}
+                          </span>
+                        </div>
+                        <p className="text-xs text-brand-subtle font-mono mt-0.5">
+                          Unit {unitIndex} of {totalCategoryCount} ({categoryName}) • Arena Station {arenaUnitIndex} of {arenaTotalUnits}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => loadStationDetailData(selectedStationDetail.station.id, stationDetailDate, true)}
+                        disabled={stationDetailLoading}
+                        title="Refresh station live data"
+                        className="p-2 rounded-xl bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-gold/50 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${stationDetailLoading ? 'animate-spin text-brand-gold' : ''}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStationDetail(null)}
+                        className="p-2 rounded-xl bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-gold/50 transition-all cursor-pointer"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Status & Maintenance Control */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-border/40">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-brand-subtle font-mono">Status:</span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                          selectedStationDetail.station.status === 'playing'
+                            ? 'bg-amber-500 text-brand-dark animate-pulse shadow-sm'
+                            : selectedStationDetail.station.status === 'reserved'
+                            ? 'bg-brand-gold/20 text-brand-gold border border-brand-gold/50'
+                            : selectedStationDetail.station.status === 'maintenance'
+                            ? 'bg-red-950 text-red-200 border border-red-800'
+                            : 'bg-emerald-950 text-emerald-400 border border-emerald-600'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            selectedStationDetail.station.status === 'playing'
+                              ? 'bg-brand-dark'
+                              : selectedStationDetail.station.status === 'reserved'
+                              ? 'bg-brand-gold'
+                              : selectedStationDetail.station.status === 'maintenance'
+                              ? 'bg-red-400'
+                              : 'bg-emerald-400'
+                          }`}
+                        />
+                        {selectedStationDetail.station.status === 'playing'
+                          ? 'In Use (Playing)'
+                          : selectedStationDetail.station.status === 'reserved'
+                          ? 'Booked'
+                          : selectedStationDetail.station.status === 'maintenance'
+                          ? 'Maintenance'
+                          : 'Available'}
+                      </span>
+
+                      {selectedStationDetail.resource && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleMaintenance(selectedStationDetail.resource!)}
+                          className={`px-3 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
+                            selectedStationDetail.resource.isMaintenance
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-600 hover:bg-emerald-900'
+                              : 'bg-red-950/60 text-red-400 border border-red-800 hover:bg-red-900'
+                          }`}
+                        >
+                          {selectedStationDetail.resource.isMaintenance ? 'Restore Active' : 'Set Maintenance'}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="text-xs font-mono text-brand-subtle">
+                      Rate: <span className="text-brand-cream font-bold">₹{selectedStationDetail.resource?.ratePerHour || 0}/hr</span>
+                    </div>
+                  </div>
+
+                  {/* Fast Switcher between Live Stations */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                    <span className="text-[11px] text-brand-subtle font-mono shrink-0 mr-1">Switch:</span>
+                    {overview?.liveStations.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => handleSwitchStationDetail(st.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all shrink-0 cursor-pointer ${
+                          st.id === selectedStationDetail.station.id
+                            ? 'bg-brand-gold text-brand-dark font-bold shadow-sm'
+                            : 'bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-brand-cream hover:border-brand-gold/40'
+                        }`}
+                      >
+                        {st.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Drawer Tabs */}
+                <div className="flex border-b border-brand-border bg-brand-surface px-6 pt-3 gap-6 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setStationDrawerTab('availability')}
+                    className={`pb-3 text-xs sm:text-sm font-serif font-bold tracking-wide transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                      stationDrawerTab === 'availability'
+                        ? 'border-brand-gold text-brand-gold'
+                        : 'border-transparent text-brand-subtle hover:text-brand-cream'
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Live Availability & Slots
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStationDrawerTab('upcoming')}
+                    className={`pb-3 text-xs sm:text-sm font-serif font-bold tracking-wide transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                      stationDrawerTab === 'upcoming'
+                        ? 'border-brand-gold text-brand-gold'
+                        : 'border-transparent text-brand-subtle hover:text-brand-cream'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    All Upcoming Bookings ({stationAllUpcomingBookings.length})
+                  </button>
+                </div>
+
+                {/* 3. Drawer Body */}
+                <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+                  {stationDetailError && (
+                    <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-xs text-red-300 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                      <span>{stationDetailError}</span>
+                    </div>
+                  )}
+
+                  {stationDrawerTab === 'availability' ? (
+                    <>
+                      {/* Date Picker & Presets */}
+                      <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-gold flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5" />
+                              Inspect Date Availability
+                            </h4>
+                            <p className="text-[11px] text-brand-subtle mt-0.5">
+                              Viewing {new Date(stationDetailDate + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}
+                            </p>
+                          </div>
+                          <input
+                            type="date"
+                            value={stationDetailDate}
+                            onChange={(e) => handleStationDetailDateChange(e.target.value)}
+                            className="bg-brand-dark border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                          />
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-brand-border/40">
+                          <span className="text-[11px] text-brand-subtle font-mono">Quick Jump:</span>
+                          {[
+                            { label: 'Today', offset: 0 },
+                            { label: 'Tomorrow', offset: 1 },
+                            { label: '+2 Days', offset: 2 },
+                            { label: '+7 Days', offset: 7 },
+                          ].map((preset) => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + preset.offset);
+                            const dateStr = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                            const isSelected = stationDetailDate === dateStr;
+                            return (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                onClick={() => handleStationDetailDateChange(dateStr)}
+                                className={`px-3 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-brand-gold text-brand-dark font-bold'
+                                    : 'bg-brand-dark border border-brand-border/60 text-brand-subtle hover:text-brand-cream hover:border-brand-gold/30'
+                                }`}
+                              >
+                                {preset.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 4 Metric Cards */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-emerald-900/50 space-y-1">
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center justify-between">
+                            <span>Available</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          </div>
+                          <div className="text-2xl font-serif font-bold text-emerald-400">
+                            {availableSlots.length}
+                          </div>
+                          <div className="text-[10px] text-brand-subtle font-mono">30-min open slots</div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-brand-gold/30 space-y-1">
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-brand-gold font-semibold flex items-center justify-between">
+                            <span>Booked</span>
+                            <Clock className="w-3.5 h-3.5 text-brand-gold" />
+                          </div>
+                          <div className="text-2xl font-serif font-bold text-brand-gold">
+                            {bookedSlots.length}
+                          </div>
+                          <div className="text-[10px] text-brand-subtle font-mono">Reserved slots</div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-amber-800/40 space-y-1">
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-semibold flex items-center justify-between">
+                            <span>Active</span>
+                            <Activity className="w-3.5 h-3.5 text-amber-400" />
+                          </div>
+                          <div className="text-2xl font-serif font-bold text-amber-400">
+                            {stationBookings.filter((b) => b.status === 'active').length ||
+                              (isTodaySelected && selectedStationDetail.station.status === 'playing' ? 1 : 0)}
+                          </div>
+                          <div className="text-[10px] text-brand-subtle font-mono">In use right now</div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-1">
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-brand-cream font-semibold flex items-center justify-between">
+                            <span>Remaining</span>
+                            <Timer className="w-3.5 h-3.5 text-brand-gold" />
+                          </div>
+                          <div className="text-2xl font-serif font-bold text-brand-cream">
+                            {formatRemainingTime(availableSlots.length)}
+                          </div>
+                          <div className="text-[10px] text-brand-subtle font-mono">Free capacity</div>
+                        </div>
+                      </div>
+
+                      {/* 30-Minute Slot Visualizer */}
+                      <div className="p-4 rounded-2xl bg-brand-surfaceElevated border border-brand-border space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-cream">
+                              30-Minute Slots ({stationOperatingHours.open} – {stationOperatingHours.close})
+                            </h4>
+                            {stationDetailLoading && <RefreshCw className="w-3 h-3 text-brand-gold animate-spin" />}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[10px] font-mono text-brand-subtle flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Available
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-amber-400" /> In Use
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-brand-gold" /> Booked
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-red-400" /> Maintenance
+                            </span>
+                          </div>
+                        </div>
+
+                        {stationSlots.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-brand-subtle font-mono">
+                            {stationDetailLoading ? 'Loading slot availability...' : 'No slots generated for this date.'}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-2">
+                            {stationSlots.map((slot) => {
+                              const isAvailable = slot.status === 'available';
+                              const isPlaying = slot.status === 'playing';
+                              const isUnavailable = slot.status === 'unavailable';
+                              const isBooked = slot.status === 'booked';
+
+                              return (
+                                <div
+                                  key={slot.startTime}
+                                  className={`p-2 rounded-xl border text-center transition-all ${
+                                    isPlaying
+                                      ? 'bg-amber-950/40 border-amber-500 text-amber-300 font-bold shadow-sm'
+                                      : isUnavailable
+                                      ? 'bg-red-950/30 border-red-800 text-red-300'
+                                      : isBooked
+                                      ? 'bg-brand-dark/90 border-brand-gold/40 text-brand-gold font-medium'
+                                      : 'bg-emerald-950/30 border-emerald-700/60 text-emerald-300 hover:border-emerald-500'
+                                  }`}
+                                >
+                                  <div className="font-mono text-xs font-semibold">{formatTime12(slot.startTime)}</div>
+                                  <div className="text-[9px] font-mono uppercase tracking-wider opacity-80 mt-0.5">
+                                    {isPlaying ? 'In Use' : isUnavailable ? 'Blocked' : isBooked ? 'Booked' : 'Free'}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bookings for Selected Date */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-gold flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            Scheduled Bookings for {stationDetailDate} ({stationBookings.length})
+                          </h4>
+                          <span className="text-[11px] font-mono text-brand-subtle">
+                            Strictly scoped to #{selectedStationDetail.station.id}
+                          </span>
+                        </div>
+
+                        {stationBookings.length === 0 ? (
+                          <div className="p-6 rounded-2xl bg-brand-surfaceElevated border border-dashed border-brand-border text-center space-y-1.5">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                            <p className="text-sm font-semibold text-brand-cream">No Bookings Scheduled</p>
+                            <p className="text-xs text-brand-subtle">This station is 100% available throughout this date.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {stationBookings.map((b) => renderStationBookingCard(b))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* All Upcoming Bookings Tab */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-gold flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          All Upcoming Bookings for #{selectedStationDetail.station.id} ({stationAllUpcomingBookings.length})
+                        </h4>
+                        <span className="text-[11px] font-mono text-brand-subtle">
+                          Chronological schedule
+                        </span>
+                      </div>
+
+                      {stationAllUpcomingBookings.length === 0 ? (
+                        <div className="p-8 rounded-2xl bg-brand-surfaceElevated border border-dashed border-brand-border text-center space-y-1.5">
+                          <Calendar className="w-8 h-8 text-brand-gold mx-auto" />
+                          <p className="text-sm font-semibold text-brand-cream">No Future Bookings Found</p>
+                          <p className="text-xs text-brand-subtle">There are no upcoming reservations on this station.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {stationAllUpcomingBookings.map((b) => renderStationBookingCard(b))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Drawer Footer */}
+                <div className="p-4 px-6 border-t border-brand-border/60 bg-brand-dark/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shrink-0">
+                  <div className="flex items-center gap-2 text-brand-subtle font-mono text-[11px]">
+                    <Lock className="w-3.5 h-3.5 text-brand-gold" />
+                    <span>MongoDB Scoped: <code className="text-brand-cream font-bold">{selectedStationDetail.station.id}</code></span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualForm((prev) => ({
+                          ...prev,
+                          resourceId: selectedStationDetail.station.id,
+                          date: stationDetailDate,
+                        }));
+                        setShowManualModal(true);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-brand-gold/15 border border-brand-gold/50 text-brand-gold hover:bg-brand-gold hover:text-brand-dark font-mono text-xs font-bold transition-all cursor-pointer"
+                    >
+                      + Add Manual Booking
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStationDetail(null)}
+                      className="px-4 py-2 rounded-xl bg-brand-surfaceElevated border border-brand-border text-brand-subtle hover:text-brand-cream font-mono text-xs transition-all cursor-pointer"
+                    >
+                      Close Inspector
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* EDIT BOOKING MODAL (Requirement 3) */}
+        {editingBooking && (
+          <div className="fixed inset-0 z-[60] bg-brand-dark/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-brand-surface border border-brand-border rounded-3xl p-5 sm:p-8 max-w-xl w-full space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto my-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-brand-gold/15 border border-brand-gold/40 flex items-center justify-center text-brand-gold">
+                    <Edit3 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg sm:text-xl font-bold text-brand-cream">
+                      Edit Booking #{editingBooking.id}
+                    </h3>
+                    <p className="text-[11px] text-brand-subtle">
+                      Created via {editingBooking.source || 'web'} • Code: {editingBooking.guestCode || 'None'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingBooking(null)}
+                  className="text-brand-subtle hover:text-brand-cream p-1 rounded-lg cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {editError && (
+                <div className="p-3 rounded-xl bg-red-950/80 border border-red-700 text-xs text-red-200">
+                  {editError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEditBooking} className="space-y-4 text-xs">
+                {/* 1. Customer Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Customer Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.customerName}
+                      onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Phone Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-brand-subtle block mb-1">Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                  />
+                </div>
+
+                {/* 2. Equipment Station & Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Equipment / Station *</label>
+                    <select
+                      value={editForm.resourceId}
+                      onChange={(e) => setEditForm({ ...editForm, resourceId: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                    >
+                      {resources.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r.category})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Booking Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Timing: Start Time, End Time & Duration */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Start Time *</label>
+                    <input
+                      type="time"
+                      required
+                      value={editForm.startTime}
+                      onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">End Time *</label>
+                    <input
+                      type="time"
+                      required
+                      value={editForm.endTime}
+                      onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Duration (Mins)</label>
+                    <input
+                      type="number"
+                      value={
+                        timeToMins(editForm.endTime) > timeToMins(editForm.startTime)
+                          ? timeToMins(editForm.endTime) - timeToMins(editForm.startTime)
+                          : editForm.durationMinutes
+                      }
+                      readOnly
+                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2 text-brand-subtle font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Price & Recalculate helper */}
+                <div className="p-3 rounded-xl bg-brand-surfaceElevated/50 border border-brand-border/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-brand-subtle font-semibold">Total Price (INR)</label>
+                    <button
+                      type="button"
+                      onClick={handleRecalculateEditPrice}
+                      className="px-2.5 py-1 rounded-lg bg-brand-blue/20 border border-brand-blue/50 text-brand-blue hover:bg-brand-blue hover:text-white text-[11px] font-semibold transition-all cursor-pointer"
+                    >
+                      ⚡ Recalculate from Rules
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-brand-cream font-mono text-sm">₹</span>
+                    <input
+                      type="number"
+                      required
+                      value={editForm.totalAmount}
+                      onChange={(e) => setEditForm({ ...editForm, totalAmount: Number(e.target.value) })}
+                      className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2 text-brand-gold font-mono font-bold text-sm focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Booking & Payment Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Booking Status</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="active">Active (Playing Now)</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Payment Status</label>
+                    <select
+                      value={editForm.paymentStatus}
+                      onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value as any })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                    >
+                      <option value="unpaid">Unpaid</option>
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 6. Payment Method & Ref */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Payment Method</label>
+                    <select
+                      value={editForm.paymentMethod}
+                      onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as any })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream focus:outline-none focus:border-brand-gold"
+                    >
+                      <option value="cash">Cash at Counter</option>
+                      <option value="upi">UPI / QR Code</option>
+                      <option value="card">Card / POS</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-brand-subtle block mb-1">Payment Reference / UTR</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. UPI-12345678"
+                      value={editForm.paymentReference}
+                      onChange={(e) => setEditForm({ ...editForm, paymentReference: e.target.value })}
+                      className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream font-mono focus:outline-none focus:border-brand-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* 7. Admin Notes */}
+                <div>
+                  <label className="text-brand-subtle block mb-1">Admin Notes</label>
+                  <textarea
+                    rows={2}
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                    placeholder="Internal staff notes, player requests, adjustments..."
+                    className="w-full bg-brand-surfaceElevated border border-brand-border rounded-xl px-3 py-2 text-brand-cream resize-none focus:outline-none focus:border-brand-gold"
+                  />
+                </div>
+
+                {/* Session Timestamps Display (Read-Only) */}
+                {editingBooking.actualStartTime && (
+                  <div className="p-2.5 rounded-xl bg-amber-950/20 border border-amber-800/40 text-[11px] font-mono text-amber-300">
+                    <div>Session Started: {new Date(editingBooking.actualStartTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
+                    {editingBooking.actualEndTime && (
+                      <div>Session Ended: {new Date(editingBooking.actualEndTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} ({editingBooking.actualPlayDurationMinutes || 0} mins)</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="pt-2 flex justify-end gap-2 border-t border-brand-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBooking(null)}
+                    className="px-4 py-2.5 rounded-xl border border-brand-border text-brand-subtle hover:text-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="px-6 py-2.5 rounded-xl bg-brand-gold text-brand-dark font-bold uppercase tracking-wider hover:bg-brand-gold/90 transition-all cursor-pointer"
+                  >
+                    {editSubmitting ? 'Saving Changes...' : 'Save & Update Booking'}
                   </button>
                 </div>
               </form>

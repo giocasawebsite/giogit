@@ -44,7 +44,7 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'ps5-arena',
     ratePerHour: 150,
     minDurationMinutes: 30,
-    maxDurationMinutes: 180,
+    maxDurationMinutes: 360,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
@@ -59,7 +59,7 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'ps5-arena',
     ratePerHour: 150,
     minDurationMinutes: 30,
-    maxDurationMinutes: 180,
+    maxDurationMinutes: 360,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
@@ -74,7 +74,7 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'hotshot-pool',
     ratePerHour: 200,
     minDurationMinutes: 30,
-    maxDurationMinutes: 120,
+    maxDurationMinutes: 360,
     playersCapacity: { min: 2, max: 6 },
     active: true,
     isMaintenance: false,
@@ -89,7 +89,7 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'hotshot-pool',
     ratePerHour: 200,
     minDurationMinutes: 30,
-    maxDurationMinutes: 120,
+    maxDurationMinutes: 360,
     playersCapacity: { min: 2, max: 6 },
     active: true,
     isMaintenance: false,
@@ -104,7 +104,7 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'arena-floor',
     ratePerHour: 100,
     minDurationMinutes: 30,
-    maxDurationMinutes: 60,
+    maxDurationMinutes: 120,
     playersCapacity: { min: 2, max: 4 },
     active: true,
     isMaintenance: false,
@@ -119,12 +119,12 @@ const DEFAULT_FALLBACK_RESOURCES: GamingResource[] = [
     zoneId: 'racing-sim',
     ratePerHour: 200,
     minDurationMinutes: 30,
-    maxDurationMinutes: 180,
+    maxDurationMinutes: 360,
     playersCapacity: { min: 1, max: 4 },
     active: true,
     isMaintenance: false,
     specs: ['Logitech G-Series Force Feedback Wheel & Pedals', 'Ergonomic GT Bucket Racing Seat', 'Curved Ultra-wide Cockpit Display', 'Forza, Gran Turismo 7, F1 24, Assetto Corsa'],
-    image: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?auto=format&fit=crop&w=800&q=80',
+    image: 'https://res.cloudinary.com/hcmnz5rk/image/upload/f_auto/q_auto/racing.jpg',
     order: 5,
   },
 ];
@@ -534,14 +534,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
           </p>
 
           {/* Primary View Switcher: Book vs Lookup */}
-          <div className="inline-flex p-1 rounded-2xl bg-brand-surface border border-brand-border shadow-xl mt-4">
+          <div className="inline-flex flex-col sm:flex-row p-1 rounded-2xl bg-brand-surface border border-brand-border shadow-xl mt-4 w-full sm:w-auto gap-1">
             <button
               type="button"
               onClick={() => {
                 setActiveTab('booking');
                 setConfirmedBooking(null);
               }}
-              className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
+              className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                 activeTab === 'booking'
                   ? 'bg-brand-pink text-white shadow-luxury-pink'
                   : 'text-brand-muted hover:text-white'
@@ -554,7 +554,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
             <button
               type="button"
               onClick={() => setActiveTab('lookup')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
+              className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                 activeTab === 'lookup'
                   ? 'bg-brand-pink text-white shadow-luxury-pink'
                   : 'text-brand-muted hover:text-white'
@@ -849,7 +849,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                     </div>
                   </div>
 
-                  {/* 2. Duration Selection */}
+                  {/* 2. Duration Selection - Multi-hour Dropdown & Quick Selector */}
                   <div className="space-y-2.5 pt-1">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center gap-1.5 font-semibold">
@@ -861,46 +861,83 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       </span>
                     </div>
 
+                    {/* Quick Selection Buttons */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                       {[
-                        { mins: 30, label: '30 Mins', badge: 'Quick Match' },
-                        { mins: 60, label: '1 Hour', badge: 'Most Popular', popular: true },
-                        { mins: 90, label: '1.5 Hours', badge: 'Extended Session' },
-                        { mins: 120, label: '2 Hours', badge: 'Championship' },
-                      ].map((opt) => {
-                        const isSelected = durationMinutes === opt.mins;
-                        const cost = selectedResource
-                          ? calculateBookingPrice(selectedResource.category, opt.mins, numberOfPeople, selectedResource.ratePerHour)
-                          : 0;
+                        { mins: 60, label: '1 Hour', badge: 'Popular' },
+                        { mins: 120, label: '2 Hours', badge: 'Standard' },
+                        { mins: 180, label: '3 Hours', badge: 'Extended' },
+                        { mins: 240, label: '4 Hours', badge: 'Marathon' },
+                      ]
+                        .filter(opt => !selectedResource || opt.mins <= (selectedResource.maxDurationMinutes || 360))
+                        .map((opt) => {
+                          const isSelected = durationMinutes === opt.mins;
+                          const cost = selectedResource
+                            ? calculateBookingPrice(selectedResource.category, opt.mins, numberOfPeople, selectedResource.ratePerHour)
+                            : 0;
 
-                        return (
-                          <button
-                            key={opt.mins}
-                            type="button"
-                            onClick={() => {
-                              setDurationMinutes(opt.mins);
-                              setSelectedSlot(null);
-                            }}
-                            className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between ${
-                              isSelected
-                                ? 'bg-brand-surfaceElevated border-brand-blue ring-2 ring-brand-blue/40 text-white shadow-md -translate-y-0.5'
-                                : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-muted hover:text-white hover:bg-brand-surfaceElevated'
-                            }`}
-                          >
-                            {opt.popular && (
-                              <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-brand-pink text-white text-[8px] font-mono font-bold uppercase tracking-wider shadow">
-                                {opt.badge}
-                              </span>
-                            )}
-                            <div className="font-serif text-sm sm:text-base font-bold text-white">
-                              {opt.label}
-                            </div>
-                            <div className="text-xs font-mono font-bold text-brand-pink mt-1">
-                              ₹{cost}
-                            </div>
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={opt.mins}
+                              type="button"
+                              onClick={() => {
+                                setDurationMinutes(opt.mins);
+                                setSelectedSlot(null);
+                              }}
+                              className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between ${
+                                isSelected
+                                  ? 'bg-brand-surfaceElevated border-brand-blue ring-2 ring-brand-blue/40 text-white shadow-md -translate-y-0.5'
+                                  : 'bg-brand-surfaceElevated/50 border-brand-border text-brand-muted hover:text-white hover:bg-brand-surfaceElevated'
+                              }`}
+                            >
+                              <div className="font-serif text-sm sm:text-base font-bold text-white">
+                                {opt.label}
+                              </div>
+                              <div className="text-xs font-mono font-bold text-brand-pink mt-1">
+                                ₹{cost}
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+
+                    {/* Extended Duration Dropdown (Supports 1 to 6 Hours) */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-brand-surfaceElevated/40 border border-brand-border/70 mt-2">
+                      <div className="text-xs text-brand-subtle flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-brand-pink" />
+                        <span className="font-medium text-white">Custom Duration Dropdown:</span>
+                      </div>
+                      <select
+                        value={durationMinutes}
+                        onChange={(e) => {
+                          setDurationMinutes(Number(e.target.value));
+                          setSelectedSlot(null);
+                        }}
+                        className="py-1.5 px-3 rounded-lg bg-brand-surface border border-brand-border text-xs font-mono text-white focus:outline-none focus:border-brand-blue/60 cursor-pointer w-full sm:w-auto"
+                        aria-label="Select custom booking duration"
+                      >
+                        {[
+                          { mins: 30, label: '30 Minutes (Quick Match)' },
+                          { mins: 60, label: '1 Hour (Standard Session)' },
+                          { mins: 90, label: '1.5 Hours (90 Mins)' },
+                          { mins: 120, label: '2 Hours (Championship)' },
+                          { mins: 180, label: '3 Hours (Squad Play)' },
+                          { mins: 240, label: '4 Hours (Half-Day Pass)' },
+                          { mins: 300, label: '5 Hours (Pro Gaming)' },
+                          { mins: 360, label: '6 Hours (Full Arena Pass)' },
+                        ]
+                          .filter(opt => !selectedResource || opt.mins <= (selectedResource.maxDurationMinutes || 360))
+                          .map(opt => {
+                            const cost = selectedResource
+                              ? calculateBookingPrice(selectedResource.category, opt.mins, numberOfPeople, selectedResource.ratePerHour)
+                              : 0;
+                            return (
+                              <option key={opt.mins} value={opt.mins} className="bg-brand-dark text-white">
+                                {opt.label} — ₹{cost}
+                              </option>
+                            );
+                          })}
+                      </select>
                     </div>
                   </div>
 
@@ -1019,11 +1056,11 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                   )}
 
                   {/* Navigation Buttons */}
-                  <div className="pt-4 flex items-center justify-between border-t border-brand-border/40">
+                  <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-brand-border/40">
                     <button
                       type="button"
                       onClick={() => goToStep(1)}
-                      className="px-6 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-white text-xs uppercase tracking-wider font-semibold flex items-center gap-2 hover:bg-brand-surface transition-colors"
+                      className="px-5 py-3 rounded-full bg-brand-surfaceElevated border border-brand-border text-white text-xs uppercase tracking-wider font-semibold flex items-center justify-center gap-2 hover:bg-brand-surface transition-colors"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       <span>Back to Station</span>
@@ -1033,7 +1070,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate, initialRes
                       type="button"
                       onClick={() => goToStep(3)}
                       disabled={!selectedSlot}
-                      className="px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-6 sm:px-8 py-3.5 rounded-full bg-brand-pink hover:bg-brand-pinkHover text-white font-semibold text-xs uppercase tracking-widest transition-all shadow-luxury-pink flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <span>Next: Enter Details</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

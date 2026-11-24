@@ -150,17 +150,17 @@ export const ExperiencePage: React.FC<ExperiencePageProps> = ({ onNavigate }) =>
                 </div>
               </div>
 
-              <div className="pt-4 flex flex-wrap gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
                 <button
                   onClick={() => openBookingModal('choice')}
-                  className="py-3.5 px-8 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-widest shadow-luxury-ember transition-all flex items-center gap-2"
+                  className="w-full sm:w-auto py-3.5 px-8 rounded-full bg-brand-terracotta hover:bg-brand-terracottaHover text-brand-cream font-semibold text-xs uppercase tracking-widest shadow-luxury-ember transition-all flex items-center justify-center gap-2"
                 >
                   <CalendarDays className="w-4 h-4" />
                   <span>Reserve Table or Event</span>
                 </button>
                 <button
                   onClick={() => onNavigate('book')}
-                  className="py-3.5 px-6 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all flex items-center gap-2"
+                  className="w-full sm:w-auto py-3.5 px-6 rounded-full bg-brand-surface border border-brand-border hover:border-brand-gold text-brand-cream font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                 >
                   <Gamepad2 className="w-4 h-4 text-brand-gold" />
                   <span>Book Gaming Slots</span>

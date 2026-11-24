@@ -10,6 +10,7 @@ import {
   adminLoginLimiter,
   createAdminSession,
   validateAdminSession,
+  validateAdminRefreshToken,
   invalidateAdminSession,
   invalidateAllAdminSessions,
   logSecurityEvent,
@@ -47,6 +48,7 @@ router.post('/login', adminLoginLimiter.middleware, async (req: Request, res: Re
       message: 'Admin authentication successful.',
       data: {
         token: session.token,
+        refreshToken: session.refreshToken,
         expiresAt: session.expiresAt,
       },
     });
@@ -90,6 +92,7 @@ router.post('/verify', async (req: Request, res: Response) => {
         message: 'Passcode verified.',
         data: {
           token: session.token,
+          refreshToken: session.refreshToken,
           expiresAt: session.expiresAt,
         },
       });
@@ -104,6 +107,57 @@ router.post('/verify', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/admin/refresh - Exchange a valid refresh token for fresh access & refresh tokens
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const refreshToken = (
+      req.body?.refreshToken ||
+      bearerToken ||
+      req.headers['x-admin-refresh-token']
+    ) as string;
+
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Refresh token is required.',
+        code: 'REFRESH_TOKEN_REQUIRED',
+      });
+    }
+
+    const sessionVersion = await dbService.getSessionVersion();
+    const isValid = validateAdminRefreshToken(refreshToken, sessionVersion);
+
+    if (!isValid) {
+      logSecurityEvent('AUTH_FAILURE', req, 'Invalid, expired, or revoked admin refresh token');
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: Session expired or revoked. Please log in again.',
+        code: 'SESSION_REVOKED',
+      });
+    }
+
+    // Single-use token rotation: Invalidate previous refresh token
+    invalidateAdminSession(refreshToken, req);
+
+    // Issue fresh access token and fresh refresh token
+    const newSession = createAdminSession(req, sessionVersion);
+    return res.json({
+      success: true,
+      message: 'Admin session refreshed successfully.',
+      data: {
+        token: newSession.token,
+        refreshToken: newSession.refreshToken,
+        expiresAt: newSession.expiresAt,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error in admin session refresh:', err);
+    return res.status(500).json({ success: false, error: 'Failed to refresh session.' });
+  }
+});
+
 // POST /api/admin/logout - Revoke active admin session
 router.post('/logout', (req: Request, res: Response) => {
   const authHeader = req.headers['authorization'];
@@ -115,8 +169,16 @@ router.post('/logout', (req: Request, res: Response) => {
     req.body?.token
   ) as string;
 
+  const refreshToken = (
+    req.headers['x-admin-refresh-token'] ||
+    req.body?.refreshToken
+  ) as string;
+
   if (token) {
     invalidateAdminSession(token, req);
+  }
+  if (refreshToken) {
+    invalidateAdminSession(refreshToken, req);
   }
   return res.json({ success: true, message: 'Admin logged out successfully.' });
 });
@@ -225,6 +287,7 @@ router.post('/change-passcode', async (req: Request, res: Response) => {
       message: 'Admin passcode updated. All other devices have been logged out.',
       data: {
         token: session.token,
+        refreshToken: session.refreshToken,
         expiresAt: session.expiresAt,
       },
     });
@@ -369,7 +432,7 @@ router.post('/bookings', async (req: Request, res: Response) => {
   try {
     const body = req.body;
     if (!body.customerName || !body.phone || !body.resourceId || !body.date || !body.startTime) {
-      return res.status(400).json({ success: false, error: 'Missing required booking fields.' });
+      return res.status(400).json({ success: false, error: 'Missing required booking fields (customerName, phone, resourceId, date, startTime).' });
     }
 
     const resource = await dbService.getResourceById(body.resourceId);
@@ -377,10 +440,25 @@ router.post('/bookings', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Resource not found.' });
     }
 
-    const durationMinutes = body.durationMinutes || 60;
     const startMins = timeToMinutes(body.startTime);
-    const endMins = startMins + durationMinutes;
-    const endTime = minutesToTime(endMins); // FIX: was missing — caused "ReferenceError: endTime is not defined"
+    let endMins: number;
+    let endTime: string;
+    let durationMinutes: number;
+
+    // Support admin custom end time selection (e.g. 14:15 to 14:45)
+    if (body.endTime) {
+      endMins = timeToMinutes(body.endTime);
+      if (endMins <= startMins) {
+        return res.status(400).json({ success: false, error: 'End time must be strictly after start time.' });
+      }
+      durationMinutes = endMins - startMins;
+      endTime = body.endTime;
+    } else {
+      durationMinutes = body.durationMinutes || 60;
+      endMins = startMins + durationMinutes;
+      endTime = minutesToTime(endMins);
+    }
+
     const numberOfPeople = body.numberOfPeople || 1;
     const totalAmount =
       body.totalAmount !== undefined
@@ -399,7 +477,7 @@ router.post('/bookings', async (req: Request, res: Response) => {
       startTime: body.startTime,
       endTime,
       durationMinutes,
-      numberOfPeople: body.numberOfPeople || 1,
+      numberOfPeople,
       totalAmount,
       status: body.status || 'confirmed',
       paymentStatus: body.paymentStatus || 'paid',
@@ -428,27 +506,332 @@ router.post('/bookings', async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /api/admin/bookings/:id - Update booking status or payment
-router.patch('/bookings/:id', async (req: Request, res: Response) => {
+// POST /api/admin/bookings/:id/start-play (and /start-session) - Mark gaming session started
+router.post(['/bookings/:id/start-play', '/bookings/:id/start-session'], async (req: Request, res: Response) => {
   try {
-    const { status, paymentStatus, notes, startTime, endTime } = req.body;
-    const updates: Partial<Booking> = {};
+    const booking = await dbService.getBookingById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found.' });
+    }
 
-    if (status) updates.status = status as BookingStatus;
-    if (paymentStatus) updates.paymentStatus = paymentStatus as PaymentStatus;
-    if (notes !== undefined) updates.notes = notes;
-    if (startTime) updates.startTime = startTime;
-    if (endTime) updates.endTime = endTime;
+    if (booking.status === 'active' || booking.actualStartTime) {
+      return res.status(400).json({
+        success: false,
+        error: `Session has already been started at ${booking.actualStartTime || booking.sessionStartedAt || 'earlier time'}.`,
+      });
+    }
+
+    if (['cancelled', 'completed', 'expired'].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot start play on a ${booking.status} booking.`,
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const adminUser = (req as any).adminUser || 'Admin Staff';
+
+    const auditLog: any = {
+      action: 'STATUS_CHANGE',
+      timestamp: nowIso,
+      performedBy: adminUser,
+      details: `Gaming session started. Customer checked in for live play.`,
+    };
+
+    const existingLogs = Array.isArray(booking.auditLogs) ? booking.auditLogs : [];
+
+    const updates: Partial<Booking> = {
+      status: 'active',
+      actualStartTime: nowIso,
+      sessionStartedAt: nowIso,
+      sessionStartedBy: adminUser,
+      checkInStatus: 'checked_in',
+      checkedInAt: booking.checkedInAt || nowIso,
+      checkedInBy: booking.checkedInBy || adminUser,
+      auditLogs: [...existingLogs, auditLog],
+    };
+
+    const updated = await dbService.updateBooking(booking.id, updates);
+    if (!updated) {
+      return res.status(500).json({ success: false, error: 'Failed to update session start state.' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Gaming session started for #${booking.id} (${booking.customerName}).`,
+      data: updated,
+    });
+  } catch (err: any) {
+    console.error('Error starting session:', err);
+    return res.status(500).json({ success: false, error: 'Failed to start gaming session.' });
+  }
+});
+
+// POST /api/admin/bookings/:id/end-play (and /end-session) - End active gaming session
+router.post(['/bookings/:id/end-play', '/bookings/:id/end-session'], async (req: Request, res: Response) => {
+  try {
+    const booking = await dbService.getBookingById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found.' });
+    }
+
+    if (booking.status === 'completed' || booking.actualEndTime || booking.sessionEndedAt) {
+      return res.status(400).json({
+        success: false,
+        error: `Session has already ended (duration: ${booking.actualPlayDurationMinutes || 0} mins).`,
+      });
+    }
+
+    if (booking.status !== 'active' && !booking.actualStartTime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot end a session that has not started yet. Please click Start Play first.',
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const adminUser = (req as any).adminUser || 'Admin Staff';
+
+    // Calculate actual play duration in minutes
+    const startTimeMs = booking.sessionStartedAt
+      ? new Date(booking.sessionStartedAt).getTime()
+      : booking.actualStartTime
+      ? new Date(booking.actualStartTime).getTime()
+      : Date.now();
+    const actualDurationMins = Math.max(1, Math.round((Date.now() - startTimeMs) / 60000));
+
+    const auditLog: any = {
+      action: 'STATUS_CHANGE',
+      timestamp: nowIso,
+      performedBy: adminUser,
+      details: `Gaming session ended. Actual play duration: ${actualDurationMins} minutes.`,
+    };
+
+    const existingLogs = Array.isArray(booking.auditLogs) ? booking.auditLogs : [];
+
+    const updates: Partial<Booking> = {
+      status: 'completed',
+      actualEndTime: nowIso,
+      sessionEndedAt: nowIso,
+      sessionEndedBy: adminUser,
+      actualPlayDurationMinutes: actualDurationMins,
+      auditLogs: [...existingLogs, auditLog],
+    };
+
+    const updated = await dbService.updateBooking(booking.id, updates);
+    if (!updated) {
+      return res.status(500).json({ success: false, error: 'Failed to update session end state.' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Gaming session ended. Actual play duration: ${actualDurationMins} mins.`,
+      data: updated,
+    });
+  } catch (err: any) {
+    console.error('Error ending session:', err);
+    return res.status(500).json({ success: false, error: 'Failed to end gaming session.' });
+  }
+});
+
+// PUT & PATCH /api/admin/bookings/:id - Complete booking editing with conflict validation & audit trail
+router.all('/bookings/:id', async (req: Request, res: Response, next) => {
+  if (req.method !== 'PATCH' && req.method !== 'PUT') {
+    return next();
+  }
+
+  try {
+    const {
+      customerName,
+      phone,
+      email,
+      resourceId,
+      date,
+      startTime,
+      endTime,
+      durationMinutes,
+      totalAmount,
+      status,
+      paymentStatus,
+      paymentMethod,
+      paymentReference,
+      notes,
+    } = req.body;
+
+    const existing = await dbService.getBookingById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Booking not found.' });
+    }
+
+    const updates: Partial<Booking> = {};
+    const changesSummary: string[] = [];
+
+    // 1. Customer Details
+    if (customerName !== undefined) {
+      const cleanName = customerName.trim();
+      if (cleanName.length < 2) {
+        return res.status(400).json({ success: false, error: 'Customer name must have at least 2 characters.' });
+      }
+      if (cleanName !== existing.customerName) {
+        updates.customerName = cleanName;
+        changesSummary.push(`Name: '${existing.customerName}' → '${cleanName}'`);
+      }
+    }
+
+    if (phone !== undefined) {
+      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length < 10) {
+        return res.status(400).json({ success: false, error: 'Phone must be a valid 10-digit number.' });
+      }
+      if (cleanPhone !== existing.phone) {
+        updates.phone = cleanPhone;
+        changesSummary.push(`Phone: '${existing.phone}' → '${cleanPhone}'`);
+      }
+    }
+
+    if (email !== undefined) {
+      const cleanEmail = email ? email.trim() : undefined;
+      if (cleanEmail !== existing.email) {
+        updates.email = cleanEmail;
+        changesSummary.push(`Email updated`);
+      }
+    }
+
+    // 2. Resource/Equipment
+    let targetResourceId = existing.resourceId;
+    if (resourceId && resourceId !== existing.resourceId) {
+      const newRes = await dbService.getResourceById(resourceId);
+      if (!newRes) {
+        return res.status(404).json({ success: false, error: 'Specified equipment resource does not exist.' });
+      }
+      targetResourceId = newRes.id;
+      updates.resourceId = newRes.id;
+      updates.resourceName = newRes.name;
+      updates.category = newRes.category;
+      updates.location = newRes.floorLocation || (newRes.category === 'pool' ? '1st Floor' : 'Basement');
+      changesSummary.push(`Equipment: '${existing.resourceName}' → '${newRes.name}'`);
+    }
+
+    // 3. Timing & Scheduling
+    const targetDate = date || existing.date;
+    const targetStart = startTime || existing.startTime;
+    const targetEnd = endTime || existing.endTime;
+
+    if (date && date !== existing.date) {
+      updates.date = date;
+      changesSummary.push(`Date: '${existing.date}' → '${date}'`);
+    }
+
+    const isTimingChanged =
+      (startTime && startTime !== existing.startTime) ||
+      (endTime && endTime !== existing.endTime) ||
+      (date && date !== existing.date) ||
+      (resourceId && resourceId !== existing.resourceId);
+
+    if (isTimingChanged) {
+      const startMins = timeToMinutes(targetStart);
+      const endMins = timeToMinutes(targetEnd);
+
+      if (endMins <= startMins) {
+        return res.status(400).json({ success: false, error: 'End time must be strictly after start time.' });
+      }
+
+      // Check conflict against other bookings for that resource & date
+      const conflict = await dbService.checkConflict(
+        targetResourceId,
+        targetDate,
+        targetStart,
+        targetEnd,
+        existing.id
+      );
+
+      if (conflict.hasConflict) {
+        return res.status(409).json({
+          success: false,
+          error: `Time conflict with existing booking #${conflict.conflictingBooking?.id} (${conflict.conflictingBooking?.startTime} – ${conflict.conflictingBooking?.endTime}).`,
+        });
+      }
+
+      updates.startTime = targetStart;
+      updates.endTime = targetEnd;
+      const calcDuration = endMins - startMins;
+      updates.durationMinutes = durationMinutes !== undefined ? Number(durationMinutes) : calcDuration;
+      changesSummary.push(`Time: ${targetStart}–${targetEnd} (${updates.durationMinutes}m)`);
+    } else if (durationMinutes !== undefined && durationMinutes !== existing.durationMinutes) {
+      updates.durationMinutes = Number(durationMinutes);
+      changesSummary.push(`Duration: ${existing.durationMinutes}m → ${durationMinutes}m`);
+    }
+
+    // 4. Financial & Pricing
+    if (totalAmount !== undefined && Number(totalAmount) !== existing.totalAmount) {
+      updates.totalAmount = Number(totalAmount);
+      changesSummary.push(`Price: ₹${existing.totalAmount} → ₹${totalAmount}`);
+    }
+
+    if (paymentStatus && paymentStatus !== existing.paymentStatus) {
+      updates.paymentStatus = paymentStatus as PaymentStatus;
+      changesSummary.push(`Payment Status: '${existing.paymentStatus}' → '${paymentStatus}'`);
+    }
+
+    if (paymentMethod !== undefined) {
+      updates.paymentMethod = paymentMethod;
+      changesSummary.push(`Payment Method: '${paymentMethod}'`);
+    }
+
+    if (paymentReference !== undefined) {
+      updates.paymentReference = paymentReference;
+      changesSummary.push(`Payment Ref: '${paymentReference}'`);
+    }
+
+    // 5. Booking Status & Notes
+    if (status && status !== existing.status) {
+      updates.status = status as BookingStatus;
+      changesSummary.push(`Status: '${existing.status}' → '${status}'`);
+    }
+
+    if (notes !== undefined && notes !== existing.notes) {
+      updates.notes = notes;
+      changesSummary.push('Notes updated');
+    }
+
+    // Preserve actual session timestamps — do NOT silently overwrite them
+    if (existing.actualStartTime) updates.actualStartTime = existing.actualStartTime;
+    if (existing.actualEndTime) updates.actualEndTime = existing.actualEndTime;
+    if (existing.sessionStartedAt) updates.sessionStartedAt = existing.sessionStartedAt;
+    if (existing.sessionEndedAt) updates.sessionEndedAt = existing.sessionEndedAt;
+    if (existing.sessionStartedBy) updates.sessionStartedBy = existing.sessionStartedBy;
+    if (existing.sessionEndedBy) updates.sessionEndedBy = existing.sessionEndedBy;
+    if (existing.actualPlayDurationMinutes !== undefined) {
+      updates.actualPlayDurationMinutes = existing.actualPlayDurationMinutes;
+    }
+
+    // Append audit log if any fields changed
+    if (changesSummary.length > 0) {
+      const nowIso = new Date().toISOString();
+      const adminUser = (req as any).adminUser || 'Admin Staff';
+      const auditLog: any = {
+        action: 'STATUS_CHANGE',
+        timestamp: nowIso,
+        performedBy: adminUser,
+        details: `Booking edited by admin: ${changesSummary.join(', ')}`,
+      };
+      const existingLogs = Array.isArray(existing.auditLogs) ? existing.auditLogs : [];
+      updates.auditLogs = [...existingLogs, auditLog];
+    }
 
     const updated = await dbService.updateBooking(req.params.id, updates);
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Booking not found.' });
     }
 
-    return res.json({ success: true, message: 'Booking updated.', data: updated });
+    return res.json({
+      success: true,
+      message: changesSummary.length > 0 ? `Booking updated: ${changesSummary.join(', ')}` : 'No changes detected.',
+      data: updated,
+    });
   } catch (err: any) {
     console.error('Error updating booking:', err);
-    return res.status(500).json({ success: false, error: 'Failed to update booking.' });
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update booking.' });
   }
 });
 

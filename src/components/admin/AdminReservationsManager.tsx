@@ -29,10 +29,16 @@ import {
 
 interface AdminReservationsManagerProps {
   passcode: string;
+  initialSubTab?: 'dining' | 'events';
+  highlightRef?: string;
 }
 
-export const AdminReservationsManager: React.FC<AdminReservationsManagerProps> = ({ passcode }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'dining' | 'events'>('dining');
+export const AdminReservationsManager: React.FC<AdminReservationsManagerProps> = ({
+  passcode,
+  initialSubTab,
+  highlightRef,
+}) => {
+  const [activeSubTab, setActiveSubTab] = useState<'dining' | 'events'>(() => initialSubTab || 'dining');
 
   // Dining state
   const [diningList, setDiningList] = useState<DiningReservation[]>([]);
@@ -46,9 +52,17 @@ export const AdminReservationsManager: React.FC<AdminReservationsManagerProps> =
 
   // Common filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(() => highlightRef || '');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialSubTab) setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
+
+  useEffect(() => {
+    if (highlightRef) setSearchQuery(highlightRef);
+  }, [highlightRef]);
 
   // Notes editing state
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -289,7 +303,7 @@ export const AdminReservationsManager: React.FC<AdminReservationsManagerProps> =
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-brand-surface border border-brand-border rounded-xl p-3">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           {/* Search */}
-          <div className="relative min-w-[200px] flex-1">
+          <div className="relative min-w-0 w-full sm:min-w-[200px] flex-1">
             <Search className="w-3.5 h-3.5 text-brand-subtle absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -828,8 +842,8 @@ export const AdminReservationsManager: React.FC<AdminReservationsManagerProps> =
 
       {/* Delete Confirmation Modal */}
       {deletingItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-red-500/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-red-500/40 rounded-2xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center gap-3 text-red-400">
               <AlertCircle className="w-6 h-6" />
               <h3 className="font-serif text-lg font-bold text-white">Permanently Delete Reservation?</h3>

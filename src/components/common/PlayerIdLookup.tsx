@@ -314,13 +314,13 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
       <div
         className={`rounded-2xl p-4 border bg-gradient-to-r from-[#4B494A]/10 via-[#ED249B]/5 to-transparent border-[#ED249B]/30 ${className}`}
       >
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ED249B] to-[#F9A20B] flex items-center justify-center text-white shadow-md shadow-[#ED249B]/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ED249B] to-[#F9A20B] flex items-center justify-center text-white shadow-md shadow-[#ED249B]/20 shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <span className="font-bold text-neutral-900 dark:text-white">{verifiedPlayer.name}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-[#ED249B]/10 text-[#ED249B] border border-[#ED249B]/20">
                   {verifiedPlayer.gioId}
@@ -337,7 +337,7 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
           <button
             type="button"
             onClick={handleClear}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-red-500 hover:border-red-400 transition"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-red-500 hover:border-red-400 transition self-start sm:self-auto"
           >
             Change Player
           </button>
@@ -569,14 +569,14 @@ export const PlayerIdLookup: React.FC<PlayerIdLookupProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleLookup} className="flex items-center gap-2">
-          <div className="relative">
+        <form onSubmit={handleLookup} className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <input
               type="text"
               placeholder="e.g. GIO-7A2B9C"
               value={gioIdInput}
               onChange={handleInputChange}
-              className="w-36 md:w-40 px-3 py-1.5 text-xs font-mono font-bold tracking-wider uppercase rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ED249B]"
+              className="w-full sm:w-36 md:w-40 px-3 py-1.5 text-xs font-mono font-bold tracking-wider uppercase rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ED249B]"
             />
           </div>
           <button

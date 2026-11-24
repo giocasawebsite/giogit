@@ -38,7 +38,25 @@ export function useAdminLiveSync({
       setStatus('healthy');
       setLastSyncedAt(new Date());
     } catch (err: any) {
-      // Graceful error handling - log warning and allow next 3s tick to retry
+      const isAuthError =
+        err?.isAuthError ||
+        err?.status === 401 ||
+        err?.message?.includes('401') ||
+        err?.message?.includes('Unauthorized') ||
+        err?.message?.includes('Session expired');
+
+      if (isAuthError) {
+        // Stop timer immediately on authentication failure to prevent repeated 401 requests every 3s
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setStatus('error');
+        console.warn('[AdminLiveSync] Admin authentication expired or invalid. Background sync halted.');
+        return;
+      }
+
+      // Graceful error handling for temporary network glitches - retry on next interval
       console.warn('[AdminLiveSync] Background sync notice (retrying in 3s):', err?.message || err);
       setStatus('error');
     } finally {

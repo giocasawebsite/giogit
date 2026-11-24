@@ -22,10 +22,18 @@ import {
   Tag,
   ShieldCheck,
   Flame,
-  Upload
+  Upload,
+  Calendar,
+  Eye,
+  Play,
+  Square,
+  User,
+  Phone,
+  Check
 } from 'lucide-react';
-import { GamingResource, GameItem, EquipmentSummary } from '../../types';
+import { GamingResource, GameItem, EquipmentSummary, Booking, TimeSlot } from '../../types';
 import { equipmentApi } from '../../services/equipmentApi';
+import { bookingApi } from '../../services/bookingApi';
 import { imageUploadService, compressImage } from '../../services/imageUploadService';
 
 interface AdminEquipmentManagerProps {
@@ -91,6 +99,118 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [machineUploading, setMachineUploading] = useState<boolean>(false);
   const [gameUploading, setGameUploading] = useState<boolean>(false);
+
+  // Availability Inspector Drawer state (Requirement 5)
+  const [selectedStationForAvailability, setSelectedStationForAvailability] = useState<GamingResource | null>(null);
+  const [inspectorDate, setInspectorDate] = useState<string>(() => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  });
+  const [inspectorSlots, setInspectorSlots] = useState<TimeSlot[]>([]);
+  const [inspectorBookings, setInspectorBookings] = useState<Booking[]>([]);
+  const [inspectorOperatingHours, setInspectorOperatingHours] = useState<{ open: string; close: string }>({ open: '11:00', close: '23:00' });
+  const [inspectorLoading, setInspectorLoading] = useState<boolean>(false);
+  const [inspectorError, setInspectorError] = useState<string | null>(null);
+  const [inspectorActionLoading, setInspectorActionLoading] = useState<boolean>(false);
+
+  // Time format helper (12-hour AM/PM)
+  const formatTime12 = (time24?: string): string => {
+    if (!time24) return '';
+    const [hStr, mStr] = time24.split(':');
+    const h = parseInt(hStr, 10);
+    const m = mStr || '00';
+    if (isNaN(h)) return time24;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${m} ${ampm}`;
+  };
+
+  const formatTimestampTime = (iso?: string): string => {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  // Fetch live availability & bookings for selected station and date
+  const loadStationAvailability = async (resourceId: string, date: string) => {
+    setInspectorLoading(true);
+    setInspectorError(null);
+    try {
+      const todayKolkata = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      let availSlots: TimeSlot[] = [];
+      let opHours = { open: '11:00', close: '23:00' };
+
+      if (date >= todayKolkata) {
+        try {
+          const availRes = await bookingApi.getAvailability(resourceId, date, 30);
+          availSlots = availRes.slots || [];
+          if (availRes.operatingHours) opHours = availRes.operatingHours;
+        } catch (e: any) {
+          console.warn('Could not fetch slot availability:', e);
+        }
+      }
+
+      const bookingsRes = await bookingApi.getAdminBookings(passcode, { resourceId, date });
+      setInspectorSlots(availSlots);
+      setInspectorOperatingHours(opHours);
+      setInspectorBookings(bookingsRes || []);
+    } catch (err: any) {
+      setInspectorError(err.message || 'Failed to load station schedule from server.');
+    } finally {
+      setInspectorLoading(false);
+    }
+  };
+
+  const handleOpenAvailabilityInspector = (station: GamingResource) => {
+    setSelectedStationForAvailability(station);
+    loadStationAvailability(station.id, inspectorDate);
+  };
+
+  const handleInspectorDateChange = (newDate: string) => {
+    setInspectorDate(newDate);
+    if (selectedStationForAvailability) {
+      loadStationAvailability(selectedStationForAvailability.id, newDate);
+    }
+  };
+
+  const handleInspectorStartPlay = async (bookingId: string) => {
+    if (inspectorActionLoading) return;
+    setInspectorActionLoading(true);
+    try {
+      await bookingApi.startSession(passcode, bookingId);
+      if (selectedStationForAvailability) {
+        await loadStationAvailability(selectedStationForAvailability.id, inspectorDate);
+      }
+      if (onRefreshData) onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to start session');
+    } finally {
+      setInspectorActionLoading(false);
+    }
+  };
+
+  const handleInspectorEndPlay = async (bookingId: string) => {
+    if (inspectorActionLoading) return;
+    setInspectorActionLoading(true);
+    try {
+      await bookingApi.endSession(passcode, bookingId);
+      if (selectedStationForAvailability) {
+        await loadStationAvailability(selectedStationForAvailability.id, inspectorDate);
+      }
+      if (onRefreshData) onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to end session');
+    } finally {
+      setInspectorActionLoading(false);
+    }
+  };
 
   const handleMachineImageUpload = async (file: File) => {
     if (!file) return;
@@ -644,10 +764,16 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
               .filter(s => categoryFilter === 'all' || s.category === categoryFilter)
               .map(catSummary => {
                 const isOperating = catSummary.availableMachines > 0;
+                const representativeStation = resources.find(r => r.category === catSummary.category && r.active) || resources.find(r => r.category === catSummary.category);
+
                 return (
                   <div
                     key={catSummary.category}
-                    className="p-5 rounded-2xl bg-brand-surface border border-brand-border/70 hover:border-brand-blue/40 transition-all flex flex-col justify-between space-y-4 shadow-lg group"
+                    onClick={() => {
+                      if (representativeStation) handleOpenAvailabilityInspector(representativeStation);
+                    }}
+                    className="p-5 rounded-2xl bg-brand-surface border border-brand-border/70 hover:border-brand-blue/60 transition-all flex flex-col justify-between space-y-4 shadow-lg group cursor-pointer hover:shadow-brand-blue/10 relative"
+                    title="Click to view live availability & slot schedule"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
@@ -655,8 +781,9 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                           <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-brand-blue px-2 py-0.5 rounded-full bg-brand-blue/10 border border-brand-blue/30">
                             {catSummary.category}
                           </span>
-                          <h3 className="text-base font-bold text-white mt-1 group-hover:text-brand-blue transition-colors">
-                            {catSummary.name}
+                          <h3 className="text-base font-bold text-white mt-1 group-hover:text-brand-blue transition-colors flex items-center gap-1.5">
+                            <span>{catSummary.name}</span>
+                            <Eye className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-brand-blue" />
                           </h3>
                         </div>
                         <span className="text-xs font-mono font-bold text-brand-gold bg-brand-surfaceElevated px-2 py-1 rounded-lg border border-brand-border">
@@ -683,10 +810,17 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                           <span className="text-base font-bold font-mono text-amber-400">{catSummary.maintenanceMachines}</span>
                         </div>
                       </div>
+
+                      <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-blue/80 font-mono">
+                        <span className="flex items-center gap-1 group-hover:text-brand-blue transition-colors">
+                          <Calendar className="w-3 h-3" />
+                          View live 30m slots & schedule →
+                        </span>
+                      </div>
                     </div>
 
                     {/* Machine Quantity Control Bar */}
-                    <div className="flex items-center justify-between pt-3 border-t border-brand-border/50">
+                    <div className="flex items-center justify-between pt-3 border-t border-brand-border/50" onClick={(e) => e.stopPropagation()}>
                       <div className="text-[11px] text-brand-subtle flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5" />
                         <span>{catSummary.minPlayers}-{catSummary.maxPlayers} players</span>
@@ -695,7 +829,11 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                       <div className="flex items-center gap-1.5">
                         {/* Decrease quantity button */}
                         <button
-                          onClick={() => handleAdjustQuantity(catSummary.category, -1)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdjustQuantity(catSummary.category, -1);
+                          }}
                           disabled={actionLoadingId === `qty-${catSummary.category}--1` || catSummary.totalMachines <= 1}
                           className="w-8 h-8 rounded-lg bg-brand-surfaceElevated border border-brand-border/70 hover:border-brand-pink/60 text-brand-subtle hover:text-brand-pink flex items-center justify-center font-bold text-sm disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-all"
                           title="Decrease available machines (safe check)"
@@ -709,7 +847,11 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
 
                         {/* Increase quantity button */}
                         <button
-                          onClick={() => handleAdjustQuantity(catSummary.category, 1)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdjustQuantity(catSummary.category, 1);
+                          }}
                           disabled={actionLoadingId === `qty-${catSummary.category}-1`}
                           className="w-8 h-8 rounded-lg bg-brand-blue/20 border border-brand-blue/50 hover:bg-brand-blue text-brand-blue hover:text-white flex items-center justify-center font-bold text-sm active:scale-95 transition-all"
                           title="Add new machine unit"
@@ -747,21 +889,25 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                   return (
                     <div
                       key={res.id}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-brand-surfaceElevated/50 transition-colors"
+                      onClick={() => handleOpenAvailabilityInspector(res)}
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-brand-surfaceElevated/60 transition-colors cursor-pointer group"
+                      title="Click to view live availability, 30-min slot grid, and day's bookings"
                     >
                       <div className="flex items-center gap-3.5">
                         {/* Machine Identifier Badge */}
                         <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 border ${
                           isMaintenance
                             ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                            : 'bg-brand-surfaceElevated border-brand-blue/40 text-brand-blue'
+                            : 'bg-brand-surfaceElevated border-brand-blue/40 text-brand-blue group-hover:border-brand-blue'
                         }`}>
                           {res.machineIdentifier || res.id.slice(0, 6).toUpperCase()}
                         </div>
 
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm text-white">{res.name}</span>
+                            <span className="font-semibold text-sm text-white group-hover:text-brand-blue transition-colors flex items-center gap-1.5">
+                              {res.name}
+                            </span>
                             <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-brand-surfaceElevated border border-brand-border text-brand-subtle">
                               {res.category}
                             </span>
@@ -796,10 +942,27 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                       </div>
 
                       {/* Action buttons for station */}
-                      <div className="flex items-center gap-2 self-end sm:self-center">
+                      <div className="flex items-center gap-2 self-end sm:self-center" onClick={(e) => e.stopPropagation()}>
+                        {/* Slots & Schedule Inspector */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAvailabilityInspector(res);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-brand-blue/15 border border-brand-blue/40 text-brand-blue hover:bg-brand-blue hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                          title="View live 30-min slot grid and bookings for this station"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Slots & Schedule</span>
+                        </button>
+
                         {/* Maintenance Toggle */}
                         <button
-                          onClick={() => handleOpenMaintenance(res)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenMaintenance(res);
+                          }}
                           disabled={isBusy}
                           className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
                             isMaintenance
@@ -814,7 +977,10 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
 
                         {/* Edit Machine */}
                         <button
-                          onClick={() => handleOpenEditMachine(res)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditMachine(res);
+                          }}
                           className="p-2 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue/60 text-brand-subtle hover:text-white transition-all"
                           title="Edit station details"
                         >
@@ -823,7 +989,10 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
 
                         {/* Delete Machine */}
                         <button
-                          onClick={() => handleOpenDelete('equipment', res.id, res.name, res.category)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDelete('equipment', res.id, res.name, res.category);
+                          }}
                           className="p-2 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-pink/60 text-brand-subtle hover:text-brand-pink transition-all"
                           title="Delete machine station (safe check)"
                         >
@@ -945,8 +1114,8 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
       {/* MODAL: ADD / EDIT MACHINE STATION */}
       {/* ========================================================================= */}
       {showMachineModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-[#0D0D12] border border-brand-border/80 shadow-2xl overflow-hidden p-6 space-y-5 animate-scale-up">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl bg-[#0D0D12] border border-brand-border/80 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-5 animate-scale-up max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-brand-border/40">
               <div className="flex items-center gap-2">
                 <Gamepad2 className="w-5 h-5 text-brand-blue" />
@@ -1102,8 +1271,8 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
       {/* MODAL: ADD / EDIT GAME */}
       {/* ========================================================================= */}
       {showGameModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-[#0D0D12] border border-brand-border/80 shadow-2xl overflow-hidden p-6 space-y-5 animate-scale-up">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl bg-[#0D0D12] border border-brand-border/80 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-5 animate-scale-up max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-brand-border/40">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-brand-pink" />
@@ -1258,8 +1427,8 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
       {/* MODAL: TOGGLE MAINTENANCE REASON */}
       {/* ========================================================================= */}
       {maintenanceTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#0D0D12] border border-amber-500/40 p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-md rounded-3xl bg-[#0D0D12] border border-amber-500/40 p-5 sm:p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                 <Wrench className="w-5 h-5" />
@@ -1320,8 +1489,8 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
       {/* MODAL: DELETE CONFIRMATION & ACTIVE BOOKING WARNING */}
       {/* ========================================================================= */}
       {deleteConfirmTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#0D0D12] border border-brand-pink/50 p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-md rounded-3xl bg-[#0D0D12] border border-brand-pink/50 p-5 sm:p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-brand-pink/20 text-brand-pink flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -1364,6 +1533,416 @@ export const AdminEquipmentManager: React.FC<AdminEquipmentManagerProps> = ({ pa
                   <span>{isDeleting ? 'Verifying...' : 'Confirm Delete'}</span>
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* DRAWER / MODAL: COMPLETE EQUIPMENT AVAILABILITY & SCHEDULE INSPECTOR */}
+      {/* ========================================================================= */}
+      {selectedStationForAvailability && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end animate-fade-in"
+          onClick={() => setSelectedStationForAvailability(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-[#0D0D12] border-l border-brand-border/80 shadow-2xl h-full flex flex-col overflow-hidden animate-slide-in-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-b from-brand-surfaceElevated to-brand-surface border-b border-brand-border/70 space-y-3 shrink-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-lg bg-brand-blue/20 text-brand-blue border border-brand-blue/40">
+                      {selectedStationForAvailability.machineIdentifier || selectedStationForAvailability.id.toUpperCase()}
+                    </span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-brand-surface border border-brand-border text-brand-subtle">
+                      {selectedStationForAvailability.category}
+                    </span>
+                    <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${
+                      (selectedStationForAvailability.floorLocation === '1st Floor' || selectedStationForAvailability.category === 'pool')
+                        ? 'bg-brand-orange/15 border-brand-orange/40 text-brand-orange font-bold'
+                        : 'bg-brand-blue/15 border-brand-blue/40 text-brand-blue font-bold'
+                    }`}>
+                      {selectedStationForAvailability.floorLocation || (selectedStationForAvailability.category === 'pool' ? '1st Floor' : 'Basement')}
+                    </span>
+                    {selectedStationForAvailability.isMaintenance ? (
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
+                        Maintenance
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                        Active & Bookable
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-serif font-bold text-white tracking-tight">
+                    {selectedStationForAvailability.name}
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadStationAvailability(selectedStationForAvailability.id, inspectorDate)}
+                    disabled={inspectorLoading}
+                    className="p-2 rounded-xl bg-brand-surface border border-brand-border text-brand-subtle hover:text-white hover:border-brand-blue/50 transition-all cursor-pointer"
+                    title="Refresh schedule & bookings without closing"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${inspectorLoading ? 'animate-spin text-brand-blue' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStationForAvailability(null)}
+                    className="p-2 rounded-xl bg-brand-surface border border-brand-border text-brand-subtle hover:text-white transition-all cursor-pointer"
+                    title="Close schedule inspector"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Station Info Row */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-brand-subtle pt-1 font-mono">
+                <span>Rate: <strong className="text-brand-gold">₹{selectedStationForAvailability.ratePerHour}/hr</strong></span>
+                <span>•</span>
+                <span>Capacity: <strong className="text-white">{selectedStationForAvailability.playersCapacity.min}-{selectedStationForAvailability.playersCapacity.max} Players</strong></span>
+                <span>•</span>
+                <span>Resource ID: <code className="text-white/80">{selectedStationForAvailability.id}</code></span>
+                <span>•</span>
+                <span>Total Units: <strong className="text-white">{summary.find(s => s.category === selectedStationForAvailability.category)?.totalMachines || 1}</strong></span>
+              </div>
+
+              {/* Fast Unit Switcher */}
+              <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1 text-xs scrollbar-none">
+                <span className="text-[10px] font-mono uppercase text-brand-subtle shrink-0">Switch Unit:</span>
+                {resources.filter(r => r.active).map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => handleOpenAvailabilityInspector(r)}
+                    className={`px-2.5 py-1 rounded-lg font-mono text-[11px] whitespace-nowrap border transition-all cursor-pointer ${
+                      r.id === selectedStationForAvailability.id
+                        ? 'bg-brand-blue text-white border-brand-blue shadow-sm font-bold'
+                        : 'bg-brand-surface border-brand-border text-brand-subtle hover:text-white'
+                    }`}
+                  >
+                    {r.machineIdentifier || r.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+              {/* Date Selection Bar & Remaining Free Slots */}
+              <div className="p-4 rounded-2xl bg-brand-surface border border-brand-border/70 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-brand-subtle block mb-1">
+                      Availability Date (Asia/Kolkata)
+                    </label>
+                    <input
+                      type="date"
+                      value={inspectorDate}
+                      onChange={(e) => handleInspectorDateChange(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl bg-brand-surfaceElevated border border-brand-border text-white text-xs font-mono focus:outline-none focus:border-brand-blue"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-start sm:self-end">
+                    <button
+                      type="button"
+                      onClick={() => handleInspectorDateChange(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))}
+                      className="px-2.5 py-1.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue/50 text-[11px] font-mono text-brand-subtle hover:text-white transition-all cursor-pointer"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() + 1);
+                        handleInspectorDateChange(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-brand-surfaceElevated border border-brand-border hover:border-brand-blue/50 text-[11px] font-mono text-brand-subtle hover:text-white transition-all cursor-pointer"
+                    >
+                      Tomorrow
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slot Summary Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-brand-border/40 text-center font-mono">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    <span className="text-[9px] text-emerald-400 uppercase block">Remaining Free</span>
+                    <span className="text-base font-bold text-emerald-400">
+                      {inspectorSlots.filter(s => s.status === 'available').length}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-brand-blue/10 border border-brand-blue/30">
+                    <span className="text-[9px] text-brand-blue uppercase block">Booked Slots</span>
+                    <span className="text-base font-bold text-brand-blue">
+                      {inspectorSlots.filter(s => s.status === 'booked').length}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                    <span className="text-[9px] text-purple-400 uppercase block">In Play Now</span>
+                    <span className="text-base font-bold text-purple-400">
+                      {inspectorSlots.filter(s => s.status === 'playing').length}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-brand-surfaceElevated border border-brand-border/50">
+                    <span className="text-[9px] text-brand-subtle uppercase block">Operating Hours</span>
+                    <span className="text-xs font-bold text-white mt-0.5 block">
+                      {formatTime12(inspectorOperatingHours.open)} - {formatTime12(inspectorOperatingHours.close)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION: 30-MINUTE AVAILABILITY SLOT GRID */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-subtle flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-brand-blue" />
+                    <span>30-Minute Availability Slot Grid ({inspectorSlots.length} intervals)</span>
+                  </h4>
+                  {inspectorLoading && (
+                    <span className="text-[10px] font-mono text-brand-blue animate-pulse">Syncing...</span>
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-brand-subtle">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                    Available
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-brand-blue inline-block"></span>
+                    Booked
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse"></span>
+                    Currently Playing
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-stone-600 inline-block"></span>
+                    Unavailable / Passed / Maint.
+                  </span>
+                </div>
+
+                {inspectorSlots.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-brand-subtle bg-brand-surface/40 rounded-2xl border border-brand-border/40">
+                    {inspectorDate < new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+                      ? 'Slot availability is not generated for past dates. View recorded bookings below.'
+                      : 'No slot schedule found for this date.'}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1 border border-brand-border/40 rounded-2xl bg-brand-surface/30">
+                    {inspectorSlots.map((slot, idx) => {
+                      let statusStyle = 'bg-stone-800/40 border-stone-700/50 text-stone-400';
+                      let statusLabel = 'Unavailable';
+                      let icon = null;
+
+                      if (slot.status === 'available') {
+                        statusStyle = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20';
+                        statusLabel = 'Available';
+                        icon = <Check className="w-3 h-3 text-emerald-400" />;
+                      } else if (slot.status === 'playing') {
+                        statusStyle = 'bg-purple-500/20 border-purple-500/50 text-purple-200 animate-pulse font-bold';
+                        statusLabel = 'In Play';
+                        icon = <Play className="w-3 h-3 text-purple-300 fill-current" />;
+                      } else if (slot.status === 'booked') {
+                        statusStyle = 'bg-brand-blue/15 border-brand-blue/40 text-brand-blue';
+                        statusLabel = 'Booked';
+                        icon = <Clock className="w-3 h-3 text-brand-blue" />;
+                      } else if (selectedStationForAvailability.isMaintenance) {
+                        statusStyle = 'bg-amber-500/10 border-amber-500/30 text-amber-300';
+                        statusLabel = 'Maintenance';
+                        icon = <Wrench className="w-3 h-3 text-amber-400" />;
+                      }
+
+                      return (
+                        <div
+                          key={`${slot.startTime}-${idx}`}
+                          className={`p-2.5 rounded-xl border text-xs flex flex-col justify-between transition-all ${statusStyle}`}
+                          title={slot.reason || statusLabel}
+                        >
+                          <div className="flex items-center justify-between font-mono font-bold text-[11px]">
+                            <span>{slot.startTime}</span>
+                            <span className="text-[10px] opacity-75">→ {slot.endTime}</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1.5 text-[10px] uppercase font-mono font-semibold">
+                            {icon}
+                            <span className="truncate">{statusLabel}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION: ALL UPCOMING & DAY'S BOOKINGS FOR THIS SPECIFIC EQUIPMENT */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-subtle flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-brand-pink" />
+                    <span>Bookings for this Station on {inspectorDate} ({inspectorBookings.length})</span>
+                  </h4>
+                  <span className="text-[10px] font-mono text-brand-subtle">Real-time MongoDB Data</span>
+                </div>
+
+                {inspectorBookings.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-brand-subtle bg-brand-surface/40 rounded-2xl border border-brand-border/40">
+                    No bookings scheduled for this station on {inspectorDate}. All slots are completely free.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {inspectorBookings.map((b) => {
+                      const isPlaying = b.status === 'active';
+                      const isCompleted = b.status === 'completed';
+                      const isConfirmed = b.status === 'confirmed';
+                      const isCancelled = b.status === 'cancelled';
+
+                      return (
+                        <div
+                          key={b.id}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isPlaying
+                              ? 'bg-purple-950/20 border-purple-500/50 shadow-md'
+                              : isCompleted
+                              ? 'bg-brand-surface/40 border-brand-border/50 opacity-90'
+                              : isCancelled
+                              ? 'bg-stone-900/40 border-stone-800 text-stone-500'
+                              : 'bg-brand-surface border-brand-border/70 hover:border-brand-blue/50'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-brand-border/40">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-white text-sm">{b.customerName}</span>
+                                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border font-bold ${
+                                  isPlaying
+                                    ? 'bg-purple-500/20 border-purple-500/50 text-purple-300 animate-pulse'
+                                    : isCompleted
+                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                                    : isCancelled
+                                    ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                                    : 'bg-brand-blue/15 border-brand-blue/40 text-brand-blue'
+                                }`}>
+                                  {isPlaying ? '● Playing Now' : b.status}
+                                </span>
+                                <span className="text-[10px] font-mono text-brand-subtle bg-brand-surfaceElevated px-1.5 py-0.5 rounded border border-brand-border">
+                                  #{b.id}
+                                </span>
+                              </div>
+
+                              {/* Customer contact for staff reference */}
+                              <div className="flex items-center gap-3 text-xs text-brand-subtle mt-1 font-mono flex-wrap">
+                                <a
+                                  href={`tel:${b.phone}`}
+                                  className="flex items-center gap-1 hover:text-white transition-colors"
+                                  title="Staff reference: Click to call"
+                                >
+                                  <Phone className="w-3 h-3 text-brand-pink" />
+                                  <span>{b.phone}</span>
+                                </a>
+                                {b.email && (
+                                  <span className="text-brand-subtle/70">
+                                    • {b.email}
+                                  </span>
+                                )}
+                                {b.guestCode && (
+                                  <span className="text-brand-gold font-bold">
+                                    • Code: {b.guestCode}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-left sm:text-right">
+                              <div className="font-bold font-mono text-white text-sm">
+                                ₹{b.totalAmount || (b as any).totalPrice || 0}
+                              </div>
+                              <span className={`text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded ${
+                                b.paymentStatus === 'paid'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              }`}>
+                                {b.paymentStatus}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-brand-cream font-mono">
+                                <Clock className="w-3.5 h-3.5 text-brand-gold" />
+                                <span className="font-bold">{formatTime12(b.startTime)} – {formatTime12(b.endTime)}</span>
+                                <span className="text-brand-subtle">({b.durationMinutes} mins • {b.numberOfPeople} Players)</span>
+                              </div>
+
+                              {/* Actual session timestamps */}
+                              {(b.actualStartTime || b.sessionStartedAt) && (
+                                <div className="text-[11px] font-mono text-emerald-300 flex items-center gap-1">
+                                  <span>Started: {b.actualStartTime || formatTimestampTime(b.sessionStartedAt)}</span>
+                                  {(b.actualEndTime || b.sessionEndedAt) && (
+                                    <span>• Ended: {b.actualEndTime || formatTimestampTime(b.sessionEndedAt)} ({b.actualPlayDurationMinutes || b.durationMinutes}m)</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Start Play / End Play actions */}
+                            <div className="flex items-center gap-2 self-start sm:self-center">
+                              {(isConfirmed || b.status === 'pending') && (
+                                <button
+                                  type="button"
+                                  disabled={inspectorActionLoading}
+                                  onClick={() => handleInspectorStartPlay(b.id)}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                                  title="Mark play session started in MongoDB"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Start Play</span>
+                                </button>
+                              )}
+
+                              {isPlaying && (
+                                <button
+                                  type="button"
+                                  disabled={inspectorActionLoading}
+                                  onClick={() => handleInspectorEndPlay(b.id)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                                  title="Complete play session and calculate duration"
+                                >
+                                  <Square className="w-3.5 h-3.5 fill-current" />
+                                  <span>End Play</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Staff Security Notice */}
+              <div className="p-3.5 rounded-xl bg-brand-surfaceElevated border border-brand-border/40 text-[11px] text-brand-subtle font-mono flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-brand-blue shrink-0" />
+                <span>
+                  Staff Reference: Customer contact details are restricted to authorized GioCasa personnel for booking verification and active session tracking.
+                </span>
+              </div>
             </div>
           </div>
         </div>

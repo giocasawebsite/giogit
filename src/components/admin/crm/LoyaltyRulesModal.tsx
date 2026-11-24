@@ -64,8 +64,8 @@ export const LoyaltyRulesModal: React.FC<LoyaltyRulesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-xl bg-brand-surface border border-brand-border rounded-3xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+      <div className="relative w-full max-w-xl bg-brand-surface border border-brand-border rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-brand-border bg-gradient-to-r from-brand-pink/10 via-brand-orange/5 to-transparent">
           <div className="flex items-center gap-3">

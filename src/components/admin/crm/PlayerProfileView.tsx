@@ -1267,8 +1267,8 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
 
       {/* Loyalty Adjustment Modal */}
       {showLoyaltyModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto my-auto">
             <h3 className="font-serif text-xl font-bold text-white">Adjust Loyalty Points</h3>
             <p className="text-xs text-brand-subtle">
               Credit or debit points from {player.name}'s account. Every change creates a permanent audit ledger entry.
@@ -1347,8 +1347,8 @@ export const PlayerProfileView: React.FC<PlayerProfileViewProps> = ({
 
       {/* WhatsApp Outreach Modal */}
       {showWhatsAppModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs uppercase font-bold">
               <MessageCircle className="w-4 h-4 fill-current" />
               <span>Compose WhatsApp Direct Message</span>

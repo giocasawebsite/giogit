@@ -34,6 +34,7 @@ interface AdminTournamentsManagerProps {
   passcode: string;
   initialTab?: string;
   initialTournamentId?: string;
+  highlightRef?: string;
   onNavigatePublic: (slug: string) => void;
 }
 
@@ -41,6 +42,7 @@ export const AdminTournamentsManager: React.FC<AdminTournamentsManagerProps> = (
   passcode,
   initialTab,
   initialTournamentId,
+  highlightRef,
   onNavigatePublic,
 }) => {
   // Navigation within tournaments manager: 'list' | 'new' | 'edit' | 'registrations' | 'results'
@@ -96,8 +98,14 @@ export const AdminTournamentsManager: React.FC<AdminTournamentsManagerProps> = (
   const [registrations, setRegistrations] = useState<TournamentRegistration[]>([]);
   const [regTournament, setRegTournament] = useState<Tournament | null>(null);
   const [regLoading, setRegLoading] = useState<boolean>(false);
-  const [regSearch, setRegSearch] = useState<string>('');
+  const [regSearch, setRegSearch] = useState<string>(() => highlightRef || '');
   const [regStatusFilter, setRegStatusFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (highlightRef) {
+      setRegSearch(highlightRef);
+    }
+  }, [highlightRef]);
 
   // Results state
   const [resultsData, setResultsData] = useState<TournamentResult | null>(null);

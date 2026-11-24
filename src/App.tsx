@@ -95,6 +95,9 @@ export const App: React.FC = () => {
             adminTournamentId={currentRoute.params.adminTournamentId}
             adminSubTab={currentRoute.params.adminSubTab}
             adminPlayerId={currentRoute.params.adminPlayerId}
+            targetBookingId={currentRoute.params.bookingId}
+            targetRef={currentRoute.params.ref}
+            targetType={currentRoute.params.type}
           />
         );
       case 'tournaments':

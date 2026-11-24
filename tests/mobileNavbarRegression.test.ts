@@ -57,7 +57,7 @@ for (const route of requiredRoutes) {
   assert(navbarCode.includes(`id: '${route}'`), `Route '${route}' included in navigation list`);
 }
 assert(navbarCode.includes('Book Slot'), 'High-priority Book Slot CTA in drawer');
-assert(navbarCode.includes('Order Food'), 'Quick Order Food action present in drawer');
+assert(navbarCode.includes('Food Cart'), 'Quick Order Food action present in drawer');
 assert(navbarCode.includes('Player ID'), 'Player ID pass action present in drawer');
 assert(navbarCode.includes('Winners'), 'Winners / Hall of Fame action present in drawer');
 console.log('  ✅ [PASS] All public routes present with clear visual hierarchy');
